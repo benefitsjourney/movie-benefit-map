@@ -1,6 +1,20 @@
 spring:
+    application:
+        name: benefit-backend
+    # datasource
     datasource:
         driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
         url: jdbc:sqlserver://localhost:14330;database=BenefitsJourney;trustServerCertificate=true;
         username: sa
         password: BJourney@2026!
+
+    # jackson
+    jackson:
+        time-zone: Asia/Taipei
+
+    #JPA
+    jpa:
+        database-platform: org.hibernate.dialect.SQLServerDialect
+        show-sql: true
+        hibernate:
+            ddl-auto: update
