@@ -34,8 +34,8 @@ public class CinemaBean {
     @Column(name = "cinema_name", nullable = false, length = 64, comment = "影城名稱")
     private String cinemaName;
 
-    @Column(name = "address", length = 256, comment = "地址")
-    private String address;
+    @Column(name = "cinema_address", length = 256, comment = "地址")
+    private String cinemaAddress;
 
     @Column(name = "latitude", precision = 10, scale = 6, comment = "緯度")
     private BigDecimal latitude;
