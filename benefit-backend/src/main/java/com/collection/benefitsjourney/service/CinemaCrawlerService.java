@@ -11,6 +11,7 @@ import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Service;
 
 import com.collection.benefitsjourney.dto.CinemaCrawlerResponse;
+import com.collection.benefitsjourney.enums.County;
 
 @Service
 public class CinemaCrawlerService {
@@ -77,6 +78,8 @@ public class CinemaCrawlerService {
 
         String officialWebsiteUrl = getOfficialWebsiteUrl(cinemaUrl);
 
+        County county = getCounty(cinemaAddress);
+
         return new CinemaCrawlerResponse(
                 sourceId,
                 cinemaName,
@@ -84,7 +87,7 @@ public class CinemaCrawlerService {
                 null,
                 null,
                 officialWebsiteUrl,
-                null,
+                county,
                 true);
     }
 
@@ -109,7 +112,6 @@ public class CinemaCrawlerService {
     }
 
     /** 取得影城官方網站 */
-    /** 取得影城官方網站 */
     private String getOfficialWebsiteUrl(String cinemaUrl) {
         try {
             Document doc = Jsoup.connect(cinemaUrl)
@@ -132,5 +134,81 @@ public class CinemaCrawlerService {
         } catch (IOException e) {
             return null;
         }
+    }
+
+    /** 根據地址取得縣市 */
+    private County getCounty(String address) {
+        if (address == null || address.isBlank()) {
+            return County.UNKNOWN;
+        }
+
+        if (address.contains("基隆市")) {
+            return County.KEELUNG;
+        }
+        if (address.contains("台北市")) {
+            return County.TAIPEI;
+        }
+        if (address.contains("新北市")) {
+            return County.NEW_TAIPEI;
+        }
+        if (address.contains("桃園市")) {
+            return County.TAOYUAN;
+        }
+        if (address.contains("新竹市")) {
+            return County.HSINCHU;
+        }
+        if (address.contains("新竹縣")) {
+            return County.HSINCHU_COUNTY;
+        }
+        if (address.contains("宜蘭縣")) {
+            return County.YILAN;
+        }
+        if (address.contains("苗栗縣")) {
+            return County.MIAOLI;
+        }
+        if (address.contains("台中市")) {
+            return County.TAICHUNG;
+        }
+        if (address.contains("彰化縣")) {
+            return County.CHANGHUA;
+        }
+        if (address.contains("南投縣")) {
+            return County.NANTOU;
+        }
+        if (address.contains("雲林縣")) {
+            return County.YUNLIN;
+        }
+        if (address.contains("嘉義市")) {
+            return County.CHIAYI;
+        }
+        if (address.contains("嘉義縣")) {
+            return County.CHIAYI_COUNTY;
+        }
+        if (address.contains("台南市")) {
+            return County.TAINAN;
+        }
+        if (address.contains("高雄市")) {
+            return County.KAOHSIUNG;
+        }
+        if (address.contains("屏東縣")) {
+            return County.PINGTUNG;
+        }
+        if (address.contains("花蓮縣")) {
+            return County.HUALIEN;
+        }
+        if (address.contains("台東縣")) {
+            return County.TAITUNG;
+        }
+        if (address.contains("澎湖縣")) {
+            return County.PENGHU;
+        }
+        if (address.contains("金門縣")) {
+            return County.KINMEN;
+        }
+        if (address.contains("連江縣")) {
+            return County.LIENCHIANG;
+        }
+
+        return County.UNKNOWN;
     }
 }
