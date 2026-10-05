@@ -31,30 +31,33 @@ public class CinemaBean {
     @Column(name = "cinema_id", comment = "影城 ID")
     private Integer cinemaId;
 
+    @Column(name = "source_id", unique = true, length = 64, comment = "外部來源的影城辨認 ID")
+    private String sourceId;
+
     @Column(name = "cinema_name", nullable = false, length = 64, comment = "影城名稱")
     private String cinemaName;
-
-    @Column(name = "cinema_address", length = 256, comment = "地址")
-    private String cinemaAddress;
-
-    @Column(name = "latitude", precision = 10, scale = 6, comment = "緯度")
-    private BigDecimal latitude;
-
-    @Column(name = "longitude", precision = 10, scale = 6, comment = "經度")
-    private BigDecimal longitude;
-
-    @Column(name = "official_website_url", length = 512, comment = "影城官方網站連結")
-    private String officialWebsiteUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "county", nullable = false, comment = "縣市")
     private County county;
 
-    @Column(name = "is_visible", nullable = false, comment = "影城是否顯示")
-    private Boolean isVisible = true;
+    @Column(name = "cinema_address", length = 256, comment = "地址")
+    private String cinemaAddress;
 
-    @Column(name = "is_active", nullable = false, comment = "影城是否營業／啟用")
+    @Column(name = "latitude", precision = 10, scale = 7, comment = "緯度")
+    private BigDecimal latitude;
+
+    @Column(name = "longitude", precision = 10, scale = 7, comment = "經度")
+    private BigDecimal longitude;
+
+    @Column(name = "official_website_url", length = 512, comment = "影城官方網站連結")
+    private String officialWebsiteUrl;
+
+    @Column(name = "is_active", nullable = false, comment = "是否仍在營業")
     private Boolean isActive = true;
+
+    @Column(name = "is_visible", nullable = false, comment = "是否在前台顯示")
+    private Boolean isVisible = true;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, comment = "建立時間")
