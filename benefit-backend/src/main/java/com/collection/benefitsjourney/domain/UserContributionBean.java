@@ -2,7 +2,7 @@ package com.collection.benefitsjourney.domain;
 
 import java.time.LocalDateTime;
 
-import org.springframework.data.annotation.CreatedDate;
+import org.hibernate.annotations.CreationTimestamp;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -17,7 +17,7 @@ import lombok.Setter;
 @Table(name = "user_contribution")
 @Getter
 @Setter
-public class UserContribution {
+public class UserContributionBean {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -33,7 +33,7 @@ public class UserContribution {
     @Column(name = "reference_id", nullable = false)
     private Integer referenceId;
 
-    @CreatedDate
+    @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 }

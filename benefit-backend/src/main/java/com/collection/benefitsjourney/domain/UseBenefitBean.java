@@ -4,8 +4,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.LastModifiedDate;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -22,7 +22,7 @@ import lombok.Setter;
 @Table(name = "use_benefit")
 @Getter
 @Setter
-public class UseBenefit {
+public class UseBenefitBean {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,11 +35,11 @@ public class UseBenefit {
     @Column(name = "benefit_id", nullable = false)
     private Integer benefitId;
 
-    @CreatedDate
+    @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
-    @LastModifiedDate
+    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
@@ -48,5 +48,5 @@ public class UseBenefit {
         cascade = CascadeType.ALL,
         orphanRemoval = true
     )
-    private List<UseBenefitPhoto> photos = new ArrayList<>();
+    private List<UseBenefitPhotoBean> photos = new ArrayList<>();
 }

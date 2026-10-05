@@ -10,7 +10,7 @@ import java.time.LocalDateTime;
 @Table(name = "inventory_report")
 @Getter
 @Setter
-public class InventoryReport {
+public class InventoryReportBean {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -25,7 +25,7 @@ public class InventoryReport {
         name = "cinema_movie_benefit_id",
         nullable = false
     )
-    private CinemaMovieBenefit cinemaMovieBenefit;
+    private CinemaMovieBenefitBean cinemaMovieBenefit;
 
     @Column(name = "status", nullable = false)
     private Integer status;

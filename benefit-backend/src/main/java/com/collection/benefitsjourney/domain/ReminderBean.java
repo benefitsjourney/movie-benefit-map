@@ -23,7 +23,7 @@ import java.time.LocalDateTime;
 )
 @Getter
 @Setter
-public class Reminder {
+public class ReminderBean {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
