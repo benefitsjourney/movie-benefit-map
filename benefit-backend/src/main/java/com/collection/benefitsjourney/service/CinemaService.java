@@ -30,6 +30,7 @@ public class CinemaService {
     public CinemaResponse createCinema(CinemaCreateRequest request) {
         CinemaBean cinema = new CinemaBean();
 
+        cinema.setSourceId(request.sourceId());
         cinema.setCinemaName(request.cinemaName());
         cinema.setCounty(request.county());
         cinema.setCinemaAddress(request.cinemaAddress());

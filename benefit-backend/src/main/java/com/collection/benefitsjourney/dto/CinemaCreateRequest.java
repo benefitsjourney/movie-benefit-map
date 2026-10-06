@@ -5,11 +5,13 @@ import java.math.BigDecimal;
 import com.collection.benefitsjourney.enums.County;
 
 public record CinemaCreateRequest(
-        String cinemaName,
-        County county,
-        String cinemaAddress,
-        BigDecimal latitude,
-        BigDecimal longitude,
-        String officialWebsiteUrl,
-        Boolean isVisible) {
+                String sourceId,
+                String cinemaName,
+                County county,
+                String cinemaAddress,
+                BigDecimal latitude,
+                BigDecimal longitude,
+                String officialWebsiteUrl,
+                Boolean isActive,
+                Boolean isVisible) {
 }

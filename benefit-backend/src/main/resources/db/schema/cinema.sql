@@ -16,5 +16,6 @@ CREATE TABLE cinema (
     created_at DATETIME2 NOT NULL CONSTRAINT DF_cinema_created_at DEFAULT SYSDATETIME(),
     updated_at DATETIME2 NOT NULL CONSTRAINT DF_cinema_updated_at DEFAULT SYSDATETIME(),
 
+    CONSTRAINT UQ_cinema_source_id UNIQUE (source_id),
     CONSTRAINT PK_cinema PRIMARY KEY (cinema_id)
 );

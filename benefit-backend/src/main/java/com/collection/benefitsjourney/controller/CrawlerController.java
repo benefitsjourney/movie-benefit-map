@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.collection.benefitsjourney.dto.CinemaCrawlerResponse;
+import com.collection.benefitsjourney.dto.CinemaResponse;
 import com.collection.benefitsjourney.service.CinemaCrawlerService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,7 +23,7 @@ public class CrawlerController {
 
     @GetMapping("")
     @Operation(summary = "影城爬蟲")
-    public ResponseEntity<List<CinemaCrawlerResponse>> syncCinemas() {
+    public ResponseEntity<List<CinemaResponse>> syncCinemas() {
         return ResponseEntity.ok(crawlerService.syncCinemas());
     }
 }
