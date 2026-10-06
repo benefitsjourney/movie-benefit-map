@@ -24,6 +24,9 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class CinemaCrawlerService {
 
+    /** HTTP 請求最大等待時間 */
+    private static final int REQUEST_TIMEOUT_MS = 10000;
+
     /** 爬蟲網站影城列表頁面 */
     private static final String ATMOVIES_SHOWTIME_URL = "https://www.atmovies.com.tw/showtime/";
 
@@ -55,7 +58,7 @@ public class CinemaCrawlerService {
         try {
             List<CinemaResponse> cinemas = Jsoup.connect(ATMOVIES_SHOWTIME_URL)
                     .userAgent("Mozilla/5.0")
-                    .timeout(5000)
+                    .timeout(REQUEST_TIMEOUT_MS)
                     .get()
                     .select("a[href^=/showtime/a]")
                     .stream()
@@ -96,7 +99,7 @@ public class CinemaCrawlerService {
         try {
             Document doc = Jsoup.connect(areaUrl)
                     .userAgent("Mozilla/5.0")
-                    .timeout(5000)
+                    .timeout(REQUEST_TIMEOUT_MS)
                     .get();
 
             return doc.select("a[href^=/showtime/t]")
@@ -226,7 +229,7 @@ public class CinemaCrawlerService {
         try {
             Document doc = Jsoup.connect(mapUrl)
                     .userAgent("Mozilla/5.0")
-                    .timeout(5000)
+                    .timeout(REQUEST_TIMEOUT_MS)
                     .ignoreHttpErrors(true)
                     .get();
 
