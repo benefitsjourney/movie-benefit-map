@@ -38,7 +38,7 @@ public class CinemaBean {
     private String cinemaName;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "county", nullable = false, comment = "縣市")
+    @Column(name = "county", nullable = false, length = 32, comment = "縣市")
     private County county;
 
     @Column(name = "cinema_address", length = 256, comment = "地址")

@@ -22,7 +22,7 @@ public class CrawlerController {
     }
 
     @GetMapping("")
-    @Operation(summary = "影城爬蟲")
+    @Operation(summary = "爬取並同步影城資料")
     public ResponseEntity<List<CinemaResponse>> syncCinemas() {
         return ResponseEntity.ok(crawlerService.syncCinemas());
     }

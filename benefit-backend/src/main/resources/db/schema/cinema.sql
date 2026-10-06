@@ -13,8 +13,8 @@ CREATE TABLE cinema (
     official_website_url NVARCHAR(512) NULL,
     is_active BIT NOT NULL CONSTRAINT DF_cinema_is_active DEFAULT 1,
     is_visible BIT NOT NULL CONSTRAINT DF_cinema_is_visible DEFAULT 1,
-    created_at DATETIME2 NOT NULL CONSTRAINT DF_cinema_created_at DEFAULT SYSDATETIME(),
-    updated_at DATETIME2 NOT NULL CONSTRAINT DF_cinema_updated_at DEFAULT SYSDATETIME(),
+    created_at DATETIME2(0) NOT NULL CONSTRAINT DF_cinema_created_at DEFAULT SYSDATETIME(),
+    updated_at DATETIME2(0) NOT NULL CONSTRAINT DF_cinema_updated_at DEFAULT SYSDATETIME(),
 
     CONSTRAINT UQ_cinema_source_id UNIQUE (source_id),
     CONSTRAINT PK_cinema PRIMARY KEY (cinema_id)
