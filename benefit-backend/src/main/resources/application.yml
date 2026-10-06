@@ -15,6 +15,5 @@ spring:
     #JPA
     jpa:
         database-platform: org.hibernate.dialect.SQLServerDialect
-        show-sql: true
         hibernate:
             ddl-auto: validate

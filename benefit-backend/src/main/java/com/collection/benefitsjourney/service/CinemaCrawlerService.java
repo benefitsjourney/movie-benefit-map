@@ -1,7 +1,6 @@
 package com.collection.benefitsjourney.service;
 
 import java.io.IOException;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.List;
@@ -15,7 +14,8 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Service;
 
-import com.collection.benefitsjourney.dto.CinemaCrawlerResponse;
+import com.collection.benefitsjourney.dto.CinemaRequest;
+import com.collection.benefitsjourney.dto.CinemaResponse;
 import com.collection.benefitsjourney.enums.County;
 
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +23,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 public class CinemaCrawlerService {
+
+    /** HTTP 請求最大等待時間 */
+    private static final int REQUEST_TIMEOUT_MS = 10000;
 
     /** 爬蟲網站影城列表頁面 */
     private static final String ATMOVIES_SHOWTIME_URL = "https://www.atmovies.com.tw/showtime/";
@@ -42,14 +45,20 @@ public class CinemaCrawlerService {
             BigDecimal longitude) {
     }
 
+    private final CinemaService cinemaService;
+
+    public CinemaCrawlerService(CinemaService cinemaService) {
+        this.cinemaService = cinemaService;
+    }
+
     /** 同步爬取所有影城資料 */
-    public List<CinemaCrawlerResponse> syncCinemas() {
+    public List<CinemaResponse> syncCinemas() {
         long startTime = System.nanoTime();
 
         try {
-            List<CinemaCrawlerResponse> cinemas = Jsoup.connect(ATMOVIES_SHOWTIME_URL)
+            List<CinemaResponse> cinemas = Jsoup.connect(ATMOVIES_SHOWTIME_URL)
                     .userAgent("Mozilla/5.0")
-                    .timeout(5000)
+                    .timeout(REQUEST_TIMEOUT_MS)
                     .get()
                     .select("a[href^=/showtime/a]")
                     .stream()
@@ -62,10 +71,15 @@ public class CinemaCrawlerService {
                     .distinct()
                     .toList();
 
+            List<CinemaResponse> savedCinemas = cinemas.stream()
+                    .map(this::syncCinemasToDatabase)
+                    .toList();
+
             double seconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
 
-            log.info("影城爬蟲完成，共抓取 {} 間影城，耗時 {} 秒",
+            log.info("影城爬蟲完成，共抓取 {} 間影城，成功存入 {} 間，耗時 {} 秒",
                     cinemas.size(),
+                    savedCinemas.size(),
                     String.format("%.2f", seconds));
 
             return cinemas;
@@ -81,18 +95,18 @@ public class CinemaCrawlerService {
     }
 
     /** 抓取指定縣市的影城資料 */
-    private Stream<CinemaCrawlerResponse> getCinemasByAreaUrl(String areaUrl) {
+    private Stream<CinemaResponse> getCinemasByAreaUrl(String areaUrl) {
         try {
             Document doc = Jsoup.connect(areaUrl)
                     .userAgent("Mozilla/5.0")
-                    .timeout(3000)
+                    .timeout(REQUEST_TIMEOUT_MS)
                     .get();
 
             return doc.select("a[href^=/showtime/t]")
                     .stream()
                     .filter(a -> !a.text().isBlank())
                     .filter(a -> !"網路訂票".equals(a.text()))
-                    .map(this::toCinemaCrawlerResponse)
+                    .map(this::toCinemaResponse)
                     .filter(Objects::nonNull);
 
         } catch (IOException e) {
@@ -100,8 +114,8 @@ public class CinemaCrawlerService {
         }
     }
 
-    /** 將影城連結轉換為影城爬蟲資料 */
-    private CinemaCrawlerResponse toCinemaCrawlerResponse(Element cinemaLink) {
+    /** 將影城連結轉換為影城資料 */
+    private CinemaResponse toCinemaResponse(Element cinemaLink) {
         String cinemaUrl = cinemaLink.absUrl("href");
 
         if (cinemaUrl.isBlank()) {
@@ -132,8 +146,10 @@ public class CinemaCrawlerService {
                 : null;
 
         boolean isActive = true;
+        boolean isVisible = true;
 
-        return new CinemaCrawlerResponse(
+        return new CinemaResponse(
+                null,
                 sourceId,
                 cinemaName,
                 county,
@@ -141,7 +157,30 @@ public class CinemaCrawlerService {
                 latitude,
                 longitude,
                 officialWebsiteUrl,
-                isActive);
+                isActive,
+                isVisible,
+                null,
+                null);
+    }
+
+    /** 將取得的資料同步到資料庫 */
+    private CinemaResponse syncCinemasToDatabase(CinemaResponse response) {
+        CinemaRequest request = new CinemaRequest(
+                response.sourceId(),
+                response.cinemaName(),
+                response.county(),
+                response.cinemaAddress(),
+                response.latitude(),
+                response.longitude(),
+                response.officialWebsiteUrl(),
+                response.isActive(),
+                response.isVisible());
+
+        return cinemaService.findBySourceId(response.sourceId())
+                .map(cinema -> cinemaService.updateCinema(
+                        cinema.cinemaId(),
+                        request))
+                .orElseGet(() -> cinemaService.createCinema(request));
     }
 
     /** 取得影城來源 ID */
@@ -190,7 +229,7 @@ public class CinemaCrawlerService {
         try {
             Document doc = Jsoup.connect(mapUrl)
                     .userAgent("Mozilla/5.0")
-                    .timeout(3000)
+                    .timeout(REQUEST_TIMEOUT_MS)
                     .ignoreHttpErrors(true)
                     .get();
 
@@ -227,66 +266,87 @@ public class CinemaCrawlerService {
         if (address.contains("基隆市")) {
             return County.KEELUNG;
         }
+
         if (address.contains("台北市")) {
             return County.TAIPEI;
         }
+
         if (address.contains("新北市")) {
             return County.NEW_TAIPEI;
         }
+
         if (address.contains("桃園市")) {
             return County.TAOYUAN;
         }
+
         if (address.contains("新竹市")) {
             return County.HSINCHU;
         }
+
         if (address.contains("新竹縣")) {
             return County.HSINCHU_COUNTY;
         }
+
         if (address.contains("宜蘭縣")) {
             return County.YILAN;
         }
+
         if (address.contains("苗栗縣")) {
             return County.MIAOLI;
         }
+
         if (address.contains("台中市")) {
             return County.TAICHUNG;
         }
+
         if (address.contains("彰化縣")) {
             return County.CHANGHUA;
         }
+
         if (address.contains("南投縣")) {
             return County.NANTOU;
         }
+
         if (address.contains("雲林縣")) {
             return County.YUNLIN;
         }
+
         if (address.contains("嘉義市")) {
             return County.CHIAYI;
         }
+
         if (address.contains("嘉義縣")) {
             return County.CHIAYI_COUNTY;
         }
+
         if (address.contains("台南市")) {
             return County.TAINAN;
         }
+
         if (address.contains("高雄市")) {
             return County.KAOHSIUNG;
         }
+
         if (address.contains("屏東縣")) {
             return County.PINGTUNG;
         }
+
         if (address.contains("花蓮縣")) {
             return County.HUALIEN;
         }
+
         if (address.contains("台東縣")) {
             return County.TAITUNG;
         }
+
         if (address.contains("澎湖縣")) {
             return County.PENGHU;
         }
+
         if (address.contains("金門縣")) {
             return County.KINMEN;
         }
+
         if (address.contains("連江縣")) {
             return County.LIENCHIANG;
         }

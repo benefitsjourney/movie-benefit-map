@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 
 import com.collection.benefitsjourney.enums.County;
 
-public record CinemaCrawlerResponse(
+public record CinemaRequest(
                 String sourceId,
                 String cinemaName,
                 County county,
@@ -12,5 +12,6 @@ public record CinemaCrawlerResponse(
                 BigDecimal latitude,
                 BigDecimal longitude,
                 String officialWebsiteUrl,
-                Boolean isActive) {
+                Boolean isActive,
+                Boolean isVisible) {
 }
