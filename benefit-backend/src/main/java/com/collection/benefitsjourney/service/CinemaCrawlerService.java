@@ -82,7 +82,7 @@ public class CinemaCrawlerService {
                     savedCinemas.size(),
                     String.format("%.2f", seconds));
 
-            return cinemas;
+            return savedCinemas;
 
         } catch (Exception e) {
             double seconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
