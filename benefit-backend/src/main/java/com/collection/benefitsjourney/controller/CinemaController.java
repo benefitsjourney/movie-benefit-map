@@ -4,12 +4,14 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.collection.benefitsjourney.dto.CinemaCreateRequest;
+import com.collection.benefitsjourney.dto.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaResponse;
 import com.collection.benefitsjourney.service.CinemaService;
 
@@ -34,8 +36,17 @@ public class CinemaController {
     @PostMapping("")
     @Operation(summary = "新增影城")
     public ResponseEntity<CinemaResponse> createCinema(
-            @RequestBody CinemaCreateRequest request) {
+            @RequestBody CinemaRequest request) {
 
         return ResponseEntity.ok(cinemaService.createCinema(request));
+    }
+
+    @PatchMapping("/{id}")
+    @Operation(summary = "修改影城")
+    public ResponseEntity<CinemaResponse> updateCinema(
+            @PathVariable Integer id,
+            @RequestBody CinemaRequest request) {
+
+        return ResponseEntity.ok(cinemaService.updateCinema(id, request));
     }
 }

@@ -14,7 +14,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Service;
 
-import com.collection.benefitsjourney.dto.CinemaCreateRequest;
+import com.collection.benefitsjourney.dto.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaResponse;
 import com.collection.benefitsjourney.enums.County;
 
@@ -79,7 +79,7 @@ public class CinemaCrawlerService {
                     savedCinemas.size(),
                     String.format("%.2f", seconds));
 
-            return savedCinemas;
+            return cinemas;
 
         } catch (Exception e) {
             double seconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
@@ -162,7 +162,7 @@ public class CinemaCrawlerService {
 
     /** 將取得的資料同步到資料庫 */
     private CinemaResponse syncCinemasToDatabase(CinemaResponse response) {
-        CinemaCreateRequest request = new CinemaCreateRequest(
+        CinemaRequest request = new CinemaRequest(
                 response.sourceId(),
                 response.cinemaName(),
                 response.county(),
@@ -173,7 +173,11 @@ public class CinemaCrawlerService {
                 response.isActive(),
                 response.isVisible());
 
-        return cinemaService.createCinema(request);
+        return cinemaService.findBySourceId(response.sourceId())
+                .map(cinema -> cinemaService.updateCinema(
+                        cinema.cinemaId(),
+                        request))
+                .orElseGet(() -> cinemaService.createCinema(request));
     }
 
     /** 取得影城來源 ID */

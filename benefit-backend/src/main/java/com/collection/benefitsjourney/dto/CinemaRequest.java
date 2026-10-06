@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 
 import com.collection.benefitsjourney.enums.County;
 
-public record CinemaCreateRequest(
+public record CinemaRequest(
                 String sourceId,
                 String cinemaName,
                 County county,
