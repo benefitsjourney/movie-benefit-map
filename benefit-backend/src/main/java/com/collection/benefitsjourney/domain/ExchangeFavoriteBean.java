@@ -27,8 +27,10 @@ public class ExchangeFavoriteBean {
 	@Column(name = "exchange_favorite_id", comment = "交換收藏表 ID")
 	private Integer exchangeFavoriteId;
 
+	@Column(name = "user_id", nullable = false)
+	private Integer userId;
 	// @ManyToOne
-	// (fetch = FetchType.LAZY)
+	// // (fetch = FetchType.LAZY)
 	// @JoinColumn(name = "users_id", nullable = false)
 	// private UsersBean usersBean;
 

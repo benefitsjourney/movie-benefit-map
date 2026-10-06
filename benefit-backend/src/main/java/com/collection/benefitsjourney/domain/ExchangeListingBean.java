@@ -1,6 +1,7 @@
 package com.collection.benefitsjourney.domain;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -10,6 +11,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -33,18 +36,16 @@ public class ExchangeListingBean {
 	@Column(name = "description", length = 500, comment = "刊登說明")
 	private String description;
 
-	// ACTIVE = 開啟
-	// CLOSED = 關閉
+	// ACTIVE = 開啟/ CLOSED = 關閉
 	@Column(name = "status", length = 20, nullable = false, comment = "刊登狀態")
 	private String status;
 
-	// @OneToOne
-	// @JoinColumn(
-	// name = "use_benefit_id",
-	// nullable = false,
-	// unique = true //建議可以不加，因為要重複刊登
-	// )
-	// private UseBenefitBean useBenefitBean;
+	@OneToOne
+	@JoinColumn(name = "use_benefit_id", nullable = false, unique = true)
+	// 同一個持有紀錄以後可能重新建立不同刊登 , 不要加 UNIQUE
+	// 一個持有紀錄，可以有一個刊登 , 要加UNIQUE
+	// private List<UseBenefitBean> useBenefitBean;
+	private UseBenefitBean useBenefitBean;
 
 	@Column(name = "created_at", updatable = false, comment = "建立時間")
 	@CreationTimestamp
