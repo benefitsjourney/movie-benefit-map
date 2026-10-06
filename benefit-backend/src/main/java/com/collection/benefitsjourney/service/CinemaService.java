@@ -1,5 +1,9 @@
 package com.collection.benefitsjourney.service;
 
+import static com.collection.benefitsjourney.exception.ExceptionUtils.badRequest;
+import static com.collection.benefitsjourney.exception.ExceptionUtils.conflict;
+import static com.collection.benefitsjourney.exception.ExceptionUtils.notFound;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -23,12 +27,30 @@ public class CinemaService {
     public List<CinemaResponse> findAll() {
         return cinemaRepository.findAll()
                 .stream()
-                .map(cinema -> CinemaResponse.from(cinema))
+                .map(CinemaResponse::from)
                 .toList();
     }
 
     /** 新增影城 */
     public CinemaResponse createCinema(CinemaRequest request) {
+        if (request == null) {
+            throw badRequest("請求內容不可為空");
+        }
+
+        if (request.cinemaName() == null
+                || request.cinemaName().isBlank()) {
+            throw badRequest("影城名稱不可為空");
+        }
+
+        if (request.county() == null) {
+            throw badRequest("縣市不可為空");
+        }
+
+        if (request.sourceId() != null
+                && cinemaRepository.findBySourceId(request.sourceId()).isPresent()) {
+            throw conflict("來源 ID 已存在：" + request.sourceId());
+        }
+
         CinemaBean cinema = new CinemaBean();
 
         cinema.setSourceId(request.sourceId());
@@ -39,7 +61,11 @@ public class CinemaService {
         cinema.setLongitude(request.longitude());
         cinema.setOfficialWebsiteUrl(request.officialWebsiteUrl());
 
-        cinema.setIsActive(true);
+        cinema.setIsActive(
+                request.isActive() != null
+                        ? request.isActive()
+                        : true);
+
         cinema.setIsVisible(
                 request.isVisible() != null
                         ? request.isVisible()
@@ -52,9 +78,29 @@ public class CinemaService {
 
     /** 修改影城 */
     public CinemaResponse updateCinema(Integer id, CinemaRequest request) {
+        if (request == null) {
+            throw badRequest("請求內容不可為空");
+        }
+
+        if (request.cinemaName() != null
+                && request.cinemaName().isBlank()) {
+            throw badRequest("影城名稱不可為空");
+        }
 
         CinemaBean cinema = cinemaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("找不到影城 ID：" + id));
+                .orElseThrow(() -> notFound("找不到影城 ID：" + id));
+
+        if (request.sourceId() != null) {
+            // sourceId 有修改時檢查是否與其他影城重複
+            cinemaRepository.findBySourceId(request.sourceId())
+                    .filter(existing -> !existing.getCinemaId().equals(id))
+                    .ifPresent(existing -> {
+                        throw conflict(
+                                "來源 ID 已存在：" + request.sourceId());
+                    });
+
+            cinema.setSourceId(request.sourceId());
+        }
 
         if (request.cinemaName() != null) {
             cinema.setCinemaName(request.cinemaName());
@@ -73,7 +119,8 @@ public class CinemaService {
         }
 
         if (request.officialWebsiteUrl() != null) {
-            cinema.setOfficialWebsiteUrl(request.officialWebsiteUrl());
+            cinema.setOfficialWebsiteUrl(
+                    request.officialWebsiteUrl());
         }
 
         if (request.county() != null) {
@@ -95,6 +142,10 @@ public class CinemaService {
 
     /** 根據來源 ID 取得影城 */
     public Optional<CinemaResponse> findBySourceId(String sourceId) {
+        if (sourceId == null || sourceId.isBlank()) {
+            return Optional.empty();
+        }
+
         return cinemaRepository.findBySourceId(sourceId)
                 .map(CinemaResponse::from);
     }

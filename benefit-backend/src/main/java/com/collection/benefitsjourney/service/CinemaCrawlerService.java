@@ -9,10 +9,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
+import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.collection.benefitsjourney.dto.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaResponse;
@@ -56,41 +60,103 @@ public class CinemaCrawlerService {
         long startTime = System.nanoTime();
 
         try {
-            List<CinemaResponse> cinemas = Jsoup.connect(ATMOVIES_SHOWTIME_URL)
+            Document doc = Jsoup.connect(ATMOVIES_SHOWTIME_URL)
                     .userAgent("Mozilla/5.0")
                     .timeout(REQUEST_TIMEOUT_MS)
-                    .get()
+                    .get();
+
+            List<String> areaUrls = doc
                     .select("a[href^=/showtime/a]")
                     .stream()
                     .map(a -> a.absUrl("href"))
                     .filter(url -> url.matches(".*/showtime/a\\d{2}/"))
                     .distinct()
-                    .parallel()
+                    .toList();
+
+            // 完全抓不到縣市頁面通常代表來源網站結構已改變
+            if (areaUrls.isEmpty()) {
+                log.error("影城爬蟲找不到任何縣市頁面");
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_GATEWAY,
+                        "找不到影城縣市資料，來源網站結構可能已變更");
+            }
+
+            List<CinemaResponse> cinemas = areaUrls
+                    .parallelStream()
                     .flatMap(this::getCinemasByAreaUrl)
                     .filter(Objects::nonNull)
                     .distinct()
                     .toList();
 
+            // 所有縣市都抓不到影城時，不應視為正常成功
+            if (cinemas.isEmpty()) {
+                log.error("影城爬蟲未取得任何影城資料");
+
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_GATEWAY,
+                        "未取得任何影城資料，來源網站可能異常");
+            }
+
             List<CinemaResponse> savedCinemas = cinemas.stream()
-                    .map(this::syncCinemasToDatabase)
+                    .map(this::syncCinemaToDatabase)
+                    .filter(Objects::nonNull)
                     .toList();
+
+            // 有部分影城寫入失敗時留下紀錄，但不影響其他影城
+            if (savedCinemas.size() < cinemas.size()) {
+                log.warn(
+                        "部分影城同步資料庫失敗，共抓取 {} 間，成功存入 {} 間，失敗 {} 間",
+                        cinemas.size(),
+                        savedCinemas.size(),
+                        cinemas.size() - savedCinemas.size());
+            }
+
+            // 全部資料都寫入失敗時，代表同步結果不可視為成功
+            if (savedCinemas.isEmpty()) {
+                log.error("所有影城資料皆寫入資料庫失敗");
+
+                throw new ResponseStatusException(
+                        HttpStatus.INTERNAL_SERVER_ERROR,
+                        "影城資料抓取成功，但寫入資料庫失敗");
+            }
 
             double seconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
 
-            log.info("影城爬蟲完成，共抓取 {} 間影城，成功存入 {} 間，耗時 {} 秒",
+            log.info(
+                    "影城爬蟲完成，共抓取 {} 間影城，成功存入 {} 間，耗時 {} 秒",
                     cinemas.size(),
                     savedCinemas.size(),
                     String.format("%.2f", seconds));
 
             return savedCinemas;
 
-        } catch (Exception e) {
+        } catch (HttpStatusException e) {
             double seconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
 
-            log.error("影城爬蟲失敗，耗時 {} 秒",
-                    String.format("%.2f", seconds), e);
+            log.error(
+                    "影城網站回傳 HTTP {}，耗時 {} 秒",
+                    e.getStatusCode(),
+                    String.format("%.2f", seconds),
+                    e);
 
-            throw new RuntimeException("抓取影城資料失敗", e);
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "影城來源網站連線異常",
+                    e);
+
+        } catch (IOException e) {
+            double seconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
+
+            log.error(
+                    "影城來源網站連線失敗，耗時 {} 秒",
+                    String.format("%.2f", seconds),
+                    e);
+
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_GATEWAY,
+                    "無法連線至影城來源網站",
+                    e);
         }
     }
 
@@ -105,11 +171,25 @@ public class CinemaCrawlerService {
             return doc.select("a[href^=/showtime/t]")
                     .stream()
                     .filter(a -> !a.text().isBlank())
-                    .filter(a -> !"網路訂票".equals(a.text()))
+                    .filter(a -> !"網路訂票".equals(a.text().trim()))
                     .map(this::toCinemaResponse)
                     .filter(Objects::nonNull);
 
+        } catch (HttpStatusException e) {
+            log.warn(
+                    "縣市影城列表回傳 HTTP {}：{}",
+                    e.getStatusCode(),
+                    areaUrl,
+                    e);
+
+            return Stream.empty();
+
         } catch (IOException e) {
+            log.warn(
+                    "縣市影城列表抓取失敗：{}",
+                    areaUrl,
+                    e);
+
             return Stream.empty();
         }
     }
@@ -119,17 +199,27 @@ public class CinemaCrawlerService {
         String cinemaUrl = cinemaLink.absUrl("href");
 
         if (cinemaUrl.isBlank()) {
+            log.warn("略過缺少影城網址的資料");
             return null;
         }
 
         String sourceId = getCinemaSourceId(cinemaUrl);
+
+        if (sourceId == null || sourceId.isBlank()) {
+            log.warn("無法從影城網址解析來源 ID：{}", cinemaUrl);
+            return null;
+        }
+
         String cinemaName = cinemaLink.text().trim();
+
+        if (cinemaName.isBlank()) {
+            log.warn("略過缺少名稱的影城：{}", sourceId);
+            return null;
+        }
 
         Element container = cinemaLink.closest("li");
 
-        String cinemaAddress = container != null
-                ? getCinemaAddress(container)
-                : null;
+        String cinemaAddress = getCinemaAddress(container);
 
         County county = getCounty(cinemaAddress);
 
@@ -163,8 +253,8 @@ public class CinemaCrawlerService {
                 null);
     }
 
-    /** 將取得的資料同步到資料庫 */
-    private CinemaResponse syncCinemasToDatabase(CinemaResponse response) {
+    /** 將取得的單筆影城資料同步到資料庫 */
+    private CinemaResponse syncCinemaToDatabase(CinemaResponse response) {
         CinemaRequest request = new CinemaRequest(
                 response.sourceId(),
                 response.cinemaName(),
@@ -176,15 +266,30 @@ public class CinemaCrawlerService {
                 response.isActive(),
                 response.isVisible());
 
-        return cinemaService.findBySourceId(response.sourceId())
-                .map(cinema -> cinemaService.updateCinema(
-                        cinema.cinemaId(),
-                        request))
-                .orElseGet(() -> cinemaService.createCinema(request));
+        try {
+            return cinemaService.findBySourceId(response.sourceId())
+                    .map(cinema -> cinemaService.updateCinema(
+                            cinema.cinemaId(),
+                            request))
+                    .orElseGet(() -> cinemaService.createCinema(request));
+
+        } catch (DataIntegrityViolationException e) {
+            log.warn(
+                    "影城資料違反資料庫限制，略過同步：{} ({})",
+                    response.cinemaName(),
+                    response.sourceId(),
+                    e);
+
+            return null;
+        }
     }
 
     /** 取得影城來源 ID */
     private String getCinemaSourceId(String cinemaUrl) {
+        if (cinemaUrl == null || cinemaUrl.isBlank()) {
+            return null;
+        }
+
         Matcher matcher = CINEMA_ID_PATTERN.matcher(cinemaUrl);
 
         return matcher.find()
@@ -194,6 +299,10 @@ public class CinemaCrawlerService {
 
     /** 取得影城地址 */
     private String getCinemaAddress(Element container) {
+        if (container == null) {
+            return null;
+        }
+
         Element addressElement = container.selectFirst("ul li");
 
         return addressElement != null
@@ -213,9 +322,15 @@ public class CinemaCrawlerService {
                 .findFirst()
                 .orElse(null);
 
-        return websiteLink != null
-                ? websiteLink.absUrl("href")
-                : null;
+        if (websiteLink == null) {
+            return null;
+        }
+
+        String websiteUrl = websiteLink.absUrl("href");
+
+        return websiteUrl.isBlank()
+                ? null
+                : websiteUrl;
     }
 
     /** 取得影城經緯度 */
@@ -230,13 +345,16 @@ public class CinemaCrawlerService {
             Document doc = Jsoup.connect(mapUrl)
                     .userAgent("Mozilla/5.0")
                     .timeout(REQUEST_TIMEOUT_MS)
-                    .ignoreHttpErrors(true)
                     .get();
 
             Matcher matcher = COORDINATE_PATTERN.matcher(doc.html());
 
             if (!matcher.find()) {
-                System.out.println("找不到經緯度：" + sourceId + " / " + mapUrl);
+                log.warn(
+                        "找不到經緯度：{} / {}",
+                        sourceId,
+                        mapUrl);
+
                 return null;
             }
 
@@ -244,9 +362,29 @@ public class CinemaCrawlerService {
                     toCoordinate(matcher.group(1)),
                     toCoordinate(matcher.group(2)));
 
-        } catch (Exception e) {
-            System.out.println("經緯度抓取失敗：" + sourceId);
-            System.out.println(e.getMessage());
+        } catch (HttpStatusException e) {
+            log.warn(
+                    "經緯度頁面回傳 HTTP {}：{}",
+                    e.getStatusCode(),
+                    sourceId,
+                    e);
+
+            return null;
+
+        } catch (IOException e) {
+            log.warn(
+                    "經緯度頁面抓取失敗：{}",
+                    sourceId,
+                    e);
+
+            return null;
+
+        } catch (NumberFormatException e) {
+            log.warn(
+                    "經緯度格式錯誤：{}",
+                    sourceId,
+                    e);
+
             return null;
         }
     }

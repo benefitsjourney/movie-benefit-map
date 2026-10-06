@@ -16,6 +16,7 @@ import com.collection.benefitsjourney.dto.CinemaResponse;
 import com.collection.benefitsjourney.service.CinemaService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/cinemas")
@@ -36,7 +37,7 @@ public class CinemaController {
     @PostMapping("")
     @Operation(summary = "新增影城")
     public ResponseEntity<CinemaResponse> createCinema(
-            @RequestBody CinemaRequest request) {
+            @Valid @RequestBody CinemaRequest request) {
 
         return ResponseEntity.ok(cinemaService.createCinema(request));
     }
@@ -45,7 +46,7 @@ public class CinemaController {
     @Operation(summary = "修改影城")
     public ResponseEntity<CinemaResponse> updateCinema(
             @PathVariable Integer id,
-            @RequestBody CinemaRequest request) {
+            @Valid @RequestBody CinemaRequest request) {
 
         return ResponseEntity.ok(cinemaService.updateCinema(id, request));
     }
