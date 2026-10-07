@@ -6,6 +6,7 @@ import org.hibernate.annotations.CreationTimestamp;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -28,15 +29,11 @@ public class TicketFavoriteBean {
 	@Column(name = "ticket_favorite_id", comment = "收藏 ID")
 	private Integer ticketFavoriteId;
 
-	@Column(name = "user_id", nullable = false)
-	private Integer userId;
-	// @ManyToOne
-	// // (fetch = FetchType.LAZY)
-	// @JoinColumn(name = "users_id", nullable = false)
-	// private UsersBean usersBean;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "users_id", nullable = false)
+	private UsersBean usersBean;
 
-	@ManyToOne
-	// (fetch = FetchType.LAZY)
+	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "ticket_listing_id", nullable = false)
 	private TicketListingBean ticketListingBean;
 

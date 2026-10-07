@@ -7,6 +7,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -29,21 +30,17 @@ public class TicketListingBean {
 	@Column(name = "ticket_listing_id", comment = "票券刊登編號 ID")
 	private Integer ticketListingId;
 
-	@Column(name = "title", length = 100, nullable = false, comment = "票劵標題")
+	@Column(name = "title", columnDefinition = "NVARCHAR(100)", nullable = false, comment = "票劵標題")
 	private String title;
 
-	@Column(name = "description", length = 500, comment = "刊登說明")
+	@Column(name = "description",columnDefinition = "NVARCHAR(500)", comment = "刊登說明")
 	private String description;
 
-	@Column(name = "user_id", nullable = false)
-	private Integer userId;
-	// @ManyToOne
-	// // (fetch = FetchType.LAZY)
-	// @JoinColumn(name = "users_id", nullable = false, comment = "賣家會員 ID")
-	// private UsersBean usersBean;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "users_id", nullable = false, comment = "賣家會員 ID")
+	private UsersBean usersBean;
 
-	@ManyToOne
-	// (fetch = FetchType.LAZY)
+	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "cinema_id", nullable = false, comment = "影城 ID")
 	private CinemaBean cinemaBean;
 
@@ -57,8 +54,8 @@ public class TicketListingBean {
 	@Column(name = "ticket_showtime", nullable = false, comment = "電影時間")
 	private LocalDateTime ticketShowtime;
 
-	// ACTIVE = 開啟/ CLOSED = 關閉
-	@Column(name = "status", length = 20, nullable = false, comment = "刊登狀態")
+	// ACTIVE = 正常顯示 / HIDDEN = 暫時不顯示 / CLOSED = 已結束
+	@Column(name = "status",columnDefinition = "NVARCHAR(20)", nullable = false, comment = "刊登狀態")
 	private String status;
 
 	@Column(name = "created_at", updatable = false, comment = "建立時間")
