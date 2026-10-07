@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.collection.benefitsjourney.config.JacksonConfig;
 import com.collection.benefitsjourney.dto.ErrorResponse;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -151,8 +152,8 @@ public class GlobalExceptionHandler {
     }
 
     private String readableMessage(HttpMessageNotReadableException exception) {
-        Throwable cause = exception.getMostSpecificCause();
-        if (cause instanceof InvalidFormatException invalidFormat
+        InvalidFormatException invalidFormat = findInvalidFormat(exception);
+        if (invalidFormat != null
                 && invalidFormat.getTargetType() != null
                 && invalidFormat.getTargetType().isEnum()) {
             String fieldName = invalidFormat.getPath()
@@ -165,7 +166,24 @@ public class GlobalExceptionHandler {
             return fieldName + " 參數值無效：" + invalidFormat.getValue();
         }
 
+        if (invalidFormat != null
+                && LocalDateTime.class.equals(invalidFormat.getTargetType())) {
+            return JacksonConfig.INVALID_DATE_TIME_MESSAGE;
+        }
+
         return "請求內容格式不正確";
+    }
+
+    /** 日期錯誤的最底層是 DateTimeParseException，格式例外在它的外層 */
+    private InvalidFormatException findInvalidFormat(Throwable exception) {
+        Throwable current = exception;
+        while (current != null) {
+            if (current instanceof InvalidFormatException invalidFormat) {
+                return invalidFormat;
+            }
+            current = current.getCause();
+        }
+        return null;
     }
 
     private HttpStatus resolveStatus(HttpStatusCode statusCode) {
