@@ -1,7 +1,5 @@
 package com.collection.benefitsjourney.controller;
 
-import java.util.List;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -15,7 +13,10 @@ import org.springframework.web.bind.annotation.RestController;
 import com.collection.benefitsjourney.dto.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaResponse;
 import com.collection.benefitsjourney.dto.NearbyCinemaResponse;
+import com.collection.benefitsjourney.dto.PageResponse;
+import com.collection.benefitsjourney.enums.CinemaSort;
 import com.collection.benefitsjourney.enums.County;
+import com.collection.benefitsjourney.enums.SortOrder;
 import com.collection.benefitsjourney.service.CinemaService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,17 +35,33 @@ public class CinemaController {
 
     @GetMapping
     @Operation(summary = "取得所有影城資料")
-    public ResponseEntity<List<CinemaResponse>> findAll(
-            @Parameter(description = "影城名稱模糊搜尋關鍵字，例如：威秀") @RequestParam(required = false) String keyword,
+    public ResponseEntity<PageResponse<CinemaResponse>> findAll(
+            @Parameter(description = "影城名稱模糊搜尋關鍵字") @RequestParam(required = false) String keyword,
+
             @Parameter(description = "縣市篩選") @RequestParam(required = false) County county,
+
             @Parameter(description = "是否仍在營業") @RequestParam(required = false) Boolean isActive,
-            @Parameter(description = "是否在前台顯示") @RequestParam(required = false) Boolean isVisible) {
+
+            @Parameter(description = "是否在前台顯示") @RequestParam(required = false) Boolean isVisible,
+
+            @Parameter(description = "排序欄位") @RequestParam(defaultValue = "CINEMA_ID") CinemaSort.SortBy orderBy,
+
+            @Parameter(description = "排序方向") @RequestParam(defaultValue = "ASC") SortOrder sort,
+
+            @Parameter(description = "頁碼") @RequestParam(defaultValue = "1") int page,
+
+            @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "10") int size) {
+
         return ResponseEntity.ok(
                 cinemaService.findAll(
                         keyword,
                         county,
                         isActive,
-                        isVisible));
+                        isVisible,
+                        page,
+                        size,
+                        orderBy,
+                        sort));
     }
 
     @GetMapping("/{id}")

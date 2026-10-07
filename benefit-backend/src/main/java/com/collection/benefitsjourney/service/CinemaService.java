@@ -9,13 +9,19 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import com.collection.benefitsjourney.domain.CinemaBean;
 import com.collection.benefitsjourney.dto.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaResponse;
 import com.collection.benefitsjourney.dto.NearbyCinemaResponse;
+import com.collection.benefitsjourney.dto.PageResponse;
+import com.collection.benefitsjourney.enums.CinemaSort;
 import com.collection.benefitsjourney.enums.County;
+import com.collection.benefitsjourney.enums.SortOrder;
 import com.collection.benefitsjourney.repository.CinemaRepository;
 
 @Service
@@ -28,19 +34,34 @@ public class CinemaService {
     }
 
     /** 取得所有影城資料 */
-    public List<CinemaResponse> findAll(
+    public PageResponse<CinemaResponse> findAll(
             String keyword,
             County county,
             Boolean isActive,
-            Boolean isVisible) {
-        return cinemaRepository.findAllByFilters(
+            Boolean isVisible,
+            int page,
+            int size,
+            CinemaSort.SortBy orderBy,
+            SortOrder sort) {
+
+        Sort.Direction direction = sort == SortOrder.DESC
+                ? Sort.Direction.DESC
+                : Sort.Direction.ASC;
+
+        PageRequest pageable = PageRequest.of(
+                page - 1,
+                size,
+                Sort.by(direction, orderBy.getProperty()));
+
+        Page<CinemaResponse> result = cinemaRepository.findAllByFilters(
                 keyword == null || keyword.isBlank() ? null : keyword,
                 county,
                 isActive,
-                isVisible)
-                .stream()
-                .map(CinemaResponse::from)
-                .toList();
+                isVisible,
+                pageable)
+                .map(CinemaResponse::from);
+
+        return PageResponse.from(result);
     }
 
     /** 取得指定id影城資料 */
@@ -177,15 +198,9 @@ public class CinemaService {
         List<NearbyCinemaResponse.Cinema> cinemas = new ArrayList<>();
 
         // 查詢啟用且可見的影城
-        List<CinemaBean> allCinemas = cinemaRepository
-                .findAllByFilters(null, null, true, true);
+        List<CinemaBean> allCinemas = cinemaRepository.findAllForMap();
 
         for (CinemaBean cinema : allCinemas) {
-            // 排除沒有經緯度的影城
-            if (cinema.getLatitude() == null || cinema.getLongitude() == null) {
-                continue;
-            }
-
             double lat = cinema.getLatitude().doubleValue();
             double lon = cinema.getLongitude().doubleValue();
 
