@@ -1,31 +1,32 @@
 spring:
-   application:
-       name: benefit-backend
-   # datasource
-   datasource:
-       driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
-       url: jdbc:sqlserver://localhost:14330;database=BenefitsJourney;trustServerCertificate=true;
-       username: sa
-       password: BJourney@2026!
+  application:
+    name: benefit-backend
+  # datasource
+  datasource:
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    url: jdbc:sqlserver://localhost:14330;database=BenefitsJourney;trustServerCertificate=true;
+    username: sa
+    password: BJourney@2026!
 
-   # jackson
-   jackson:
-       time-zone: Asia/Taipei
+  # jackson
+  jackson:
+    time-zone: Asia/Taipei
 
     #JPA
-   jpa:
-       database-platform: org.hibernate.dialect.SQLServerDialect
-       hibernate:
-           ddl-auto: validate
-       properties:
-           hibernate:
-               '[use_nationalized_character_data]': true
+  jpa:
+    database-platform: org.hibernate.dialect.SQLServerDialect
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        "[column_ordering_strategy]": legacy
+        "[use_nationalized_character_data]": true
 
-   # output
-   output:
-       ansi:
-           enabled: always
+  # output
+  output:
+    ansi:
+      enabled: always
 
 logging:
-   pattern:
-       console: "%d{HH:mm:ss.SSS} [%thread] %clr(%-5level) %clr(%logger{36}){cyan} - %msg%n"
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %clr(%-5level) %clr(%logger{36}){cyan} - %msg%n"
