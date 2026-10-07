@@ -31,7 +31,7 @@ public class CinemaBean {
     @Column(name = "cinema_id", comment = "影城 ID")
     private Integer cinemaId;
 
-    @Column(name = "source_id", unique = true, length = 64, comment = "外部來源的影城辨認 ID")
+    @Column(name = "source_id", unique = true, length = 64, comment = "外部來源的影城辨認ID")
     private String sourceId;
 
     @Column(name = "cinema_name", nullable = false, length = 64, comment = "影城名稱")

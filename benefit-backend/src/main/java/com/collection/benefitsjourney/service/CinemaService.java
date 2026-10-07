@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import com.collection.benefitsjourney.domain.CinemaBean;
 import com.collection.benefitsjourney.dto.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaResponse;
+import com.collection.benefitsjourney.enums.County;
 import com.collection.benefitsjourney.repository.CinemaRepository;
 
 @Service
@@ -24,8 +25,16 @@ public class CinemaService {
     }
 
     /** 取得所有影城資料 */
-    public List<CinemaResponse> findAll() {
-        return cinemaRepository.findAll()
+    public List<CinemaResponse> findAll(
+            String keyword,
+            County county,
+            Boolean isActive,
+            Boolean isVisible) {
+        return cinemaRepository.findAllByFilters(
+                keyword == null || keyword.isBlank() ? null : keyword,
+                county,
+                isActive,
+                isVisible)
                 .stream()
                 .map(CinemaResponse::from)
                 .toList();
