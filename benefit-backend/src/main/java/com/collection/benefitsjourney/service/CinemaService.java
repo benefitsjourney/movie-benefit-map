@@ -23,6 +23,7 @@ import com.collection.benefitsjourney.enums.CinemaSort;
 import com.collection.benefitsjourney.enums.County;
 import com.collection.benefitsjourney.enums.SortOrder;
 import com.collection.benefitsjourney.repository.CinemaRepository;
+import com.collection.benefitsjourney.repository.LikeKeywords;
 
 @Service
 public class CinemaService {
@@ -54,7 +55,7 @@ public class CinemaService {
                 Sort.by(direction, orderBy.getProperty()));
 
         Page<CinemaResponse> result = cinemaRepository.findAllByFilters(
-                toLikeKeyword(keyword),
+                LikeKeywords.toLikeKeyword(keyword),
                 county,
                 isActive,
                 isVisible,
@@ -62,14 +63,6 @@ public class CinemaService {
                 .map(CinemaResponse::from);
 
         return PageResponse.from(result);
-    }
-
-    /** 避免SQL Server把CONCAT參數轉成varchar */
-    private static String toLikeKeyword(String keyword) {
-        if (keyword == null || keyword.isBlank()) {
-            return null;
-        }
-        return "%" + keyword + "%";
     }
 
     /** 取得指定id影城資料 */
