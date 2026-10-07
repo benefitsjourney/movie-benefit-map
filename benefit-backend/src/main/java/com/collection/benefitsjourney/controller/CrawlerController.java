@@ -11,9 +11,11 @@ import com.collection.benefitsjourney.dto.CinemaResponse;
 import com.collection.benefitsjourney.service.CinemaCrawlerService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/crawler/cinemas")
+@Tag(name = "爬蟲")
 public class CrawlerController {
     private CinemaCrawlerService crawlerService;
 

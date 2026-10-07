@@ -21,10 +21,12 @@ import com.collection.benefitsjourney.service.CinemaService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/cinemas")
+@Tag(name = "影城")
 public class CinemaController {
 
     private final CinemaService cinemaService;
@@ -84,7 +86,7 @@ public class CinemaController {
     @Operation(summary = "修改影城")
     public ResponseEntity<CinemaResponse> updateCinema(
             @PathVariable Integer id,
-            @Valid @RequestBody CinemaRequest request) {
+            @RequestBody CinemaRequest request) {
 
         return ResponseEntity.ok(cinemaService.updateCinema(id, request));
     }
