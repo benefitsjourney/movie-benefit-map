@@ -4,6 +4,8 @@ import static com.collection.benefitsjourney.exception.ExceptionUtils.badRequest
 import static com.collection.benefitsjourney.exception.ExceptionUtils.conflict;
 import static com.collection.benefitsjourney.exception.ExceptionUtils.notFound;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Service;
 import com.collection.benefitsjourney.domain.CinemaBean;
 import com.collection.benefitsjourney.dto.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaResponse;
+import com.collection.benefitsjourney.dto.NearbyCinemaResponse;
 import com.collection.benefitsjourney.enums.County;
 import com.collection.benefitsjourney.repository.CinemaRepository;
 
@@ -108,7 +111,7 @@ public class CinemaService {
                 .orElseThrow(() -> notFound("找不到影城 ID：" + id));
 
         if (request.sourceId() != null) {
-            // sourceId 有修改時檢查是否與其他影城重複
+            // sourceId有修改時檢查是否與其他影城重複
             cinemaRepository.findBySourceId(request.sourceId())
                     .filter(existing -> !existing.getCinemaId().equals(id))
                     .ifPresent(existing -> {
@@ -157,7 +160,7 @@ public class CinemaService {
         return CinemaResponse.from(savedCinema);
     }
 
-    /** 根據來源 ID 取得影城 */
+    /** 根據來源ID取得影城 */
     public Optional<CinemaResponse> findBySourceId(String sourceId) {
         if (sourceId == null || sourceId.isBlank()) {
             return Optional.empty();
@@ -165,5 +168,65 @@ public class CinemaService {
 
         return cinemaRepository.findBySourceId(sourceId)
                 .map(CinemaResponse::from);
+    }
+
+    /** 搜尋指定座標附近的影城 */
+    public NearbyCinemaResponse findNearby(
+            double latitude, double longitude, double radius) {
+
+        List<NearbyCinemaResponse.Cinema> cinemas = new ArrayList<>();
+
+        // 查詢啟用且可見的影城
+        List<CinemaBean> allCinemas = cinemaRepository
+                .findAllByFilters(null, null, true, true);
+
+        for (CinemaBean cinema : allCinemas) {
+            // 排除沒有經緯度的影城
+            if (cinema.getLatitude() == null || cinema.getLongitude() == null) {
+                continue;
+            }
+
+            double lat = cinema.getLatitude().doubleValue();
+            double lon = cinema.getLongitude().doubleValue();
+
+            // 計算兩個座標之間的距離（公尺）
+            double dLat = Math.toRadians(lat - latitude);
+            double dLon = Math.toRadians(lon - longitude);
+
+            double a = Math.pow(Math.sin(dLat / 2), 2)
+                    + Math.cos(Math.toRadians(latitude))
+                            * Math.cos(Math.toRadians(lat))
+                            * Math.pow(Math.sin(dLon / 2), 2);
+
+            double distance = 6371000 * 2
+                    * Math.asin(Math.sqrt(Math.min(1, a)));
+
+            // 排除超出搜尋半徑的影城
+            if (distance > radius) {
+                continue;
+            }
+
+            // 距離四捨五入至小數點第一位
+            distance = Math.round(distance * 10) / 10.0;
+
+            // 加入符合條件的影城
+            cinemas.add(new NearbyCinemaResponse.Cinema(
+                    cinema.getCinemaId(),
+                    cinema.getCinemaName(),
+                    cinema.getCinemaAddress(),
+                    cinema.getLatitude(),
+                    cinema.getLongitude(),
+                    distance));
+        }
+
+        // 按距離由近到遠排序
+        cinemas.sort(Comparator.comparingDouble(NearbyCinemaResponse.Cinema::distance));
+
+        return new NearbyCinemaResponse(
+                cinemas.size(),
+                latitude,
+                longitude,
+                radius,
+                cinemas);
     }
 }

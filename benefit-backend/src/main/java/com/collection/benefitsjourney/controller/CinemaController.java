@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.collection.benefitsjourney.dto.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaResponse;
+import com.collection.benefitsjourney.dto.NearbyCinemaResponse;
 import com.collection.benefitsjourney.enums.County;
 import com.collection.benefitsjourney.service.CinemaService;
 
@@ -69,5 +70,17 @@ public class CinemaController {
             @Valid @RequestBody CinemaRequest request) {
 
         return ResponseEntity.ok(cinemaService.updateCinema(id, request));
+    }
+
+    /** 取得指定座標附近的影城 */
+    @GetMapping("/nearby")
+    @Operation(summary = "取得指定座標附近的影城")
+    public ResponseEntity<NearbyCinemaResponse> findNearby(
+            @RequestParam(defaultValue = "25.0480") double latitude,
+            @RequestParam(defaultValue = "121.5170") double longitude,
+            @RequestParam(defaultValue = "20000") double radius) {
+
+        return ResponseEntity.ok(
+                cinemaService.findNearby(latitude, longitude, radius));
     }
 }

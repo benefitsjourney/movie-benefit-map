@@ -16,6 +16,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -44,9 +46,13 @@ public class CinemaBean {
     @Column(name = "cinema_address", length = 256, comment = "地址")
     private String cinemaAddress;
 
+    @DecimalMin(value = "-90")
+    @DecimalMax(value = "90")
     @Column(name = "latitude", precision = 10, scale = 7, comment = "緯度")
     private BigDecimal latitude;
 
+    @DecimalMin(value = "-180")
+    @DecimalMax(value = "180")
     @Column(name = "longitude", precision = 10, scale = 7, comment = "經度")
     private BigDecimal longitude;
 
