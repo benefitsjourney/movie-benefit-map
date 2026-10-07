@@ -40,6 +40,14 @@ public class CinemaService {
                 .toList();
     }
 
+    /** 取得指定id影城資料 */
+    public CinemaResponse findById(Integer id) {
+        CinemaBean cinema = cinemaRepository.findById(id)
+                .orElseThrow(() -> notFound("找不到影城 ID：" + id));
+
+        return CinemaResponse.from(cinema);
+    }
+
     /** 新增影城 */
     public CinemaResponse createCinema(CinemaRequest request) {
         if (request == null) {

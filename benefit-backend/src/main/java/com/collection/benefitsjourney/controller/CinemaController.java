@@ -46,6 +46,14 @@ public class CinemaController {
                         isVisible));
     }
 
+    @GetMapping("/{id}")
+    @Operation(summary = "取得指定id影城資料")
+    public ResponseEntity<CinemaResponse> findById(
+            @PathVariable Integer id) {
+
+        return ResponseEntity.ok(cinemaService.findById(id));
+    }
+
     @PostMapping("")
     @Operation(summary = "新增影城")
     public ResponseEntity<CinemaResponse> createCinema(
