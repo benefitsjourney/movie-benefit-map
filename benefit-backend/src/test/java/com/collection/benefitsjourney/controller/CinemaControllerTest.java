@@ -18,6 +18,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.math.BigDecimal;
@@ -109,8 +110,11 @@ class CinemaControllerTest {
         void findAll_InvalidCounty_ShouldReturn400() throws Exception {
 
             mockMvc.perform(get("/cinemas")
-                    .param("county", "MARS"))
-                    .andExpect(status().isBadRequest());
+                    .param("county", "ABC"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status").value(400))
+                    .andExpect(jsonPath("$.error").value("Bad Request"))
+                    .andExpect(jsonPath("$.message").value("county 參數值無效：ABC"));
 
             verifyNoInteractions(cinemaService);
         }
@@ -121,7 +125,20 @@ class CinemaControllerTest {
 
             mockMvc.perform(get("/cinemas")
                     .param("orderBy", "ABC"))
-                    .andExpect(status().isBadRequest());
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value("orderBy 參數值無效：ABC"));
+
+            verifyNoInteractions(cinemaService);
+        }
+
+        @Test
+        @DisplayName("排序方向不存在時應回傳 400")
+        void findAll_InvalidSort_ShouldReturn400() throws Exception {
+
+            mockMvc.perform(get("/cinemas")
+                    .param("sort", "ABC"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value("sort 參數值無效：ABC"));
 
             verifyNoInteractions(cinemaService);
         }
@@ -199,7 +216,10 @@ class CinemaControllerTest {
                             "找不到影城 ID：999"));
 
             mockMvc.perform(get("/cinemas/999"))
-                    .andExpect(status().isNotFound());
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.status").value(404))
+                    .andExpect(jsonPath("$.error").value("Not Found"))
+                    .andExpect(jsonPath("$.message").value("找不到影城 ID：999"));
 
             verify(cinemaService).findById(999);
         }
@@ -335,6 +355,27 @@ class CinemaControllerTest {
         }
 
         @Test
+        @DisplayName("County Enum 不存在時應回傳 400")
+        void createCinema_InvalidCountyEnum_ShouldReturn400() throws Exception {
+
+            String json = """
+                    {
+                        "cinemaName": "測試影城",
+                        "county": "ABC"
+                    }
+                    """;
+
+            mockMvc.perform(post("/cinemas")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(json))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value("county 參數值無效：ABC"));
+
+            verify(cinemaService, never())
+                    .createCinema(any());
+        }
+
+        @Test
         @DisplayName("RequestBody 型別錯誤應回傳 400")
         void createCinema_InvalidFieldType_ShouldReturn400() throws Exception {
 
@@ -350,6 +391,27 @@ class CinemaControllerTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(json))
                     .andExpect(status().isBadRequest());
+
+            verify(cinemaService, never())
+                    .createCinema(any());
+        }
+
+        @Test
+        @DisplayName("必填欄位空白時應回傳 400")
+        void createCinema_BlankName_ShouldReturn400() throws Exception {
+
+            String json = """
+                    {
+                        "cinemaName": " ",
+                        "county": "TAIPEI"
+                    }
+                    """;
+
+            mockMvc.perform(post("/cinemas")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(json))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value("影城名稱不能為空"));
 
             verify(cinemaService, never())
                     .createCinema(any());
@@ -658,7 +720,9 @@ class CinemaControllerTest {
             mockMvc.perform(put("/cinemas/1")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{}"))
-                    .andExpect(status().isMethodNotAllowed());
+                    .andExpect(status().isMethodNotAllowed())
+                    .andExpect(jsonPath("$.status").value(405))
+                    .andExpect(jsonPath("$.error").value("Method Not Allowed"));
         }
 
         @Test
@@ -677,6 +741,31 @@ class CinemaControllerTest {
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{}"))
                     .andExpect(status().isMethodNotAllowed());
+        }
+    }
+
+    /**
+     * =========================================================
+     * 未預期錯誤
+     * =========================================================
+     */
+
+    @Nested
+    @DisplayName("未預期的程式錯誤")
+    class UnexpectedErrorTests {
+
+        @Test
+        @DisplayName("Service 丟出未預期例外時應回傳 500")
+        void findById_UnexpectedError_ShouldReturn500() throws Exception {
+
+            when(cinemaService.findById(1))
+                    .thenThrow(new IllegalStateException("unexpected"));
+
+            mockMvc.perform(get("/cinemas/1"))
+                    .andExpect(status().isInternalServerError())
+                    .andExpect(jsonPath("$.status").value(500))
+                    .andExpect(jsonPath("$.error").value("Internal Server Error"))
+                    .andExpect(jsonPath("$.message").value("系統發生錯誤"));
         }
     }
 }

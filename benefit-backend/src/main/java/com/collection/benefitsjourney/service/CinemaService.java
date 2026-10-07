@@ -54,7 +54,7 @@ public class CinemaService {
                 Sort.by(direction, orderBy.getProperty()));
 
         Page<CinemaResponse> result = cinemaRepository.findAllByFilters(
-                keyword == null || keyword.isBlank() ? null : keyword,
+                toLikeKeyword(keyword),
                 county,
                 isActive,
                 isVisible,
@@ -62,6 +62,14 @@ public class CinemaService {
                 .map(CinemaResponse::from);
 
         return PageResponse.from(result);
+    }
+
+    /** 避免SQL Server把CONCAT參數轉成varchar */
+    private static String toLikeKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            return null;
+        }
+        return "%" + keyword + "%";
     }
 
     /** 取得指定id影城資料 */
@@ -235,7 +243,8 @@ public class CinemaService {
         }
 
         // 按距離由近到遠排序
-        cinemas.sort(Comparator.comparingDouble(NearbyCinemaResponse.Cinema::distance));
+        cinemas.sort(Comparator.comparingDouble(
+                cinema -> cinema == null ? Double.POSITIVE_INFINITY : cinema.distance()));
 
         return new NearbyCinemaResponse(
                 cinemas.size(),

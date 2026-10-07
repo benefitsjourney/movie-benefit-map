@@ -1,6 +1,7 @@
 package com.collection.benefitsjourney.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +24,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.groups.Default;
 
 @RestController
 @RequestMapping("/cinemas")
@@ -77,7 +79,7 @@ public class CinemaController {
     @PostMapping("")
     @Operation(summary = "新增影城")
     public ResponseEntity<CinemaResponse> createCinema(
-            @Valid @RequestBody CinemaRequest request) {
+            @Validated({ Default.class, CinemaRequest.OnCreate.class }) @RequestBody CinemaRequest request) {
 
         return ResponseEntity.ok(cinemaService.createCinema(request));
     }
@@ -86,7 +88,7 @@ public class CinemaController {
     @Operation(summary = "修改影城")
     public ResponseEntity<CinemaResponse> updateCinema(
             @PathVariable Integer id,
-            @RequestBody CinemaRequest request) {
+            @Valid @RequestBody CinemaRequest request) {
 
         return ResponseEntity.ok(cinemaService.updateCinema(id, request));
     }

@@ -17,7 +17,7 @@ public interface CinemaRepository extends JpaRepository<CinemaBean, Integer> {
     /** 依條件查詢影城 */
     @Query("""
             SELECT c FROM CinemaBean c
-            WHERE (:keyword IS NULL OR c.cinemaName LIKE CONCAT('%', :keyword, '%'))
+            WHERE (:keyword IS NULL OR c.cinemaName LIKE :keyword)
             AND (:county IS NULL OR c.county = :county)
             AND (:isActive IS NULL OR c.isActive = :isActive)
             AND (:isVisible IS NULL OR c.isVisible = :isVisible)

@@ -15,9 +15,9 @@ public record CinemaRequest(
 
         @Size(max = 64, message = "來源ID長度不可超過64字元") String sourceId,
 
-        @Size(max = 64, message = "影城名稱長度不可超過64字元") @NotBlank(message = "影城名稱不能為空") String cinemaName,
+        @Size(max = 64, message = "影城名稱長度不可超過64字元") @NotBlank(groups = OnCreate.class, message = "影城名稱不能為空") String cinemaName,
 
-        @NotNull(message = "縣市不能為空") County county,
+        @NotNull(groups = OnCreate.class, message = "縣市不能為空") County county,
 
         @Size(max = 256, message = "地址長度不可超過256字元") String cinemaAddress,
 
@@ -30,4 +30,8 @@ public record CinemaRequest(
         Boolean isActive,
 
         Boolean isVisible) {
+
+    /** 新增影城時才檢查必填欄位；修改時允許省略未變更欄位 */
+    public interface OnCreate {
+    }
 }
