@@ -15,6 +15,14 @@ spring:
     #JPA
     jpa:
         database-platform: org.hibernate.dialect.SQLServerDialect
-        show-sql: true
         hibernate:
             ddl-auto: validate
+
+    # output
+    output:
+      ansi:
+        enabled: always
+        
+logging:
+    pattern:
+        console: "%d{HH:mm:ss.SSS} [%thread] %clr(%-5level) %clr(%logger{36}){cyan} - %msg%n"
