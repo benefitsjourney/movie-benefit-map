@@ -1,3 +1,4 @@
+
 package com.collection.benefitsjourney.exception;
 
 import static org.hamcrest.Matchers.containsString;
@@ -12,10 +13,15 @@ import java.time.LocalDateTime;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -31,442 +37,429 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.collection.benefitsjourney.config.JacksonConfig;
+import com.collection.benefitsjourney.jwt.JsonWebTokenFilter;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 
-@WebMvcTest(GlobalExceptionHandlerTest.TestController.class)
+@WebMvcTest(controllers = GlobalExceptionHandlerTest.TestController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = JsonWebTokenFilter.class))
 @AutoConfigureMockMvc(addFilters = false)
+@Import({
+        GlobalExceptionHandler.class,
+        JacksonConfig.class
+})
 class GlobalExceptionHandlerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
-    /**
-     * =========================================================
-     * MethodArgumentNotValidException
-     * =========================================================
-     */
-
+    /** RequestBody 欄位驗證 */
     @Nested
     @DisplayName("RequestBody 驗證錯誤")
     class ValidationTests {
 
         @Test
-        @DisplayName("必填欄位空白時應回傳 400 與驗證訊息")
-        void validation_BlankField_ShouldReturn400() throws Exception {
+        @DisplayName("必填欄位空白應回傳 400")
+        void blankField() throws Exception {
+            ResultActions result = postJson(
+                    "/test/validation",
+                    """
+                            {"name": " "}
+                            """);
 
-            ResultActions result = mockMvc.perform(
-                    post("/test/validation")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("""
-                                    {
-                                        "name": " "
-                                    }
-                                    """));
-
-            assertError(
-                    result,
-                    400,
-                    "Bad Request",
-                    "名稱不能為空",
-                    "/test/validation");
+            assertError(result, 400, "Bad Request",
+                    "名稱不能為空", "/test/validation");
         }
 
         @Test
-        @DisplayName("多個欄位驗證失敗時應合併錯誤訊息")
-        void validation_MultipleErrors_ShouldReturnMessages() throws Exception {
-
-            mockMvc.perform(
-                    post("/test/validation/multiple")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("""
-                                    {
-                                        "name": "",
-                                        "code": ""
-                                    }
-                                    """))
+        @DisplayName("多個欄位錯誤應合併訊息")
+        void multipleErrors() throws Exception {
+            postJson("/test/validation/multiple",
+                    """
+                            {"name": "", "code": ""}
+                            """)
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.status").value(400))
-                    .andExpect(jsonPath("$.error").value("Bad Request"))
-                    .andExpect(jsonPath("$.message").value(
-                            containsString("名稱不能為空")))
-                    .andExpect(jsonPath("$.message").value(
-                            containsString("代碼不能為空")))
-                    .andExpect(jsonPath("$.path").value(
-                            "/test/validation/multiple"))
-                    .andExpect(jsonPath("$.timestamp").exists());
+                    .andExpect(jsonPath("$.message")
+                            .value(containsString("名稱不能為空")))
+                    .andExpect(jsonPath("$.message")
+                            .value(containsString("代碼不能為空")));
         }
 
         @Test
-        @DisplayName("驗證錯誤沒有有效訊息時應使用預設訊息")
-        void validation_NoMessage_ShouldUseDefaultMessage() throws Exception {
+        @DisplayName("沒有有效驗證訊息應使用預設訊息")
+        void blankMessage() throws Exception {
+            ResultActions result = postJson(
+                    "/test/validation/blank-message",
+                    """
+                            {"value": ""}
+                            """);
 
-            ResultActions result = mockMvc.perform(
-                    post("/test/validation/blank-message")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("""
-                                    {
-                                        "value": ""
-                                    }
-                                    """));
-
-            assertError(
-                    result,
-                    400,
-                    "Bad Request",
+            assertError(result, 400, "Bad Request",
                     "請求內容格式不正確",
                     "/test/validation/blank-message");
         }
     }
 
-    /**
-     * =========================================================
-     * HttpMessageNotReadableException
-     * =========================================================
-     */
-
+    /** JSON 讀取及資料型別錯誤 */
     @Nested
     @DisplayName("RequestBody 讀取錯誤")
     class NotReadableTests {
 
         @Test
-        @DisplayName("JSON 格式錯誤時應回傳 400")
-        void invalidJson_ShouldReturn400() throws Exception {
+        @DisplayName("JSON 語法錯誤應回傳 400")
+        void invalidJson() throws Exception {
+            ResultActions result = postJson(
+                    "/test/body/enum",
+                    """
+                            {"mode": "ACTIVE"
+                            """);
 
-            ResultActions result = mockMvc.perform(
-                    post("/test/body/enum")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("""
-                                    {
-                                        "mode": "ACTIVE"
-                                    """));
-
-            assertError(
-                    result,
-                    400,
-                    "Bad Request",
+            assertError(result, 400, "Bad Request",
                     "請求內容格式不正確",
                     "/test/body/enum");
         }
 
         @Test
-        @DisplayName("RequestBody Enum 不存在時應顯示欄位名稱與錯誤值")
-        void invalidEnum_ShouldReturn400() throws Exception {
+        @DisplayName("Enum 不存在應顯示欄位與錯誤值")
+        void invalidEnum() throws Exception {
+            ResultActions result = postJson(
+                    "/test/body/enum",
+                    """
+                            {"mode": "UNKNOWN"}
+                            """);
 
-            ResultActions result = mockMvc.perform(
-                    post("/test/body/enum")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("""
-                                    {
-                                        "mode": "UNKNOWN"
-                                    }
-                                    """));
-
-            assertError(
-                    result,
-                    400,
-                    "Bad Request",
+            assertError(result, 400, "Bad Request",
                     "mode 參數值無效：UNKNOWN",
                     "/test/body/enum");
         }
 
         @Test
-        @DisplayName("LocalDateTime 格式錯誤時應顯示日期格式訊息")
-        void invalidDateTime_ShouldReturn400() throws Exception {
+        @DisplayName("一般欄位型別錯誤應回傳 400")
+        void invalidNumber() throws Exception {
+            ResultActions result = postJson(
+                    "/test/body/number",
+                    """
+                            {"count": "hello"}
+                            """);
 
-            ResultActions result = mockMvc.perform(
-                    post("/test/body/date")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("""
-                                    {
-                                        "time": "不是日期"
-                                    }
-                                    """));
-
-            assertError(
-                    result,
-                    400,
-                    "Bad Request",
-                    JacksonConfig.INVALID_DATE_TIME_MESSAGE,
-                    "/test/body/date");
-        }
-
-        @Test
-        @DisplayName("一般欄位型別錯誤時應回傳通用格式錯誤")
-        void invalidFieldType_ShouldReturn400() throws Exception {
-
-            ResultActions result = mockMvc.perform(
-                    post("/test/body/number")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content("""
-                                    {
-                                        "count": "hello"
-                                    }
-                                    """));
-
-            assertError(
-                    result,
-                    400,
-                    "Bad Request",
+            assertError(result, 400, "Bad Request",
                     "請求內容格式不正確",
                     "/test/body/number");
         }
 
         @Test
-        @DisplayName("缺少 RequestBody 時應回傳 400")
-        void missingBody_ShouldReturn400() throws Exception {
-
+        @DisplayName("缺少 RequestBody 應回傳 400")
+        void missingBody() throws Exception {
             ResultActions result = mockMvc.perform(
                     post("/test/body/enum")
                             .contentType(MediaType.APPLICATION_JSON));
 
-            assertError(
-                    result,
-                    400,
-                    "Bad Request",
+            assertError(result, 400, "Bad Request",
                     "請求內容格式不正確",
                     "/test/body/enum");
         }
     }
 
-    /**
-     * =========================================================
-     * MethodArgumentTypeMismatchException
-     * =========================================================
-     */
+    /** 日期時間格式及有效性驗證 */
+    @Nested
+    @DisplayName("LocalDateTime 日期時間驗證")
+    class DateTimeTests {
 
+        @ParameterizedTest(name = "格式錯誤：{0}")
+        @ValueSource(strings = {
+                "不是日期",
+                "2026/10/08 12:30:00",
+                "2026-10-08",
+                "2026-10-08T12:30:00",
+                "2026-10-08 12:30",
+                "2026-10-08 12:30:00.123",
+                "2026-1-8 12:30:00",
+                "2026-10-08 1:30:00",
+                "2026-10-08 12:30:00Z",
+                " 2026-10-08 12:30:00 "
+        })
+        @DisplayName("日期時間格式錯誤應回傳 400")
+        void invalidFormat(String value) throws Exception {
+            assertDateError(
+                    value,
+                    JacksonConfig.INVALID_DATE_TIME_MESSAGE);
+        }
+
+        @ParameterizedTest(name = "日期不存在：{0}")
+        @ValueSource(strings = {
+                "2026-02-29 12:30:00",
+                "2026-02-30 12:30:00",
+                "2026-04-31 12:30:00",
+                "2026-06-31 12:30:00",
+                "2026-09-31 12:30:00",
+                "2026-11-31 12:30:00",
+                "2026-00-08 12:30:00",
+                "2026-13-08 12:30:00",
+                "2026-10-00 12:30:00",
+                "2026-10-32 12:30:00"
+        })
+        @DisplayName("不存在的日期應回傳 400")
+        void invalidDate(String value) throws Exception {
+            assertDateError(
+                    value,
+                    JacksonConfig.INVALID_DATE_MESSAGE);
+        }
+
+        @ParameterizedTest(name = "時間不存在：{0}")
+        @ValueSource(strings = {
+                "2026-10-08 24:00:00",
+                "2026-10-08 25:30:00",
+                "2026-10-08 99:30:00",
+                "2026-10-08 12:60:00",
+                "2026-10-08 12:61:00",
+                "2026-10-08 12:30:60",
+                "2026-10-08 12:30:99"
+        })
+        @DisplayName("不存在的時間應回傳 400")
+        void invalidTime(String value) throws Exception {
+            assertDateError(
+                    value,
+                    JacksonConfig.INVALID_TIME_MESSAGE);
+        }
+
+        @ParameterizedTest(name = "有效日期時間：{0}")
+        @ValueSource(strings = {
+                "2026-10-08 12:30:00",
+                "2026-01-01 00:00:00",
+                "2026-12-31 23:59:59",
+                "2024-02-29 12:30:00",
+                "2000-02-29 12:30:00",
+                "2026-02-28 12:30:00"
+        })
+        @DisplayName("有效日期時間應成功解析")
+        void validDateTime(String value) throws Exception {
+            postJson("/test/body/date",
+                    dateJson(value))
+                    .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("日期時間為 null 應允許解析")
+        void nullDateTime() throws Exception {
+            postJson("/test/body/date",
+                    """
+                            {"time": null}
+                            """)
+                    .andExpect(status().isOk());
+        }
+
+        @Test
+        @DisplayName("日期時間不是字串應回傳 400")
+        void dateTimeWrongType() throws Exception {
+            ResultActions result = postJson(
+                    "/test/body/date",
+                    """
+                            {"time": 12345}
+                            """);
+
+            result.andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.status").value(400))
+                    .andExpect(jsonPath("$.path")
+                            .value("/test/body/date"))
+                    .andExpect(jsonPath("$.message").exists());
+        }
+
+        @Test
+        @DisplayName("日期錯誤應維持統一 JSON 錯誤格式")
+        void invalidDateResponseStructure() throws Exception {
+            ResultActions result = postJson(
+                    "/test/body/date",
+                    dateJson("2026-02-30 12:30:00"));
+
+            assertError(result, 400, "Bad Request",
+                    JacksonConfig.INVALID_DATE_MESSAGE,
+                    "/test/body/date");
+        }
+    }
+
+    /** RequestParam 型別錯誤 */
     @Nested
     @DisplayName("RequestParam 型別錯誤")
     class TypeMismatchTests {
 
         @Test
-        @DisplayName("Enum RequestParam 不存在時應顯示參數名稱與錯誤值")
-        void invalidEnumParameter_ShouldReturn400() throws Exception {
-
+        @DisplayName("Enum 參數不存在應回傳 400")
+        void invalidEnumParameter() throws Exception {
             ResultActions result = mockMvc.perform(
                     get("/test/param/enum")
                             .param("mode", "UNKNOWN"));
 
-            assertError(
-                    result,
-                    400,
-                    "Bad Request",
+            assertError(result, 400, "Bad Request",
                     "mode 參數值無效：UNKNOWN",
                     "/test/param/enum");
         }
 
         @Test
-        @DisplayName("數字 RequestParam 格式錯誤時應顯示參數格式不正確")
-        void invalidNumberParameter_ShouldReturn400() throws Exception {
-
+        @DisplayName("數字參數格式錯誤應回傳 400")
+        void invalidNumberParameter() throws Exception {
             ResultActions result = mockMvc.perform(
                     get("/test/param/number")
                             .param("page", "abc"));
 
-            assertError(
-                    result,
-                    400,
-                    "Bad Request",
+            assertError(result, 400, "Bad Request",
                     "page 參數格式不正確：abc",
                     "/test/param/number");
         }
     }
 
-    /**
-     * =========================================================
-     * HttpMediaTypeNotSupportedException
-     * =========================================================
-     */
-
+    /** HTTP 請求錯誤 */
     @Nested
-    @DisplayName("Content-Type 錯誤")
-    class MediaTypeTests {
+    @DisplayName("HTTP 請求錯誤")
+    class HttpTests {
 
         @Test
-        @DisplayName("不支援的 Content-Type 應回傳 415")
-        void unsupportedMediaType_ShouldReturn415() throws Exception {
-
+        @DisplayName("不支援 Content-Type 應回傳 415")
+        void unsupportedMediaType() throws Exception {
             ResultActions result = mockMvc.perform(
                     post("/test/validation")
                             .contentType(MediaType.TEXT_PLAIN)
-                            .content("""
-                                    {
-                                        "name": "測試"
-                                    }
-                                    """));
+                            .content("test"));
 
-            assertError(
-                    result,
-                    415,
-                    "Unsupported Media Type",
+            assertError(result, 415, "Unsupported Media Type",
                     "不支援的 Content-Type",
                     "/test/validation");
         }
-    }
-
-    /**
-     * =========================================================
-     * HttpRequestMethodNotSupportedException
-     * =========================================================
-     */
-
-    @Nested
-    @DisplayName("HTTP Method 錯誤")
-    class MethodNotSupportedTests {
 
         @Test
-        @DisplayName("不支援的 PUT Method 應回傳 405")
-        void unsupportedMethod_ShouldReturn405() throws Exception {
-
+        @DisplayName("不支援 HTTP Method 應回傳 405")
+        void unsupportedMethod() throws Exception {
             ResultActions result = mockMvc.perform(
                     put("/test/method"));
 
-            assertError(
-                    result,
-                    405,
-                    "Method Not Allowed",
+            assertError(result, 405, "Method Not Allowed",
                     "不支援的 HTTP Method：PUT",
                     "/test/method");
         }
     }
 
-    /**
-     * =========================================================
-     * ResponseStatusException
-     * =========================================================
-     */
-
+    /** 主動拋出的 HTTP 錯誤 */
     @Nested
     @DisplayName("ResponseStatusException")
     class ResponseStatusTests {
 
         @Test
-        @DisplayName("ResponseStatusException 應沿用指定狀態碼與 reason")
-        void responseStatus_WithReason_ShouldUseStatusAndReason() throws Exception {
-
+        @DisplayName("應保留指定狀態碼與 reason")
+        void withReason() throws Exception {
             ResultActions result = mockMvc.perform(
                     get("/test/response-status"));
 
-            assertError(
-                    result,
-                    404,
-                    "Not Found",
+            assertError(result, 404, "Not Found",
                     "找不到測試資料",
                     "/test/response-status");
         }
 
         @Test
-        @DisplayName("沒有 reason 時應使用 HTTP 狀態預設訊息")
-        void responseStatus_NoReason_ShouldUseReasonPhrase() throws Exception {
-
+        @DisplayName("沒有 reason 應使用預設訊息")
+        void withoutReason() throws Exception {
             ResultActions result = mockMvc.perform(
                     get("/test/response-status/no-reason"));
 
-            assertError(
-                    result,
-                    403,
-                    "Forbidden",
+            assertError(result, 403, "Forbidden",
                     "Forbidden",
                     "/test/response-status/no-reason");
         }
     }
 
-    /**
-     * =========================================================
-     * Spring ErrorResponse
-     * =========================================================
-     */
-
+    /** Spring ErrorResponse 錯誤 */
     @Nested
     @DisplayName("Spring ErrorResponse")
-    class SpringErrorResponseTests {
+    class SpringErrorTests {
 
         @Test
-        @DisplayName("Spring ErrorResponse 應保留原本的 HTTP 狀態碼")
-        void errorResponse_WithDetail_ShouldKeepStatus() throws Exception {
-
+        @DisplayName("應保留 HTTP 狀態碼與 detail")
+        void withDetail() throws Exception {
             ResultActions result = mockMvc.perform(
                     get("/test/error-response"));
 
-            assertError(
-                    result,
-                    409,
-                    "Conflict",
+            assertError(result, 409, "Conflict",
                     "資料發生衝突",
                     "/test/error-response");
         }
 
         @Test
-        @DisplayName("Spring ErrorResponse 沒有 detail 時應使用狀態預設訊息")
-        void errorResponse_NoDetail_ShouldUseReasonPhrase() throws Exception {
-
+        @DisplayName("沒有 detail 應使用預設訊息")
+        void withoutDetail() throws Exception {
             ResultActions result = mockMvc.perform(
                     get("/test/error-response/no-detail"));
 
-            assertError(
-                    result,
-                    410,
-                    "Gone",
+            assertError(result, 410, "Gone",
                     "Gone",
                     "/test/error-response/no-detail");
         }
 
         @Test
-        @DisplayName("未知 HTTP 狀態碼應降級成 500")
-        void errorResponse_UnknownStatus_ShouldReturn500() throws Exception {
-
+        @DisplayName("無法解析的 HTTP 狀態碼應降級為 500")
+        void unknownStatus() throws Exception {
             ResultActions result = mockMvc.perform(
                     get("/test/error-response/unknown-status"));
 
-            assertError(
-                    result,
-                    500,
-                    "Internal Server Error",
+            assertError(result, 500, "Internal Server Error",
                     "Internal Server Error",
                     "/test/error-response/unknown-status");
         }
     }
 
-    /**
-     * =========================================================
-     * Unexpected Exception
-     * =========================================================
-     */
-
+    /** 未預期錯誤 */
     @Nested
-    @DisplayName("未預期錯誤")
-    class UnexpectedExceptionTests {
+    @DisplayName("未預期 Exception")
+    class UnexpectedTests {
 
         @Test
-        @DisplayName("一般未預期 Exception 應回傳 500")
-        void unexpectedException_ShouldReturn500() throws Exception {
-
+        @DisplayName("未預期錯誤應回傳 500")
+        void unexpectedException() throws Exception {
             ResultActions result = mockMvc.perform(
                     get("/test/unexpected"));
 
-            assertError(
-                    result,
-                    500,
-                    "Internal Server Error",
+            assertError(result, 500, "Internal Server Error",
                     "系統發生錯誤",
                     "/test/unexpected");
         }
 
         @Test
-        @DisplayName("500 不應將原始 Exception 訊息回傳給前端")
-        void unexpectedException_ShouldHideInternalMessage() throws Exception {
-
-            mockMvc.perform(
-                    get("/test/unexpected"))
+        @DisplayName("不應洩漏內部 Exception 訊息")
+        void hideInternalMessage() throws Exception {
+            mockMvc.perform(get("/test/unexpected"))
                     .andExpect(status().isInternalServerError())
-                    .andExpect(jsonPath("$.message").value("系統發生錯誤"));
+                    .andExpect(jsonPath("$.message")
+                            .value("系統發生錯誤"));
         }
     }
 
-    /**
-     * 驗證統一錯誤格式。
-     */
+    /** 發送 JSON POST 請求 */
+    private ResultActions postJson(
+            String path,
+            String json) throws Exception {
+
+        return mockMvc.perform(
+                post(path)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json));
+    }
+
+    /** 建立日期時間測試 JSON */
+    private String dateJson(String value) {
+        return "{\"time\":\"" + value + "\"}";
+    }
+
+    /** 驗證日期時間錯誤 */
+    private void assertDateError(
+            String value,
+            String message) throws Exception {
+
+        ResultActions result = postJson(
+                "/test/body/date",
+                dateJson(value));
+
+        assertError(result, 400, "Bad Request",
+                message, "/test/body/date");
+    }
+
+    /** 驗證統一錯誤回傳格式 */
     private void assertError(
             ResultActions result,
             int expectedStatus,
@@ -476,100 +469,61 @@ class GlobalExceptionHandlerTest {
 
         result
                 .andExpect(status().is(expectedStatus))
-                .andExpect(jsonPath("$.status").value(expectedStatus))
-                .andExpect(jsonPath("$.error").value(expectedError))
-                .andExpect(jsonPath("$.message").value(expectedMessage))
-                .andExpect(jsonPath("$.path").value(expectedPath))
+                .andExpect(jsonPath("$.status")
+                        .value(expectedStatus))
+                .andExpect(jsonPath("$.error")
+                        .value(expectedError))
+                .andExpect(jsonPath("$.message")
+                        .value(expectedMessage))
+                .andExpect(jsonPath("$.path")
+                        .value(expectedPath))
                 .andExpect(jsonPath("$.timestamp").exists());
     }
 
-    /**
-     * =========================================================
-     * 測試專用 Controller
-     * =========================================================
-     *
-     * 不包含任何實際業務邏輯，
-     * 只用來觸發 GlobalExceptionHandler 的各種 Exception。
-     */
+    /** 測試專用 Controller */
     @RestController
     @RequestMapping("/test")
     static class TestController {
 
-        /**
-         * RequestBody 驗證錯誤
-         */
         @PostMapping(value = "/validation", consumes = MediaType.APPLICATION_JSON_VALUE)
         void validation(
                 @Valid @RequestBody ValidationRequest request) {
         }
 
-        /**
-         * 多個 RequestBody 驗證錯誤
-         */
         @PostMapping(value = "/validation/multiple", consumes = MediaType.APPLICATION_JSON_VALUE)
         void multipleValidation(
                 @Valid @RequestBody MultipleValidationRequest request) {
         }
 
-        /**
-         * 驗證訊息為空白
-         */
         @PostMapping(value = "/validation/blank-message", consumes = MediaType.APPLICATION_JSON_VALUE)
-        void blankValidationMessage(
+        void blankValidation(
                 @Valid @RequestBody BlankValidationRequest request) {
         }
 
-        /**
-         * Enum RequestBody
-         */
-        @PostMapping(value = "/body/enum", consumes = MediaType.APPLICATION_JSON_VALUE)
-        void enumBody(
-                @RequestBody EnumRequest request) {
+        @PostMapping("/body/enum")
+        void enumBody(@RequestBody EnumRequest request) {
         }
 
-        /**
-         * LocalDateTime RequestBody
-         */
-        @PostMapping(value = "/body/date", consumes = MediaType.APPLICATION_JSON_VALUE)
-        void dateBody(
-                @RequestBody DateRequest request) {
+        @PostMapping("/body/date")
+        void dateBody(@RequestBody DateRequest request) {
         }
 
-        /**
-         * Integer RequestBody
-         */
-        @PostMapping(value = "/body/number", consumes = MediaType.APPLICATION_JSON_VALUE)
-        void numberBody(
-                @RequestBody NumberRequest request) {
+        @PostMapping("/body/number")
+        void numberBody(@RequestBody NumberRequest request) {
         }
 
-        /**
-         * Enum RequestParam
-         */
         @GetMapping("/param/enum")
-        void enumParameter(
-                @RequestParam TestEnum mode) {
+        void enumParameter(@RequestParam TestEnum mode) {
         }
 
-        /**
-         * Integer RequestParam
-         */
         @GetMapping("/param/number")
-        void numberParameter(
-                @RequestParam Integer page) {
+        void numberParameter(@RequestParam Integer page) {
         }
 
-        /**
-         * 正常只支援 GET，
-         * 測試時故意使用 PUT 觸發 405。
-         */
         @GetMapping("/method")
         void method() {
         }
 
-        /**
-         * 主動拋出帶 reason 的 HTTP 404。
-         */
         @GetMapping("/response-status")
         void responseStatus() {
             throw new ResponseStatusException(
@@ -577,50 +531,31 @@ class GlobalExceptionHandlerTest {
                     "找不到測試資料");
         }
 
-        /**
-         * 主動拋出沒有 reason 的 HTTP 403。
-         */
         @GetMapping("/response-status/no-reason")
         void responseStatusWithoutReason() {
             throw new ResponseStatusException(
                     HttpStatus.FORBIDDEN);
         }
 
-        /**
-         * Spring ErrorResponse，
-         * 用來確認 handleException 不會全部轉成 500。
-         */
         @GetMapping("/error-response")
         void errorResponse() {
             ErrorResponseException exception = new ErrorResponseException(HttpStatus.CONFLICT);
 
             exception.setDetail("資料發生衝突");
-
             throw exception;
         }
 
-        /**
-         * Spring ErrorResponse 沒有 detail。
-         */
         @GetMapping("/error-response/no-detail")
         void errorResponseWithoutDetail() {
-            throw new ErrorResponseException(
-                    HttpStatus.GONE);
+            throw new ErrorResponseException(HttpStatus.GONE);
         }
 
-        /**
-         * Spring 無法解析成 HttpStatus 的狀態碼，
-         * 應由 resolveStatus 降級成 500。
-         */
         @GetMapping("/error-response/unknown-status")
         void unknownStatus() {
             throw new ErrorResponseException(
                     HttpStatusCode.valueOf(499));
         }
 
-        /**
-         * 真正未預期的程式錯誤。
-         */
         @GetMapping("/unexpected")
         void unexpected() {
             throw new IllegalStateException(
@@ -628,39 +563,28 @@ class GlobalExceptionHandlerTest {
         }
     }
 
-    /**
-     * =========================================================
-     * 測試專用 Request
-     * =========================================================
-     */
-
+    /** 測試專用 DTO */
     record ValidationRequest(
-
             @NotBlank(message = "名稱不能為空") String name) {
     }
 
     record MultipleValidationRequest(
-
             @NotBlank(message = "名稱不能為空") String name,
 
             @NotBlank(message = "代碼不能為空") String code) {
     }
 
     record BlankValidationRequest(
-
             @NotBlank(message = " ") String value) {
     }
 
-    record EnumRequest(
-            TestEnum mode) {
+    record EnumRequest(TestEnum mode) {
     }
 
-    record DateRequest(
-            LocalDateTime time) {
+    record DateRequest(LocalDateTime time) {
     }
 
-    record NumberRequest(
-            Integer count) {
+    record NumberRequest(Integer count) {
     }
 
     enum TestEnum {
