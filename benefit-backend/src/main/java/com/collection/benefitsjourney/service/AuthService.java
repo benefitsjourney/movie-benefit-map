@@ -3,12 +3,15 @@ package com.collection.benefitsjourney.service;
 import java.time.LocalDateTime;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
 import com.collection.benefitsjourney.domain.UsersBean;
 import com.collection.benefitsjourney.dto.RegisterRequest;
 import com.collection.benefitsjourney.repository.UsersRepository;
 
 import java.util.Optional;
 
+@Service 
 public class AuthService {
     private final UsersRepository usersRepository;
     private final PasswordEncoder passwordEncoder;
@@ -63,6 +66,38 @@ public class AuthService {
 
         return usersRepository.save(usersBean);
     }
+
+        /**
+     * 一般帳號密碼登入
+     */
+    public UsersBean login(String account, String password) {
+
+    // 根據帳號尋找會員
+    Optional<UsersBean> optionalUser =
+            usersRepository.findByAccount(account);
+
+    // 找不到帳號
+    if (optionalUser.isEmpty()) {
+        throw new IllegalArgumentException("帳號或密碼錯誤");
+    }
+
+    UsersBean usersBean = optionalUser.get();
+
+    // 確認會員狀態
+    if (!"ACTIVE".equals(usersBean.getStatus())) {
+        throw new IllegalArgumentException("此帳號目前無法登入");
+    }
+
+    // 使用 BCrypt 驗證密碼
+    if (!passwordEncoder.matches(password, usersBean.getPassword())) {
+        throw new IllegalArgumentException("帳號或密碼錯誤");
+    }
+
+    // 更新修改時間
+    usersBean.setUpdatedAt(LocalDateTime.now());
+
+    return usersRepository.save(usersBean);
+}
 
     /**
      * Google OAuth 登入

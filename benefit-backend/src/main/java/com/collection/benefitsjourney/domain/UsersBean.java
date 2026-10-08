@@ -12,6 +12,8 @@ import lombok.Setter;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import org.hibernate.annotations.Nationalized;
+
 @Entity
 @Table(name = "users")
 @Getter
@@ -33,6 +35,7 @@ public class UsersBean {
     private String password;
 
     // 姓名 / 暱稱
+    @Nationalized
     @Column(name = "name")
     private String name;
 
@@ -41,7 +44,7 @@ public class UsersBean {
     private String email;
 
     // Google OAuth 唯一識別 ID
-    @Column(name = "google_id", unique = true)
+    @Column(name = "google_id")
     private String googleId;
 
     // 生日

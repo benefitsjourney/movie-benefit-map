@@ -12,7 +12,7 @@ spring:
   jackson:
     time-zone: Asia/Taipei
 
-    #JPA
+  #JPA
   jpa:
     database-platform: org.hibernate.dialect.SQLServerDialect
     hibernate:
@@ -30,3 +30,9 @@ spring:
 logging:
   pattern:
     console: "%d{HH:mm:ss.SSS} [%thread] %clr(%-5level) %clr(%logger{36}){cyan} - %msg%n"
+
+#JWT
+jwt:
+    token:
+        expire: 30
+        secret: "Benefits1234Journey-Secret-Key-2026-Development-10-07-userLoginToken"
