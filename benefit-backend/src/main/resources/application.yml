@@ -27,12 +27,16 @@ spring:
     ansi:
       enabled: always
 
-logging:
-  pattern:
-    console: "%d{HH:mm:ss.SSS} [%thread] %clr(%-5level) %clr(%logger{36}){cyan} - %msg%n"
-
 #JWT
 jwt:
     token:
         expire: 30
         secret: "Benefits1234Journey-Secret-Key-2026-Development-10-07-userLoginToken"
+
+logging:
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %clr(%-5level) %clr(%logger{36}){cyan} - %msg%n"
+
+springdoc:
+  swagger-ui:
+    doc-expansion: none

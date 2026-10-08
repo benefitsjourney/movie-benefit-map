@@ -17,7 +17,6 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
 
     private final JsonWebTokenUtility jsonWebTokenUtility;
 
-
     @Override
     protected boolean shouldNotFilter(
             HttpServletRequest request)
@@ -31,9 +30,14 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 || uri.equals("/auth/login")
                 || uri.equals("/auth/google")
                 || uri.equals("/auth/password/forgot")
-                || uri.equals("/auth/password/reset");
-    }
+                || uri.equals("/auth/password/reset")
 
+                // Swagger 白名單
+                || uri.equals("/swagger-ui.html")
+                || uri.startsWith("/swagger-ui/")
+                || uri.equals("/v3/api-docs")
+                || uri.startsWith("/v3/api-docs/");
+    }
 
     @Override
     protected void doFilterInternal(
@@ -42,33 +46,25 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
             FilterChain filterChain)
             throws ServletException, IOException {
 
-        String auth =
-                request.getHeader("Authorization");
+        String auth = request.getHeader("Authorization");
 
         System.out.println(
-                "Authorization = " + auth
-        );
-
+                "Authorization = " + auth);
 
         // 沒有 Authorization
         if (auth == null || !auth.startsWith("Bearer ")) {
 
             response.setStatus(
-                    HttpServletResponse.SC_FORBIDDEN
-            );
+                    HttpServletResponse.SC_FORBIDDEN);
 
             return;
         }
 
-
         // 取得 JWT
         String token = auth.substring(7);
 
-
         // 驗證 JWT
-        String subject =
-                jsonWebTokenUtility.validateToken(token);
-
+        String subject = jsonWebTokenUtility.validateToken(token);
 
         // JWT 驗證成功
         if (subject != null) {
@@ -80,10 +76,8 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
             return;
         }
 
-
         // JWT 驗證失敗
         response.setStatus(
-                HttpServletResponse.SC_FORBIDDEN
-        );
+                HttpServletResponse.SC_FORBIDDEN);
     }
 }
