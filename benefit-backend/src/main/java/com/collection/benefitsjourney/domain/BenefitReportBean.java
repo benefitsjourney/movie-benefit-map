@@ -7,9 +7,12 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
@@ -24,23 +27,31 @@ public class BenefitReportBean {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "benefit_report_id")
     private Integer benefitReportId;
-    
+
     // 放圖片用
     @Column(name = "public_id", length = 200)
     private String publicId;
 
-    @Column(name = "user_id")
-    private Integer userId;
+    // 爬蟲建立的回報沒有使用者，所以可為空
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
+    private UsersBean user;
 
-    @Column(name = "cinema_id")
-    private Integer cinemaId;
+    // 資料庫查不到影城時為空，改存customCinemaName
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cinema_id")
+    private CinemaBean cinema;
 
-    @Column(name = "movie_id")
-    private Integer movieId;
+    // 資料庫查不到電影時為空，改存customMovieName
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "movie_id")
+    private MovieBean movie;
 
-    @Column(name = "benefit_id")
-    private Integer benefitId;
-    
+    // 審核通過後才會對應到正式特典
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "benefit_id")
+    private BenefitBean benefit;
+
     @Column(name = "benefit_name", length = 100)
     private String benefitName;
 
@@ -56,7 +67,7 @@ public class BenefitReportBean {
     @Column(name = "benefit_type", length = 32)
     private String benefitType;
 
-    @Column(name = "status", length = 16)
+    @Column(name = "status", length = 16, nullable = false)
     private String status;
 
     @Column(name = "start_date")
