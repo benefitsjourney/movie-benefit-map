@@ -1,0 +1,25 @@
+body {
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 600px;
+}
+
+.card {
+    border: none;
+    border-radius: 12px;
+}
+
+.btn {
+    border-radius: 8px;
+}
+
+.form-control,
+.form-select {
+    font-size: 14px;
+}
+
+#status:empty {
+    display: none;
+}
