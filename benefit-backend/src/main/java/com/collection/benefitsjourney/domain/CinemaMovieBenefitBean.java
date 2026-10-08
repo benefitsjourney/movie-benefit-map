@@ -7,9 +7,12 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
@@ -38,17 +41,21 @@ public class CinemaMovieBenefitBean {
     @Column(name = "cinema_movie_benefit_id")
     private Integer cinemaMovieBenefitId;
 
-    @Column(name = "cinema_id", nullable = false)
-    private Integer cinemaId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "cinema_id", nullable = false)
+    private CinemaBean cinema;
 
-    @Column(name = "movie_id", nullable = false)
-    private Integer movieId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "movie_id", nullable = false)
+    private MovieBean movie;
 
-    @Column(name = "benefit_id", nullable = false)
-    private Integer benefitId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "benefit_id", nullable = false)
+    private BenefitBean benefit;
 
-    @Column(name = "benefit_inventory_status")
-    private Integer benefitInventoryStatus;
+    // 庫存狀態，預設0=UNKNOWN（對應BenefitInventoryStatus）
+    @Column(name = "benefit_inventory_status", nullable = false)
+    private Integer benefitInventoryStatus = 0;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

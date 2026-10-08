@@ -18,14 +18,14 @@ public interface BenefitRepository extends JpaRepository<BenefitBean, Integer> {
     // 可以看已上架或已下架特典
     @Query("""
             SELECT DISTINCT b FROM BenefitBean b
-            JOIN CinemaMovieBenefitBean c ON c.benefitId = b.benefitId
-            WHERE c.movieId = :movieId AND b.status = :status
+            JOIN CinemaMovieBenefitBean c ON c.benefit = b
+            WHERE c.movie.movieId = :movieId AND b.status = :status
             ORDER BY b.startDate DESC
             """)
     List<BenefitBean> findByMovieId(
-    		@Param("movieId") Integer movieId,
-    		@Param("status") String status,
-    		Pageable pageable);
+            @Param("movieId") Integer movieId,
+            @Param("status") String status,
+            Pageable pageable);
 
 
     // 爬蟲去重（同貼文+同特典名稱），避免同一則貼文被重複抓到

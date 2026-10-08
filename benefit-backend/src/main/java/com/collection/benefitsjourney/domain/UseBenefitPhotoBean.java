@@ -27,14 +27,15 @@ public class UseBenefitPhotoBean {
     @Column(name = "use_benefit_photo_id")
     private Integer useBenefitPhotoId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "use_benefit_id", nullable = false)
     private UseBenefitBean useBenefit;
 
-    @Column(name = "public_id", length = 200)
+    // 圖片用
+    @Column(name = "public_id", length = 200, nullable = false)
     private String publicId;
 
-    @Column(name = "use_benefit_photo_url", length = 200)
+    @Column(name = "use_benefit_photo_url", length = 200, nullable = false)
     private String useBenefitPhotoUrl;
 
     @CreationTimestamp
