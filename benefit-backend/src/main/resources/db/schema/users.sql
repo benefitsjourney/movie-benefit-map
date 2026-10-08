@@ -7,22 +7,22 @@ CREATE TABLE users (
     -- 會員編號
     users_id INT IDENTITY(1,1) PRIMARY KEY,
     -- 一般登入帳號
-    account VARCHAR(50) UNIQUE NULL,
+    account NVARCHAR(50) UNIQUE NULL,
     -- BCrypt 加密後的密碼
-    password VARCHAR(255) NULL,
+    password NVARCHAR(255) NULL,
     -- 姓名 / 暱稱，需要支援中文
     name NVARCHAR(50) NOT NULL,
     -- Email
-    email VARCHAR(255) NOT NULL UNIQUE,
+    email NVARCHAR(255) NOT NULL UNIQUE,
     -- Google OAuth 唯一識別 ID
     -- 不直接設定 UNIQUE，改用下面的 Filtered Unique Index
-    google_id VARCHAR(255) NULL,
+    google_id NVARCHAR(255) NULL,
     -- 生日
     birth_date DATE NOT NULL,
     -- USER / ADMIN
-    role VARCHAR(20) NOT NULL,
+    role NVARCHAR(20) NOT NULL,
     -- ACTIVE / INACTIVE / BANNED
-    status VARCHAR(20) NOT NULL,
+    status NVARCHAR(20) NOT NULL,
     -- 建立時間
     created_at DATETIME2 NOT NULL,
     -- 修改時間
