@@ -67,14 +67,14 @@ public class BenefitReportAdminService {
             if (!cinemaRepository.existsById(request.cinemaId())) {
                 throw ExceptionUtils.badRequest("找不到影城ID：" + request.cinemaId());
             }
-            report.setCinemaId(request.cinemaId());
+            report.setCinema(cinemaRepository.getReferenceById(request.cinemaId()));
         }
 
         if (request.movieId() != null) {
             if (!movieRepository.existsById(request.movieId())) {
                 throw ExceptionUtils.badRequest("找不到電影ID：" + request.movieId());
             }
-            report.setMovieId(request.movieId());
+            report.setMovie(movieRepository.getReferenceById(request.movieId()));
         }
 
         if (request.benefitName() != null) {
