@@ -13,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -21,7 +22,16 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-@Table(name = "ticket_favorite", comment = "轉讓收藏表")
+@Table(name = "ticket_favorite", comment = "轉讓收藏表",
+	uniqueConstraints = {
+        @UniqueConstraint(
+            name = "UK_TicketFavorite_User_Listing",
+            columnNames = {
+                "users_id",
+                "ticket_listing_id"
+            }
+        )
+    })
 public class TicketFavoriteBean {
 
 	@Id
@@ -37,7 +47,7 @@ public class TicketFavoriteBean {
 	@JoinColumn(name = "ticket_listing_id", nullable = false)
 	private TicketListingBean ticketListingBean;
 
-	@Column(name = "created_at", updatable = false, comment = "建立時間")
+	@Column(name = "created_at", updatable = false, nullable = false, comment = "建立時間")
 	@CreationTimestamp
 	private LocalDateTime createdAt;
 }

@@ -13,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -21,7 +22,16 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-@Table(name = "exchange_favorite", comment = "交換收藏表")
+@Table(name = "exchange_favorite", comment = "交換收藏表",
+	uniqueConstraints = {
+        @UniqueConstraint(
+            name = "UK_ExchangeFavorite_User_Listing",
+            columnNames = {
+                "users_id",
+                "exchange_listing_id"
+            }
+        )
+    })
 public class ExchangeFavoriteBean {
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -36,7 +46,7 @@ public class ExchangeFavoriteBean {
 	@JoinColumn(name = "exchange_listing_id", nullable = false)
 	private ExchangeListingBean exchangeListingBean;
 
-	@Column(name = "created_at", updatable = false, comment = "建立時間")
+	@Column(name = "created_at", updatable = false, nullable = false, comment = "建立時間")
 	@CreationTimestamp
 	private LocalDateTime createdAt;
 

@@ -19,33 +19,23 @@ import lombok.RequiredArgsConstructor;
 public class ExchangeListingController {
 
 	private final ExchangeListingService exchangeListingService;
-	
-//	// 新增交換刊登
-//	@PostMapping("/create")
-//	public ExchangeListingBean createExchangeListing(
-//			@RequestParam String title,
-//			@RequestParam String description,
-//			@RequestParam Integer useBenefitId) {
-//		
-//		return exchangeListingService.createListing(title, description, useBenefitId);
-//	}
-	
-	// 新增交換刊登
-		@PostMapping("/create")
-		public ExchangeListingBean createExchangeListing(
-				@RequestBody ExchangeListingRequest request) {
-			
-			return exchangeListingService.createListing(
-	                request.getTitle(),
-	                request.getDescription(),
-	                request.getUseBenefitId());
-		}
-		
-	// 刪除交換刊登
-    @DeleteMapping("/delete/{exchangeListingId}")
-    public void exchangeListingDelete(@PathVariable Integer exchangeListingId) {
 
-        exchangeListingService.exchangeListingDelete(exchangeListingId);
-    }
+	// 新增交換刊登
+	@PostMapping("/create")
+	public ExchangeListingBean createExchangeListing(
+			@RequestBody ExchangeListingRequest request) {
+
+		return exchangeListingService.createListing(
+				request.getTitle(),
+				request.getDescription(),
+				request.getUseBenefitId());
+	}
+
+	// 刪除交換刊登
+	@DeleteMapping("/delete/{exchangeListingId}")
+	public void exchangeListingDelete(@PathVariable Integer exchangeListingId) {
+
+		exchangeListingService.exchangeListingDelete(exchangeListingId);
+	}
 
 }

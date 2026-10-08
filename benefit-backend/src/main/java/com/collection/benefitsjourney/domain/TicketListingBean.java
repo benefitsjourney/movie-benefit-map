@@ -44,21 +44,18 @@ public class TicketListingBean {
 	@JoinColumn(name = "cinema_id", nullable = false, comment = "影城 ID")
 	private CinemaBean cinemaBean;
 
-	@Column(name = "movie_id", nullable = false)
-	private Integer movieId;
-	// @ManyToOne
-	// // (fetch = FetchType.LAZY)
-	// @JoinColumn(name = "movie_id", nullable = false, comment = "電影 ID")
-	// private MovieBean movieBean;
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "movie_id", nullable = false, comment = "電影 ID")
+	private MovieBean movieBean;
 
 	@Column(name = "ticket_showtime", nullable = false, comment = "電影時間")
 	private LocalDateTime ticketShowtime;
 
-	// ACTIVE = 正常顯示 / HIDDEN = 暫時不顯示 / CLOSED = 已結束
+//	開啟(ACTIVE)  = 現在正在刊登 / 隱藏(HIDDEN)  = 暫時不刊登 / 關閉(CLOSED )  = 刊登已經結束 / 刪除(DELETED) = 使用者不要這筆刊登
 	@Column(name = "status",columnDefinition = "NVARCHAR(20)", nullable = false, comment = "刊登狀態")
 	private String status;
 
-	@Column(name = "created_at", updatable = false, comment = "建立時間")
+	@Column(name = "created_at", updatable = false, nullable = false, comment = "建立時間")
 	@CreationTimestamp
 	private LocalDateTime createdAt;
 
