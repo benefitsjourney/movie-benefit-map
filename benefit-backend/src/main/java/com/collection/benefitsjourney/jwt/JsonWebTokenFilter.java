@@ -23,6 +23,7 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
             throws ServletException {
 
         String uri = request.getRequestURI();
+        String method = request.getMethod();
 
         System.out.println("JWT Filter URI = " + uri);
 
@@ -31,6 +32,15 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 || uri.equals("/auth/google")
                 || uri.equals("/auth/password/forgot")
                 || uri.equals("/auth/password/reset")
+
+                // 影城 API 白名單
+                || (uri.equals("/cinemas") && (method.equals("GET")))
+                || (uri.matches("/cinemas/\\d+") && method.equals("GET"))
+                || (uri.equals("/cinemas/nearby") && method.equals("GET"))
+
+                // 電影 API 白名單
+                || (uri.equals("/movies") && method.equals("GET"))
+                || (uri.matches("/movies/\\d+") && method.equals("GET"))
 
                 // Swagger 白名單
                 || uri.equals("/swagger-ui.html")

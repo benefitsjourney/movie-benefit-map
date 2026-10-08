@@ -36,7 +36,8 @@ public class OpenApiConfig {
                         new Tag().name("影城"),
                         new Tag().name("電影"),
                         new Tag().name("特典"),
-                        new Tag().name("爬蟲")))
+                        new Tag().name("爬蟲"),
+                        new Tag().name("資料匯出")))
 
                 // JWT 驗證
                 .components(new Components()
