@@ -151,14 +151,23 @@ public class GlobalExceptionHandler {
         return name + " 參數格式不正確：" + rejected;
     }
 
+    /** 處理 JSON 格式、Enum 及日期時間錯誤 */
     private String readableMessage(HttpMessageNotReadableException exception) {
         InvalidFormatException invalidFormat = findInvalidFormat(exception);
-        if (invalidFormat != null
-                && invalidFormat.getTargetType() != null
-                && invalidFormat.getTargetType().isEnum()) {
+
+        if (invalidFormat == null) {
+            return "請求內容格式不正確";
+        }
+
+        Class<?> type = invalidFormat.getTargetType();
+
+        // 處理 Enum 錯誤
+        if (type != null && type.isEnum()) {
             String fieldName = invalidFormat.getPath()
                     .stream()
-                    .map(reference -> reference == null ? null : reference.getPropertyName())
+                    .map(reference -> reference == null
+                            ? null
+                            : reference.getPropertyName())
                     .filter(name -> name != null && !name.isBlank())
                     .reduce((first, second) -> second)
                     .orElse("欄位");
@@ -166,8 +175,20 @@ public class GlobalExceptionHandler {
             return fieldName + " 參數值無效：" + invalidFormat.getValue();
         }
 
-        if (invalidFormat != null
-                && LocalDateTime.class.equals(invalidFormat.getTargetType())) {
+        // 處理日期時間錯誤
+        if (LocalDateTime.class.equals(type)) {
+            String message = invalidFormat.getOriginalMessage();
+
+            if (message != null) {
+                if (message.contains(JacksonConfig.INVALID_DATE_MESSAGE)) {
+                    return JacksonConfig.INVALID_DATE_MESSAGE;
+                }
+
+                if (message.contains(JacksonConfig.INVALID_TIME_MESSAGE)) {
+                    return JacksonConfig.INVALID_TIME_MESSAGE;
+                }
+            }
+
             return JacksonConfig.INVALID_DATE_TIME_MESSAGE;
         }
 

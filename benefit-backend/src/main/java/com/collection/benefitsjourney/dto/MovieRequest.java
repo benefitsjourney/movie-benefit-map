@@ -2,6 +2,7 @@ package com.collection.benefitsjourney.dto;
 
 import java.time.LocalDateTime;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
@@ -15,7 +16,7 @@ public record MovieRequest(
 
         Boolean isVisible,
 
-        LocalDateTime releaseDate) {
+        @Schema(type = "string", example = "2026-10-08 10:33:00") LocalDateTime releaseDate) {
 
     /** 新增電影時才檢查必填欄位；修改時允許省略未變更欄位 */
     public interface OnCreate {
