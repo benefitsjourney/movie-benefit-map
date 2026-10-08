@@ -8,7 +8,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.collection.benefitsjourney.dto.CinemaResponse;
+import com.collection.benefitsjourney.dto.MovieResponse;
 import com.collection.benefitsjourney.service.CinemaCrawlerService;
+import com.collection.benefitsjourney.service.MovieCrawlerService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -17,15 +19,24 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RequestMapping("/crawler/cinemas")
 @Tag(name = "爬蟲")
 public class CrawlerController {
-    private CinemaCrawlerService crawlerService;
+    private CinemaCrawlerService cinemaCrawlerService;
+    private MovieCrawlerService movieCrawlerService;
 
-    public CrawlerController(CinemaCrawlerService crawlerService) {
-        this.crawlerService = crawlerService;
+    public CrawlerController(CinemaCrawlerService cinemaCrawlerService, MovieCrawlerService movieCrawlerService) {
+        this.cinemaCrawlerService = cinemaCrawlerService;
+        this.movieCrawlerService = movieCrawlerService;
     }
 
     @GetMapping("")
     @Operation(summary = "爬取並同步影城資料")
     public ResponseEntity<List<CinemaResponse>> syncCinemas() {
-        return ResponseEntity.ok(crawlerService.syncCinemas());
+        return ResponseEntity.ok(cinemaCrawlerService.syncCinemas());
+    }
+
+    @GetMapping("/movies")
+    @Operation(summary = "爬取並同步電影資料")
+    public ResponseEntity<List<MovieResponse>> syncMovies() {
+        return ResponseEntity.ok(
+                movieCrawlerService.syncMovies());
     }
 }

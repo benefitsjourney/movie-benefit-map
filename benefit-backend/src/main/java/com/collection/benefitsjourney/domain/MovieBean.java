@@ -30,7 +30,7 @@ public class MovieBean {
     @Column(name = "source_id", unique = true, length = 64, comment = "電影辨認ID")
     private String sourceId;
 
-    @Column(name = "movie_name", nullable = false, length = 64, comment = "電影名稱")
+    @Column(name = "movie_name", nullable = false, length = 256, comment = "電影名稱")
     private String movieName;
 
     @Column(name = "image_url", length = 512, comment = "電影圖片")

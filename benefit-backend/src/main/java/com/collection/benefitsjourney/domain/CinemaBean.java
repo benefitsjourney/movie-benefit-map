@@ -36,7 +36,7 @@ public class CinemaBean {
     @Column(name = "source_id", unique = true, length = 64, comment = "外部來源的影城辨認ID")
     private String sourceId;
 
-    @Column(name = "cinema_name", nullable = false, length = 64, comment = "影城名稱")
+    @Column(name = "cinema_name", nullable = false, length = 256, comment = "影城名稱")
     private String cinemaName;
 
     @Enumerated(EnumType.STRING)

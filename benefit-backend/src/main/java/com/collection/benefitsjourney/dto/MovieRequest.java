@@ -10,7 +10,7 @@ public record MovieRequest(
 
         @Size(max = 64, message = "來源ID長度不可超過64字元") String sourceId,
 
-        @Size(max = 64, message = "電影名稱長度不可超過64字元") @NotBlank(groups = OnCreate.class, message = "電影名稱不能為空") String movieName,
+        @Size(max = 256, message = "電影名稱長度不可超過256字元") @NotBlank(groups = OnCreate.class, message = "電影名稱不能為空") String movieName,
 
         @Size(max = 512, message = "電影圖片長度不可超過512字元") String imageUrl,
 
