@@ -32,7 +32,9 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 || uri.equals("/auth/google")
                 || uri.equals("/auth/password/forgot")
                 || uri.equals("/auth/password/reset")
-
+                || uri.matches("/users/\\d+")
+                || uri.matches("/users/\\d+/posts")
+                
                 // 影城 API 白名單
                 || (uri.equals("/cinemas") && (method.equals("GET")))
                 || (uri.matches("/cinemas/\\d+") && method.equals("GET"))

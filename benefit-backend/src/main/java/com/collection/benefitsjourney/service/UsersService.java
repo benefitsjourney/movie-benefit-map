@@ -87,6 +87,82 @@ public class UsersService {
         return update(usersBean);
     }
 
+    public UsersBean updateStatus(Integer usersId, String status) {
+
+    UsersBean usersBean = usersRepository.findById(usersId)
+                    .orElseThrow(() ->
+                            new IllegalArgumentException("找不到會員")
+                    );
+
+                    // 已經停用的會員不能再次申請停用
+                    if ("INACTIVE".equals(usersBean.getStatus())) {
+                        throw new IllegalArgumentException(
+                                "此帳號已經停用"
+                        );
+                    }
+
+                    if ("BANNED".equals(usersBean.getStatus())) {
+                        throw new IllegalArgumentException(
+                            "此帳號已被管理員停權"
+                        );
+                    }
+                    
+                    if (!"INACTIVE".equals(status)) {
+                        throw new IllegalArgumentException(
+                                "會員只能自行停用帳號，無法自行啟用"
+                        );
+                    }
+                    
+        usersBean.setStatus("INACTIVE");
+        usersBean.setUpdatedAt(LocalDateTime.now());
+
+        return usersRepository.save(usersBean);
+        }
+
+
+    //檢查是否為管理員
+    public UsersBean checkAdmin(Integer usersId) {
+
+        UsersBean usersBean =
+                usersRepository.findById(usersId)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException("找不到會員")
+                        );
+
+        if (!"ADMIN".equals(usersBean.getRole())) {
+            throw new IllegalArgumentException(
+                    "沒有管理員權限"
+            );
+        }
+
+        return usersBean;
+    }
+
+    // 管理員修改會員狀態
+    public UsersBean updateAdminStatus(
+            Integer usersId,
+            String status) {
+
+        UsersBean usersBean =
+                usersRepository.findById(usersId)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException("找不到會員")
+                        );
+
+        // 管理員只能設定 ACTIVE 或 BANNED
+        if (!"ACTIVE".equals(status)
+                && !"BANNED".equals(status)) {
+
+            throw new IllegalArgumentException(
+                    "無效的會員狀態"
+            );
+        }
+
+        usersBean.setStatus(status);
+        usersBean.setUpdatedAt(LocalDateTime.now());
+
+        return usersRepository.save(usersBean);
+    }
 
     // 刪除會員
     public void deleteById(Integer usersId) {

@@ -7,6 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
@@ -18,6 +19,7 @@ import org.hibernate.annotations.Nationalized;
 @Table(name = "users")
 @Getter
 @Setter
+@NoArgsConstructor
 public class UsersBean {
 
     // 會員編號

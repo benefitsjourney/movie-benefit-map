@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import com.collection.benefitsjourney.domain.UsersBean;
 import com.collection.benefitsjourney.dto.RegisterRequest;
 import com.collection.benefitsjourney.repository.UsersRepository;
+import com.collection.benefitsjourney.dto.ChangePasswordRequest;
 
 import java.util.Optional;
 
@@ -83,8 +84,8 @@ public class AuthService {
 
     UsersBean usersBean = optionalUser.get();
 
-    // 確認會員狀態
-    if (!"ACTIVE".equals(usersBean.getStatus())) {
+    // 只有被管理員停權的帳號不能登入
+    if ("BANNED".equals(usersBean.getStatus())) {
         throw new IllegalArgumentException("此帳號目前無法登入");
     }
 
@@ -98,6 +99,57 @@ public class AuthService {
 
     return usersRepository.save(usersBean);
 }
+
+        /**
+     * 修改目前登入會員密碼
+     *
+     * 需要：
+     * 1. JWT 驗證成功
+     * 2. 目前密碼正確
+     * 3. 新密碼不能與目前密碼相同
+     */
+    public void changePassword(
+            Integer usersId,
+            ChangePasswordRequest request) {
+
+        // 根據 JWT 中的 usersId 找會員
+        UsersBean usersBean =
+                usersRepository.findById(usersId)
+                        .orElseThrow(() ->
+                                new IllegalArgumentException("找不到會員")
+                        );
+
+        // 確認目前密碼是否正確
+        if (!passwordEncoder.matches(
+                request.getCurrentPassword(),
+                usersBean.getPassword())) {
+
+            throw new IllegalArgumentException("目前密碼錯誤");
+        }
+
+        // 確認新密碼不能與目前密碼相同
+        if (passwordEncoder.matches(
+                request.getNewPassword(),
+                usersBean.getPassword())) {
+
+            throw new IllegalArgumentException(
+                    "新密碼不能與目前密碼相同"
+            );
+        }
+
+        // 使用 BCrypt 加密新密碼
+        usersBean.setPassword(
+                passwordEncoder.encode(
+                        request.getNewPassword()
+                )
+        );
+
+        // 更新修改時間
+        usersBean.setUpdatedAt(LocalDateTime.now());
+
+        // 儲存會員資料
+        usersRepository.save(usersBean);
+    }
 
     /**
      * Google OAuth 登入
@@ -122,7 +174,8 @@ public class AuthService {
             UsersBean usersBean = googleUser.get();
 
             // 確認帳號目前仍是啟用狀態
-            if (!"ACTIVE".equals(usersBean.getStatus())) {
+            // 只有被管理員停權的帳號不能登入
+            if ("BANNED".equals(usersBean.getStatus())) {
                 throw new IllegalArgumentException("此帳號目前無法登入");
             }
 
@@ -155,8 +208,9 @@ public class AuthService {
             );
         }
 
-            // 確認帳號目前仍是啟用狀態
-        if (!"ACTIVE".equals(usersBean.getStatus())) {
+        // 確認帳號目前仍是啟用狀態
+        // 只有被管理員停權的帳號不能登入
+        if ("BANNED".equals(usersBean.getStatus())) {
             throw new IllegalArgumentException("此帳號目前無法登入");
         }
 

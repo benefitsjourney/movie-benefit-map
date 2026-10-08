@@ -16,7 +16,8 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.SQLServerDialect
     hibernate:
-      ddl-auto: validate
+      #ddl-auto: validate
+      ddl-auto: update
     properties:
       hibernate:
         "[column_ordering_strategy]": legacy
