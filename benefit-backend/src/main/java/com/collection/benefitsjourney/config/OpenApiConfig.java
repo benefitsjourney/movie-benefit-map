@@ -1,14 +1,24 @@
-
 package com.collection.benefitsjourney.config;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import com.collection.benefitsjourney.controller.AuthController;
+import com.collection.benefitsjourney.controller.BenefitController;
+import com.collection.benefitsjourney.controller.BenefitReportAdminController;
+import com.collection.benefitsjourney.controller.AdminController;
+import com.collection.benefitsjourney.controller.CinemaController;
+import com.collection.benefitsjourney.controller.CrawlerController;
+import com.collection.benefitsjourney.controller.ExcelController;
+import com.collection.benefitsjourney.controller.MovieController;
+import com.collection.benefitsjourney.controller.UserController;
 
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
@@ -20,7 +30,21 @@ import io.swagger.v3.oas.models.tags.Tag;
 @Configuration
 public class OpenApiConfig {
 
-    /** Swagger API 基本資訊與 JWT 驗證設定 */
+    /** Swagger 分組顯示順序 */
+    private static final List<Class<?>> CONTROLLERS = List.of(
+            AuthController.class,
+            UserController.class,
+            AdminController.class,
+            CinemaController.class,
+            MovieController.class,
+            BenefitController.class,
+            CrawlerController.class,
+            ExcelController.class,
+            BenefitReportAdminController.class);
+
+    private static final String SECURITY = "BearerAuth";
+
+    /** Swagger 基本資訊與 JWT 驗證 */
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
@@ -28,47 +52,34 @@ public class OpenApiConfig {
                         .title("Benefits Journey API")
                         .version("1.0")
                         .description("電影特典地圖平台後端API，提供影城與電影資訊、特典庫存查詢、論壇和私訊功能"))
-
-                // Swagger 分組顯示順序
-                .tags(List.of(
-                        new Tag().name("auth-controller"),
-                        new Tag().name("user-controller"),
-                        new Tag().name("影城"),
-                        new Tag().name("電影"),
-                        new Tag().name("特典"),
-                        new Tag().name("爬蟲"),
-                        new Tag().name("資料匯出")))
-
-                // JWT 驗證
                 .components(new Components()
-                        .addSecuritySchemes("BearerAuth",
+                        .addSecuritySchemes(SECURITY,
                                 new SecurityScheme()
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
                                         .bearerFormat("JWT")))
                 .addSecurityItem(new SecurityRequirement()
-                        .addList("BearerAuth"));
+                        .addList(SECURITY));
     }
 
     /** 統一 Swagger 分組順序並移除重複 Tag */
     @Bean
     public OpenApiCustomizer sortTags() {
         return openApi -> {
-            List<String> order = List.of(
-                    "auth-controller",
-                    "user-controller",
-                    "影城",
-                    "電影",
-                    "特典",
-                    "爬蟲");
-
             Map<String, Tag> tags = new LinkedHashMap<>();
 
-            // 合併重複的 Tag，保留描述
+            // 依照指定順序建立分組
+            for (Class<?> controller : CONTROLLERS) {
+                Tag tag = createTag(controller);
+                tags.put(tag.getName(), tag);
+            }
+
+            // 合併 SpringDoc 產生的 Tag，保留描述
             if (openApi.getTags() != null) {
                 for (Tag tag : openApi.getTags()) {
                     tags.merge(tag.getName(), tag, (oldTag, newTag) -> {
-                        if (newTag.getDescription() != null) {
+                        if (newTag.getDescription() != null
+                                && !newTag.getDescription().isBlank()) {
                             oldTag.setDescription(newTag.getDescription());
                         }
                         return oldTag;
@@ -76,21 +87,28 @@ public class OpenApiConfig {
                 }
             }
 
-            // 依照指定順序排列
-            List<Tag> sorted = new ArrayList<>();
-
-            for (String name : order) {
-                Tag tag = tags.remove(name);
-
-                if (tag != null) {
-                    sorted.add(tag);
-                }
-            }
-
-            // 其他未指定的分組放在最後
-            sorted.addAll(tags.values());
-
-            openApi.setTags(sorted);
+            // 未指定的分組自動排在最後
+            openApi.setTags(new ArrayList<>(tags.values()));
         };
+    }
+
+    /** 從 Controller 取得 Swagger Tag */
+    private static Tag createTag(Class<?> controller) {
+        io.swagger.v3.oas.annotations.tags.Tag annotation = controller
+                .getAnnotation(io.swagger.v3.oas.annotations.tags.Tag.class);
+
+        String name = annotation != null && !annotation.name().isBlank()
+                ? annotation.name()
+                : controller.getSimpleName()
+                        .replaceAll("(?<=[A-Z])(?=[A-Z][a-z])|(?<=[^A-Z])(?=[A-Z])|(?<=[A-Za-z])(?=[^A-Za-z])", "-")
+                        .toLowerCase(Locale.ROOT);
+
+        Tag tag = new Tag().name(name);
+
+        if (annotation != null && !annotation.description().isBlank()) {
+            tag.setDescription(annotation.description());
+        }
+
+        return tag;
     }
 }
