@@ -29,10 +29,10 @@ public record BenefitReportAdminResponse(
     public static BenefitReportAdminResponse from(BenefitReportBean bean) {
         return new BenefitReportAdminResponse(
                 bean.getBenefitReportId(),
-                bean.getUserId(),
-                bean.getCinemaId(),
-                bean.getMovieId(),
-                bean.getBenefitId(),
+                bean.getUser() != null ? bean.getUser().getUsersId() : null,
+                bean.getCinema() != null ? bean.getCinema().getCinemaId() : null,
+                bean.getMovie() != null ? bean.getMovie().getMovieId() : null,
+                bean.getBenefit() != null ? bean.getBenefit().getBenefitId() : null,
                 bean.getBenefitName(),
                 bean.getCustomCinemaName(),
                 bean.getCustomMovieName(),
