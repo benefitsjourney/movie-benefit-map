@@ -1,12 +1,20 @@
-<script setup></script>
+<script setup>
+import AppNavbar from "@/components/AppNavbar.vue";
+</script>
 
 <template>
-  <nav class="navbar bg-body-tertiary">
-    <div class="container">
-      <RouterLink class="navbar-brand" to="/cinemas">電影特典地圖</RouterLink>
-    </div>
-  </nav>
-  <main class="container py-4">
+  <AppNavbar />
+  <main class="container page-main">
     <RouterView />
   </main>
 </template>
+
+<!-- 全站樣式統一由main.js引入 -->
+<style src="./assets/main.css"></style>
+
+<style scoped>
+.page-main {
+  padding-top: 1.35rem;
+  padding-bottom: 3rem;
+}
+</style>

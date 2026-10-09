@@ -1,0 +1,155 @@
+:root {
+  --c-brand: #ff7049;
+  --c-sun: #ffc857;
+  --c-mint: #79cdb5;
+  --c-sky: #7ea7e8;
+  --c-bg: #fff9f1;
+  --c-card: #fffdf8;
+  --c-ink: #292b35;
+  --c-muted: #5c564e;
+  --c-navy: #1e2b45;
+  --c-border: #f3e0c4;
+  --shadow-soft: 0 10px 24px rgb(41 43 53 / 7%);
+  --ease: 0.25s ease;
+  --font-latin: "Fredoka", "Trebuchet MS", sans-serif;
+  --font-sans: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+}
+
+html {
+  font-size: max(16px, 100%);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--c-ink);
+  background: var(--c-bg);
+  background-image:
+    radial-gradient(circle at 0% 0%, rgb(255 200 87 / 25%), transparent 32%),
+    radial-gradient(circle at 100% 10%, rgb(126 167 232 / 18%), transparent 28%);
+}
+
+::selection {
+  color: var(--c-ink);
+  background: #ffe08a;
+}
+
+/* Bootstrap 常見的小字也維持至少 16px；純裝飾圖案不受此規則限制 */
+small,
+.small,
+.form-text,
+.badge,
+.btn-sm,
+.form-control-sm,
+.form-select-sm,
+.toast,
+.tooltip,
+.popover {
+  font-size: max(1rem, 0.875em);
+}
+
+/* 共用：字體、卡片、表單、按鈕及動畫 */
+.latin {
+  font-family: var(--font-latin);
+}
+
+.ui-panel {
+  border: 1.5px solid var(--c-border);
+  border-radius: 22px;
+  background: var(--c-card);
+  box-shadow: var(--shadow-soft);
+}
+
+.ui-control {
+  min-height: 46px;
+  border: 1.5px solid #eadfce;
+  border-radius: 14px;
+  background-color: #fff;
+  color: var(--c-ink);
+  font-size: 1rem;
+}
+
+.ui-control:focus {
+  border-color: var(--c-brand);
+  box-shadow: 0 0 0 3px rgb(255 112 73 / 20%);
+}
+
+.ui-button {
+  min-height: 46px;
+  padding: 0.5rem 1rem;
+  border: 1.5px solid var(--c-ink);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--c-ink);
+  font-size: 1rem;
+  font-weight: 700;
+  transition:
+    background var(--ease),
+    color var(--ease),
+    transform var(--ease);
+}
+
+.ui-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: var(--c-navy);
+  color: #fff;
+}
+
+.ui-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.ui-button:focus-visible,
+.ui-control:focus-visible {
+  outline: 2px solid var(--c-brand);
+  outline-offset: 2px;
+}
+
+.ui-float {
+  animation: float 4.5s ease-in-out infinite;
+}
+
+.ui-twinkle {
+  animation: twinkle 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  50% {
+    translate: 0 -7px;
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

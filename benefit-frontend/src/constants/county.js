@@ -1,4 +1,4 @@
-const COUNTY_LABELS = {
+export const COUNTY_LABELS = {
   KEELUNG: '基隆市',
   TAIPEI: '臺北市',
   NEW_TAIPEI: '新北市',
@@ -26,4 +26,32 @@ const COUNTY_LABELS = {
 
 export function countyLabel(county) {
   return COUNTY_LABELS[county] ?? county ?? '未知'
+}
+
+const TICKET_COLOR_BY_REGION = {
+  blue: [
+    'KEELUNG',
+    'TAIPEI',
+    'NEW_TAIPEI',
+    'TAOYUAN',
+    'HSINCHU',
+    'HSINCHU_COUNTY',
+    'YILAN',
+  ],
+  green: ['MIAOLI', 'TAICHUNG', 'CHANGHUA', 'NANTOU', 'YUNLIN'],
+  orange: ['CHIAYI', 'CHIAYI_COUNTY', 'TAINAN', 'KAOHSIUNG', 'PINGTUNG'],
+  purple: ['HUALIEN', 'TAITUNG'],
+  yellow: ['PENGHU', 'KINMEN', 'LIENCHIANG'],
+}
+
+export const COUNTY_TICKET_COLORS = Object.fromEntries(
+  Object.entries(TICKET_COLOR_BY_REGION).flatMap(([color, counties]) =>
+    counties.map((county) => [county, color]),
+  ),
+)
+
+const DEFAULT_TICKET_COLOR = 'blue'
+
+export function countyTicketColor(county) {
+  return COUNTY_TICKET_COLORS[county] ?? DEFAULT_TICKET_COLOR
 }

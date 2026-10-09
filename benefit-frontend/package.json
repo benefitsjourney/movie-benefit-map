@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@iconify-icons/mdi": "^2.0.0",
+    "@iconify/vue": "^5.0.3",
     "axios": "^1.20.0",
     "bootstrap": "^5.3.8",
     "sweetalert2": "^11.26.25",
