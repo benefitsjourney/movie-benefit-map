@@ -54,7 +54,7 @@ public class CinemaController {
 
             @Parameter(description = "頁碼") @RequestParam(defaultValue = "1") int page,
 
-            @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "10") int size) {
+            @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "20") int size) {
 
         return ResponseEntity.ok(
                 cinemaService.findAll(

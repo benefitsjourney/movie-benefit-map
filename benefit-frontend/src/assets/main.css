@@ -1,0 +1,47 @@
+:root {
+  --c-brand: #ff7049;
+  --c-sun: #ffc857;
+  --c-sky: #7ea7e8;
+  --c-bg: #fff9f1;
+  --c-card: #fffdf8;
+  --c-ink: #292b35;
+  --c-muted: #5c564e;
+  --c-navy: #1e2b45;
+  --c-border: #f3e0c4;
+  --shadow-soft: 0 10px 24px rgb(41 43 53 / 7%);
+  --ease: 0.25s ease;
+  --font-latin: "Fredoka", "Trebuchet MS", sans-serif;
+  --font-sans: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+}
+
+html {
+  font-size: max(16px, 100%);
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--c-ink);
+  background: var(--c-bg);
+  background-image:
+    radial-gradient(circle at 0% 0%, rgb(255 200 87 / 25%), transparent 32%),
+    radial-gradient(circle at 100% 10%, rgb(126 167 232 / 18%), transparent 28%);
+}
+
+::selection {
+  color: var(--c-ink);
+  background: #ffe08a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

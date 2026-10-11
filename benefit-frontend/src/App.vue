@@ -1,11 +1,20 @@
-<script setup></script>
+<script setup>
+import AppNavbar from "@/components/AppNavbar.vue";
+</script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
+  <AppNavbar />
+  <main class="container page-main">
+    <RouterView />
+  </main>
 </template>
 
-<style scoped></style>
+<!-- 全站樣式統一由main.js引入 -->
+<style src="./assets/main.css"></style>
+
+<style scoped>
+.page-main {
+  padding-top: 1.35rem;
+  padding-bottom: 3rem;
+}
+</style>

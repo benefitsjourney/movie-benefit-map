@@ -417,12 +417,8 @@ public class CinemaCrawlerService {
             return County.TAOYUAN;
         }
 
-        if (address.contains("新竹市")) {
+        if (address.contains("新竹市") || address.contains("新竹縣")) {
             return County.HSINCHU;
-        }
-
-        if (address.contains("新竹縣")) {
-            return County.HSINCHU_COUNTY;
         }
 
         if (address.contains("宜蘭縣")) {
@@ -449,12 +445,8 @@ public class CinemaCrawlerService {
             return County.YUNLIN;
         }
 
-        if (address.contains("嘉義市")) {
+        if (address.contains("嘉義市") || address.contains("嘉義縣")) {
             return County.CHIAYI;
-        }
-
-        if (address.contains("嘉義縣")) {
-            return County.CHIAYI_COUNTY;
         }
 
         if (address.contains("台南市")) {
@@ -473,7 +465,7 @@ public class CinemaCrawlerService {
             return County.HUALIEN;
         }
 
-        if (address.contains("台東縣")) {
+        if (address.contains("台東縣") || address.contains("台東市")) {
             return County.TAITUNG;
         }
 

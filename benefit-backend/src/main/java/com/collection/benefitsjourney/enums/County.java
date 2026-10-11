@@ -2,70 +2,64 @@ package com.collection.benefitsjourney.enums;
 
 /** 臺灣縣市代碼 */
 public enum County {
-    /** 基隆市 */
+    /** 基隆 */
     KEELUNG,
 
-    /** 臺北市 */
+    /** 臺北 */
     TAIPEI,
 
     /** 新北市 */
     NEW_TAIPEI,
 
-    /** 桃園市 */
+    /** 桃園 */
     TAOYUAN,
 
-    /** 新竹市 */
+    /** 新竹 */
     HSINCHU,
 
-    /** 新竹縣 */
-    HSINCHU_COUNTY,
-
-    /** 宜蘭縣 */
+    /** 宜蘭 */
     YILAN,
 
-    /** 苗栗縣 */
+    /** 苗栗 */
     MIAOLI,
 
-    /** 臺中市 */
+    /** 臺中 */
     TAICHUNG,
 
-    /** 彰化縣 */
+    /** 彰化 */
     CHANGHUA,
 
-    /** 南投縣 */
+    /** 南投 */
     NANTOU,
 
-    /** 雲林縣 */
+    /** 雲林 */
     YUNLIN,
 
-    /** 嘉義市 */
+    /** 嘉義 */
     CHIAYI,
 
-    /** 嘉義縣 */
-    CHIAYI_COUNTY,
-
-    /** 臺南市 */
+    /** 臺南 */
     TAINAN,
 
-    /** 高雄市 */
+    /** 高雄 */
     KAOHSIUNG,
 
-    /** 屏東縣 */
+    /** 屏東 */
     PINGTUNG,
 
-    /** 花蓮縣 */
+    /** 花蓮 */
     HUALIEN,
 
-    /** 臺東縣 */
+    /** 臺東 */
     TAITUNG,
 
-    /** 澎湖縣 */
+    /** 澎湖 */
     PENGHU,
 
-    /** 金門縣 */
+    /** 金門 */
     KINMEN,
 
-    /** 連江縣 */
+    /** 連江 */
     LIENCHIANG,
 
     /** 未知 */
