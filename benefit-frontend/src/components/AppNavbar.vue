@@ -11,8 +11,8 @@ import closeIcon from "@iconify-icons/mdi/close";
 const route = useRoute();
 const menuOpen = ref(false);
 const links = [
-  { to: "/cinemas", label: "影城", icon: movieIcon },
   { to: "/map", label: "地圖", icon: mapIcon },
+  { to: "/cinemas", label: "影城", icon: movieIcon },
 ];
 
 const isActive = (path) =>
@@ -22,12 +22,12 @@ const isActive = (path) =>
 <template>
   <nav class="site-nav" aria-label="主要導覽">
     <div class="nav-deco" aria-hidden="true">
-      <span class="nav-star star-left ui-twinkle">✦</span>
-      <span class="nav-star star-right ui-twinkle">✦</span>
+      <span class="nav-star star-left">✦</span>
+      <span class="nav-star star-right">✦</span>
     </div>
 
-    <div class="container nav-inner">
-      <RouterLink to="/cinemas" class="brand" @click="menuOpen = false">
+    <div class="nav-inner">
+      <RouterLink to="/map" class="brand" @click="menuOpen = false">
         <span class="brand-mark">
           <Icon :icon="filmIcon" aria-hidden="true" />
           <span class="brand-star" aria-hidden="true">★</span>
@@ -46,7 +46,11 @@ const isActive = (path) =>
         <Icon :icon="menuOpen ? closeIcon : menuIcon" aria-hidden="true" />
       </button>
 
-      <div id="main-nav-links" class="nav-links" :class="{ 'is-open': menuOpen }">
+      <div
+        id="main-nav-links"
+        class="nav-links"
+        :class="{ 'is-open': menuOpen }"
+      >
         <RouterLink
           v-for="link in links"
           :key="link.to"
@@ -81,7 +85,11 @@ const isActive = (path) =>
   left: 0;
   height: 10px;
   background: var(--c-brand);
-  background-image: radial-gradient(circle at 12px 5px, var(--c-navy) 4px, transparent 4.5px);
+  background-image: radial-gradient(
+    circle at 12px 5px,
+    var(--c-navy) 4px,
+    transparent 4.5px
+  );
   background-size: 24px 10px;
   content: "";
 }
@@ -92,8 +100,11 @@ const isActive = (path) =>
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 0.7rem;
+  width: 100%;
+  padding-right: 1.25rem;
+  padding-left: 1.25rem;
 }
 
 .nav-deco {
@@ -107,10 +118,16 @@ const isActive = (path) =>
   position: absolute;
   top: 12px;
   color: var(--c-sun);
+  animation: twinkle 3s ease-in-out infinite;
 }
 
-.star-left { left: 33%; }
-.star-right { right: 25%; animation-delay: 1s; }
+.star-left {
+  left: 33%;
+}
+.star-right {
+  right: 25%;
+  animation-delay: 1s;
+}
 
 .brand {
   display: inline-flex;
@@ -120,7 +137,9 @@ const isActive = (path) =>
   text-decoration: none;
 }
 
-.brand:hover { color: #fff9f1; }
+.brand:hover {
+  color: #fff9f1;
+}
 
 .brand-mark {
   position: relative;
@@ -136,7 +155,9 @@ const isActive = (path) =>
   transition: transform var(--ease);
 }
 
-.brand:hover .brand-mark { transform: rotate(-7deg); }
+.brand:hover .brand-mark {
+  transform: rotate(-7deg);
+}
 
 .brand-star {
   position: absolute;
@@ -160,20 +181,35 @@ const isActive = (path) =>
 .nav-links {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.4rem;
 }
 
 .nav-pill {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.45rem;
-  padding: 0.5rem 1rem;
-  border-radius: 999px;
+  padding: 0.5rem 1rem 0.65rem;
   color: #fff9f1;
   font-size: 1rem;
   font-weight: 700;
   text-decoration: none;
-  transition: background var(--ease), color var(--ease);
+  transition: color var(--ease);
+}
+
+.nav-pill::after {
+  position: absolute;
+  right: 1rem;
+  bottom: 0.28rem;
+  left: 1rem;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--c-sun);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform var(--ease);
 }
 
 .nav-pill svg {
@@ -181,18 +217,19 @@ const isActive = (path) =>
   height: 1.2rem;
 }
 
-.nav-pill:hover {
-  background: rgb(255 200 87 / 16%);
+.nav-pill:hover,
+.nav-pill.active {
   color: var(--c-sun);
 }
 
-.nav-pill.active {
-  background: var(--c-brand);
-  color: var(--c-ink);
+.nav-pill:hover::after,
+.nav-pill.active::after {
+  transform: scaleX(1);
 }
 
 .nav-toggle {
   display: none;
+  margin-left: auto;
   padding: 0.35rem 0.65rem;
   border: 1px solid rgb(255 255 255 / 45%);
   border-radius: 10px;
@@ -209,9 +246,30 @@ const isActive = (path) =>
 }
 
 @media (max-width: 991.98px) {
-  .nav-deco { display: none; }
-  .nav-toggle { display: grid; place-items: center; }
-  .nav-links { display: none; width: 100%; padding: 0.5rem 0; }
-  .nav-links.is-open { display: flex; }
+  .nav-deco {
+    display: none;
+  }
+  .nav-toggle {
+    display: grid;
+    place-items: center;
+  }
+  .nav-links {
+    display: none;
+    width: 100%;
+    padding: 0.5rem 0;
+  }
+  .nav-links.is-open {
+    display: flex;
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 </style>

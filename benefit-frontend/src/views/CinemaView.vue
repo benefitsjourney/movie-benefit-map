@@ -7,7 +7,6 @@ import filmIcon from "@iconify-icons/mdi/filmstrip";
 import compassIcon from "@iconify-icons/mdi/compass-outline";
 import ticketIcon from "@iconify-icons/mdi/ticket-outline";
 import popcornIcon from "@iconify-icons/mdi/popcorn";
-import refreshIcon from "@iconify-icons/mdi/refresh";
 
 import http from "@/plugins/axios";
 import {
@@ -15,6 +14,8 @@ import {
   countyLabel,
   countyTicketColor,
 } from "@/constants/county";
+import AppButton from "@/components/AppButton.vue";
+import SearchFilter from "@/components/SearchFilter.vue";
 import TicketCard from "@/components/TicketCard.vue";
 
 // 資料與狀態
@@ -23,47 +24,31 @@ const loading = ref(true);
 const error = ref(false);
 const retry = ref(0);
 
-// 搜尋欄位
-const keyword = ref("");
-const county = ref("");
 const appliedFilters = ref({ keyword: "", county: "" });
 
-const showReset = computed(() =>
-  Boolean(
-    keyword.value.trim() ||
-    county.value ||
-    appliedFilters.value.keyword ||
-    appliedFilters.value.county,
-  ),
-);
+const filterFields = [
+  {
+    key: "keyword",
+    label: "關鍵字",
+    type: "search",
+    placeholder: "搜尋影城名稱",
+    icon: searchIcon,
+  },
+  {
+    key: "county",
+    label: "縣市",
+    type: "select",
+    emptyLabel: "全部縣市",
+    icon: pinIcon,
+    options: COUNTY_LABELS,
+  },
+];
 
 const scopeText = computed(() =>
   appliedFilters.value.county
     ? `探索${countyLabel(appliedFilters.value.county)}`
     : "探索全台",
 );
-
-// 套用搜尋條件
-function search() {
-  const next = {
-    keyword: keyword.value.trim(),
-    county: county.value,
-  };
-
-  keyword.value = next.keyword;
-
-  const current = appliedFilters.value;
-  if (current.keyword !== next.keyword || current.county !== next.county) {
-    appliedFilters.value = next;
-  }
-}
-
-// 重設搜尋條件
-function resetQuery() {
-  keyword.value = "";
-  county.value = "";
-  search();
-}
 
 // 條件變更或重試時重新取得資料
 watch(
@@ -125,95 +110,41 @@ watch(
 <template>
   <section class="cinema-page">
     <!-- 頁面介紹 -->
-    <header class="hero ui-panel">
+    <header class="hero">
       <div class="hero-copy">
-        <p class="hero-kicker latin">✦ CINEMA JOURNEY</p>
+        <p class="hero-kicker">✦ CINEMA JOURNEY</p>
         <h1>下一站，<span class="title-mark">電影院</span>！</h1>
         <p>探索城市裡的每間影城，開啟你的特典旅程。</p>
       </div>
 
       <div class="hero-art" aria-hidden="true">
         <span class="hero-path"></span>
-        <Icon :icon="ticketIcon" class="art-ticket ui-float" />
-        <Icon :icon="popcornIcon" class="art-popcorn ui-float" />
-        <Icon :icon="pinIcon" class="art-pin ui-float" />
-        <span class="art-star ui-twinkle">✦</span>
+        <Icon :icon="ticketIcon" class="art-ticket" />
+        <Icon :icon="popcornIcon" class="art-popcorn" />
+        <Icon :icon="pinIcon" class="art-pin" />
+        <span class="art-star">✦</span>
       </div>
     </header>
 
-    <!-- 搜尋區域 -->
-    <div class="finder ui-panel">
-      <h2 class="finder-title">
-        <Icon :icon="compassIcon" aria-hidden="true" />
-        尋找下一站
-      </h2>
-
-      <form class="finder-grid" @submit.prevent="search">
-        <div class="field">
-          <label for="cinema-keyword">關鍵字</label>
-          <div class="field-control">
-            <Icon :icon="searchIcon" aria-hidden="true" />
-            <input
-              id="cinema-keyword"
-              v-model="keyword"
-              type="search"
-              class="form-control ui-control"
-              placeholder="搜尋影城名稱"
-            />
-          </div>
-        </div>
-
-        <div class="field">
-          <label for="cinema-county">縣市</label>
-          <div class="field-control">
-            <Icon :icon="pinIcon" aria-hidden="true" />
-            <select
-              id="cinema-county"
-              v-model="county"
-              class="form-select ui-control"
-            >
-              <option value="">全部縣市</option>
-              <option
-                v-for="(label, value) in COUNTY_LABELS"
-                :key="value"
-                :value="value"
-              >
-                {{ label }}
-              </option>
-            </select>
-          </div>
-        </div>
-
-        <div class="finder-actions">
-          <button class="explore-btn" type="submit">
-            <Icon :icon="searchIcon" aria-hidden="true" />
-            探索影城
-          </button>
-
-          <button
-            v-if="showReset"
-            class="reset-btn"
-            type="button"
-            @click="resetQuery"
-          >
-            <Icon :icon="refreshIcon" aria-hidden="true" />
-            重設
-          </button>
-        </div>
-      </form>
-    </div>
+    <SearchFilter
+      v-model="appliedFilters"
+      title="尋找下一站"
+      :title-icon="compassIcon"
+      submit-label="探索影城"
+      :fields="filterFields"
+    />
 
     <!-- 載入中 -->
-    <div v-if="loading" class="state-panel ui-panel" role="status">
+    <div v-if="loading" class="state-panel" role="status">
       <Icon :icon="filmIcon" class="loading-icon" aria-hidden="true" />
       <p>正在尋找影城…</p>
     </div>
 
     <!-- 載入失敗 -->
-    <div v-else-if="error" class="state-panel ui-panel" role="alert">
+    <div v-else-if="error" class="state-panel" role="alert">
       <h2>目前無法取得影城資料</h2>
       <p>請確認連線後再試一次。</p>
-      <button type="button" class="ui-button" @click="retry++">重新載入</button>
+      <AppButton type="button" @click="retry++">重新載入</AppButton>
     </div>
 
     <!-- 搜尋結果 -->
@@ -270,18 +201,18 @@ watch(
 
 <style scoped>
 /* 頁面主視覺 */
-.hero,
-.finder {
-  margin-bottom: 1rem;
-}
-
 .hero {
   position: relative;
   display: grid;
+  margin-bottom: 1rem;
   align-items: center;
   min-height: 180px;
   padding: 1.5rem;
   overflow: hidden;
+  border: 1.5px solid var(--c-border);
+  border-radius: 22px;
+  background: var(--c-card);
+  box-shadow: var(--shadow-soft);
 }
 
 .hero::after {
@@ -307,6 +238,7 @@ watch(
   border-radius: 999px;
   background: #fff1cc;
   color: #865500;
+  font-family: var(--font-latin);
   font-weight: 700;
   letter-spacing: 0.08em;
 }
@@ -330,121 +262,16 @@ watch(
   display: none;
 }
 
-/* 搜尋欄位 */
-.finder {
-  padding: 1rem 1.25rem 1.25rem;
-}
-
-.finder-title {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  margin: 0 0 0.8rem;
-  font-size: 1.1rem;
-  font-weight: 900;
-}
-
-.finder-title svg {
-  color: var(--c-brand);
-  font-size: 1.3rem;
-}
-
-.finder-grid {
-  display: grid;
-  gap: 0.8rem;
-}
-
-.field label {
-  display: block;
-  margin-bottom: 0.3rem;
-  color: var(--c-muted);
-  font-weight: 700;
-}
-
-.field-control {
-  position: relative;
-}
-
-.field-control > svg {
-  position: absolute;
-  top: 50%;
-  left: 0.8rem;
-  z-index: 1;
-  color: var(--c-brand);
-  font-size: 1.2rem;
-  pointer-events: none;
-  transform: translateY(-50%);
-}
-
-.field-control .ui-control {
-  padding-left: 2.5rem;
-}
-
-/* 搜尋按鈕 */
-.finder-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem 1rem;
-}
-
-.explore-btn,
-.reset-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  min-height: 46px;
-  border: none;
-  font: inherit;
-  font-weight: 700;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.explore-btn {
-  padding: 0.55rem 1.4rem;
-  border-radius: 999px;
-  background: var(--c-brand);
-  color: #fff;
-  font-weight: 800;
-  box-shadow: 0 8px 16px rgb(255 112 73 / 28%);
-  transition:
-    transform var(--ease),
-    box-shadow var(--ease);
-}
-
-.explore-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 20px rgb(255 112 73 / 34%);
-}
-
-.explore-btn:active {
-  transform: scale(0.98);
-}
-
-.reset-btn {
-  padding: 0.4rem 0.15rem;
-  background: transparent;
-  color: var(--c-muted);
-  transition: color var(--ease);
-}
-
-.reset-btn:hover {
-  color: var(--c-navy);
-}
-
-.explore-btn svg,
-.reset-btn svg {
-  font-size: 1.2rem;
-}
-
 /* 載入與錯誤提示 */
 .state-panel {
   display: grid;
   justify-items: center;
   gap: 0.5rem;
   padding: 2rem 1rem;
+  border: 1.5px solid var(--c-border);
+  border-radius: 22px;
+  background: var(--c-card);
+  box-shadow: var(--shadow-soft);
   text-align: center;
 }
 
@@ -471,9 +298,10 @@ watch(
   gap: 0.8rem;
   margin: 0.2rem 0 1rem;
   padding: 0.7rem 0.85rem;
-  border: 1.5px solid #f3e4cc;
-  border-radius: 16px;
-  background: #fffaf3;
+  border: 1.5px solid var(--c-border);
+  border-radius: 22px;
+  background: var(--c-card);
+  box-shadow: var(--shadow-soft);
   animation: result-fade 0.4s ease;
 }
 
@@ -525,32 +353,38 @@ watch(
   display: inline-flex;
   flex: none;
   align-items: center;
-  gap: 0.25rem;
-  padding: 0.35rem 0.8rem;
+  gap: 0.3rem;
+  padding: 0.45rem 0.95rem;
   border-radius: 999px;
-  background: #fff3d6;
-  color: #c4a15a;
-  font-weight: 700;
+  background: #f3b23c;
+  color: #fff;
+  font-weight: 800;
   white-space: nowrap;
   text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgb(243 178 60 / 40%);
   transition:
     background var(--ease),
+    box-shadow var(--ease),
     transform var(--ease);
 }
 
 .result-scope:hover {
-  background: #ffe7b0;
-  transform: translateY(-1px);
+  background: #e09a1a;
+  box-shadow: 0 10px 18px rgb(224 154 26 / 42%);
+  transform: translateY(-2px);
+}
+
+.result-scope:active {
+  transform: scale(0.98);
 }
 
 .result-scope svg {
   font-size: 1.05rem;
 }
 
-.explore-btn:focus-visible,
-.reset-btn:focus-visible,
 .result-scope:focus-visible {
-  outline: 2px solid var(--c-brand);
+  outline: 2px solid #e09a1a;
   outline-offset: 3px;
 }
 
@@ -559,6 +393,22 @@ watch(
     opacity: 0;
   }
   to {
+    opacity: 1;
+  }
+}
+
+@keyframes float {
+  50% {
+    translate: 0 -7px;
+  }
+}
+
+@keyframes twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
     opacity: 1;
   }
 }
@@ -573,19 +423,6 @@ watch(
 
 /* 手機 */
 @media (max-width: 519px) {
-  .finder-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .explore-btn {
-    width: 100%;
-  }
-
-  .reset-btn {
-    align-self: flex-start;
-  }
-
   .result-banner {
     align-items: flex-start;
     flex-wrap: wrap;
@@ -597,17 +434,6 @@ watch(
 }
 
 /* 平板 */
-@media (min-width: 520px) {
-  .finder-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .finder-actions {
-    grid-column: 1 / -1;
-    justify-self: start;
-  }
-}
-
 @media (min-width: 768px) {
   .hero {
     grid-template-columns: 1.2fr 0.8fr;
@@ -642,6 +468,7 @@ watch(
     color: var(--c-brand);
     font-size: 5rem;
     transform: rotate(-8deg);
+    animation: float 4.5s ease-in-out infinite;
   }
 
   .art-popcorn {
@@ -649,7 +476,7 @@ watch(
     bottom: 0;
     color: var(--c-sun);
     font-size: 4.7rem;
-    animation-delay: 0.6s;
+    animation: float 4.5s ease-in-out 0.6s infinite;
   }
 
   .art-pin {
@@ -657,7 +484,7 @@ watch(
     right: 20%;
     color: var(--c-sky);
     font-size: 3.5rem;
-    animation-delay: 0.3s;
+    animation: float 4.5s ease-in-out 0.3s infinite;
   }
 
   .art-star {
@@ -666,6 +493,7 @@ watch(
     left: 35%;
     color: var(--c-brand);
     font-size: 1.8rem;
+    animation: twinkle 3s ease-in-out infinite;
   }
 
   .cinema-list {
@@ -674,17 +502,6 @@ watch(
 }
 
 /* 桌面 */
-@media (min-width: 900px) {
-  .finder-grid {
-    grid-template-columns: 1.4fr 0.85fr auto;
-    align-items: end;
-  }
-
-  .finder-actions {
-    grid-column: auto;
-  }
-}
-
 @media (min-width: 1100px) {
   .cinema-list {
     grid-template-columns: repeat(3, minmax(0, 1fr));
