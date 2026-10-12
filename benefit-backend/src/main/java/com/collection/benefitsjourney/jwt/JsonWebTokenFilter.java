@@ -34,11 +34,11 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 || uri.equals("/auth/password/reset")
                 || uri.matches("/users/\\d+")
                 || uri.matches("/users/\\d+/posts")
-                
+
                 // 影城 API 白名單
                 || (uri.equals("/cinemas") && (method.equals("GET")))
                 || (uri.matches("/cinemas/\\d+") && method.equals("GET"))
-                || (uri.equals("/cinemas/nearby") && method.equals("GET"))
+                || (uri.equals("/cinemas/map") && method.equals("GET"))
 
                 // 電影 API 白名單
                 || (uri.equals("/movies") && method.equals("GET"))
