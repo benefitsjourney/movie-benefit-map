@@ -1,5 +1,12 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch,
+} from "vue";
 import { Icon } from "@iconify/vue";
 import mapIcon from "@iconify-icons/mdi/map-outline";
 import pinIcon from "@iconify-icons/mdi/map-marker-outline";
@@ -13,7 +20,6 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
-
 import http from "@/plugins/axios";
 import { COUNTY_LABELS, countyLabel } from "@/constants/county";
 import AppButton from "@/components/AppButton.vue";
@@ -21,7 +27,16 @@ import PageIntro from "@/components/PageIntro.vue";
 import SearchFilter from "@/components/SearchFilter.vue";
 
 // Leaflet 座標使用 [緯度, 經度]；涵蓋本島、澎湖、金門與馬祖。
-const TAIWAN_BOUNDS = [[21.85, 118.1], [26.45, 122.1]];
+const TAIWAN_BOUNDS = [
+  [21.85, 118.1],
+  [26.45, 122.1],
+];
+
+// 初次進入時讓本島成為視覺焦點；仍可拖曳至澎湖、金門、馬祖。
+const INITIAL_VIEW_BOUNDS = [
+  [21.9, 119.85],
+  [25.45, 122.05],
+];
 const DEFAULT_RADIUS = 5000;
 const RADIUS_OPTIONS = [
   { value: 1000, label: "1 公里" },
@@ -30,8 +45,12 @@ const RADIUS_OPTIONS = [
   { value: 10000, label: "10 公里" },
   { value: 20000, label: "20 公里" },
 ];
-const GEO_OPTIONS = { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 };
 
+const GEO_OPTIONS = {
+  enableHighAccuracy: false,
+  timeout: 10000,
+  maximumAge: 60000,
+};
 const filterFields = [
   {
     key: "keyword",
@@ -52,12 +71,12 @@ const filterFields = [
 
 // SearchFilter 套用後才更新篩選；附近搜尋另外加入定位和半徑參數。
 const appliedFilters = ref({ keyword: "", county: "" });
+
 const radius = ref(DEFAULT_RADIUS);
 const nearbyActive = ref(false);
 const locating = ref(false);
 const locateOrigin = ref(null);
 const locationNotice = ref("");
-
 const cinemas = ref([]);
 const total = ref(0);
 const resultRadius = ref(null);
@@ -65,7 +84,6 @@ const loading = ref(true);
 const hasLoaded = ref(false);
 const errorMessage = ref("");
 const refreshing = computed(() => loading.value && hasLoaded.value);
-
 const mapEl = ref(null);
 const selectedId = ref(null);
 const mapError = ref("");
@@ -73,49 +91,66 @@ const mapError = ref("");
 function coordinate(value, min, max) {
   if (value == null || String(value).trim() === "") return null;
   const number = Number(value);
-  return Number.isFinite(number) && number >= min && number <= max ? number : null;
+  return Number.isFinite(number) && number >= min && number <= max
+    ? number
+    : null;
 }
 
 function getCinemaCoordinates(cinema) {
   const latitude = coordinate(cinema?.latitude, -90, 90);
   const longitude = coordinate(cinema?.longitude, -180, 180);
-  return latitude === null || longitude === null ? null : { latitude, longitude };
+  return latitude === null || longitude === null
+    ? null
+    : { latitude, longitude };
 }
 
 function isWithinTaiwanBounds(position) {
   if (!position) return false;
   const { latitude, longitude } = position;
-  return Number.isFinite(latitude) && Number.isFinite(longitude)
-    && latitude >= TAIWAN_BOUNDS[0][0] && latitude <= TAIWAN_BOUNDS[1][0]
-    && longitude >= TAIWAN_BOUNDS[0][1] && longitude <= TAIWAN_BOUNDS[1][1];
+  return (
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude >= TAIWAN_BOUNDS[0][0] &&
+    latitude <= TAIWAN_BOUNDS[1][0] &&
+    longitude >= TAIWAN_BOUNDS[0][1] &&
+    longitude <= TAIWAN_BOUNDS[1][1]
+  );
 }
 
 function formatDistance(value) {
   if (value == null || value === "") return "";
   const meters = Number(value);
   if (!Number.isFinite(meters) || meters < 0) return "";
-  return meters >= 1000 ? `${(meters / 1000).toFixed(1)} 公里` : `${Math.round(meters)} 公尺`;
+  return meters >= 1000
+    ? `${(meters / 1000).toFixed(1)} 公里`
+    : `${Math.round(meters)} 公尺`;
 }
 
 // API 資料統一加工，避免在 Marker / Popup / 清單重複轉座標、檢查範圍、換算距離。
-const cinemaItems = computed(() => cinemas.value.map((cinema) => {
-  const position = getCinemaCoordinates(cinema);
-  return {
-    ...cinema,
-    position,
-    canLocate: cinema.cinemaId != null && isWithinTaiwanBounds(position),
-    distanceText: formatDistance(cinema.distance),
-  };
-}));
-const mappableCinemas = computed(() => cinemaItems.value.filter((cinema) => cinema.canLocate));
+const cinemaItems = computed(() =>
+  cinemas.value.map((cinema) => {
+    const position = getCinemaCoordinates(cinema);
+    return {
+      ...cinema,
+      position,
+      canLocate: cinema.cinemaId != null && isWithinTaiwanBounds(position),
+      distanceText: formatDistance(cinema.distance),
+    };
+  }),
+);
+const mappableCinemas = computed(() =>
+  cinemaItems.value.filter((cinema) => cinema.canLocate),
+);
 const markerCount = computed(() => mappableCinemas.value.length);
-const activeKeyword = computed(() => String(appliedFilters.value.keyword ?? "").trim());
+const activeKeyword = computed(() =>
+  String(appliedFilters.value.keyword ?? "").trim(),
+);
 const resultHint = computed(() => {
   if (nearbyActive.value && resultRadius.value != null) {
-    return `附近 ${formatDistance(resultRadius.value)} 內的影城`;
+    return `距離你 ${formatDistance(resultRadius.value)}內的影城`;
   }
   return appliedFilters.value.county || activeKeyword.value
-    ? "符合條件的影城"
+    ? "搜尋結果"
     : "全台影城";
 });
 
@@ -131,8 +166,8 @@ const params = computed(() => {
   }
   return query;
 });
-const queryKey = computed(() => JSON.stringify(params.value));
 
+const queryKey = computed(() => JSON.stringify(params.value));
 let requestController = null;
 let requestVersion = 0;
 let locateVersion = 0;
@@ -152,22 +187,23 @@ async function loadCinemas() {
   const requestKey = queryKey.value;
   loading.value = true;
   errorMessage.value = "";
-
   try {
     const { data } = await http.get("/cinemas/map", {
       params: { ...params.value },
       signal: current.signal,
     });
     if (current.signal.aborted || version !== requestVersion) return;
-    if (!Array.isArray(data?.cinemas) || !Number.isInteger(data?.total) || data.total < 0) {
+    if (
+      !Array.isArray(data?.cinemas) ||
+      !Number.isInteger(data?.total) ||
+      data.total < 0
+    ) {
       throw new Error("影城地圖 API 回傳格式有誤");
     }
-
     cinemas.value = data.cinemas;
     total.value = data.total;
     resultRadius.value = data.radius == null ? null : Number(data.radius);
     hasLoaded.value = true;
-
     // 相同條件按「重新整理」不打斷使用者目前縮放的視角。
     const shouldFit = lastSuccessKey !== requestKey;
     lastSuccessKey = requestKey;
@@ -179,8 +215,8 @@ async function loadCinemas() {
     if (current.signal.aborted || version !== requestVersion) return;
     console.error("影城地圖資料載入失敗", error);
     errorMessage.value = hasLoaded.value
-      ? "更新失敗，畫面仍顯示上次的搜尋結果。"
-      : "無法載入影城，請稍後再試。";
+      ? "暫時無法更新，目前仍顯示上一次的搜尋結果。"
+      : "暫時無法取得影城資訊，請稍後再試。";
   } finally {
     if (version === requestVersion) {
       requestController = null;
@@ -191,7 +227,14 @@ async function loadCinemas() {
 
 // 同一輪同步修改 keyword、county、半徑及定位時，Vue 會批次執行一次監聽。
 // 無須額外的 setTimeout(0) / timer / 手動防抖。
-watch(queryKey, () => { void loadCinemas(); }, { flush: "post" });
+
+watch(
+  queryKey,
+  () => {
+    void loadCinemas();
+  },
+  { flush: "post" },
+);
 
 function disableNearby() {
   locateVersion += 1; // 使尚未回傳的定位結果失效。
@@ -208,18 +251,20 @@ function enableNearby() {
   const geo = globalThis.navigator?.geolocation;
   if (!geo?.getCurrentPosition) {
     locating.value = false;
-    locationNotice.value = "此瀏覽器不支援定位。";
+    locationNotice.value = "目前無法使用位置功能，請換個瀏覽器試試。";
     return;
   }
-
   try {
     geo.getCurrentPosition(
       ({ coords }) => {
         if (version !== locateVersion || disposed) return;
         locating.value = false;
-        const position = { latitude: coords?.latitude, longitude: coords?.longitude };
+        const position = {
+          latitude: coords?.latitude,
+          longitude: coords?.longitude,
+        };
         if (!isWithinTaiwanBounds(position)) {
-          locationNotice.value = "目前位置不在地圖範圍內。";
+          locationNotice.value = "目前只能搜尋臺灣及離島附近的影城。";
           return;
         }
         locateOrigin.value = position;
@@ -228,16 +273,17 @@ function enableNearby() {
       (error) => {
         if (version !== locateVersion || disposed) return;
         locating.value = false;
-        locationNotice.value = error?.code === 1
-          ? "請開啟瀏覽器定位權限後重試。"
-          : "無法取得位置，請確認定位功能已開啟。";
+        locationNotice.value =
+          error?.code === 1
+            ? "請允許網站使用你的位置，再試一次。"
+            : "找不到你目前的位置，請確認裝置的位置服務已開啟。";
       },
       GEO_OPTIONS,
     );
   } catch {
     if (version !== locateVersion || disposed) return;
     locating.value = false;
-    locationNotice.value = "定位無法使用，請檢查瀏覽器設定。";
+    locationNotice.value = "暫時無法取得你的位置，請檢查瀏覽器的位置權限。";
   }
 }
 
@@ -257,7 +303,9 @@ const markers = new Map();
 const taiwanLatLngBounds = L.latLngBounds(TAIWAN_BOUNDS);
 
 function reduceMotion() {
-  return window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+  return (
+    window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false
+  );
 }
 
 function markerIcon(selected = false) {
@@ -271,21 +319,19 @@ function markerIcon(selected = false) {
 }
 
 // API 欄位用 textContent 輸出，不拼入 HTML；僅經緯度用於 Google Maps 網址。
+
 function makePopup(cinema) {
   const root = L.DomUtil.create("div", "benefit-popup");
   const eyebrow = L.DomUtil.create("span", "popup-eyebrow", root);
   eyebrow.textContent = countyLabel(cinema.county) || "影城";
   const title = L.DomUtil.create("strong", "popup-title", root);
-  title.textContent = cinema.cinemaName || "未命名影城";
+  title.textContent = cinema.cinemaName || "影城";
   const address = L.DomUtil.create("p", "popup-address", root);
-  address.textContent = cinema.cinemaAddress || "暫無地址";
-
+  address.textContent = cinema.cinemaAddress || "地址尚未提供";
   if (cinema.distanceText) {
     const distance = L.DomUtil.create("p", "popup-distance", root);
-    distance.textContent = `直線距離 ${cinema.distanceText}`;
+    distance.textContent = `離你約 ${cinema.distanceText}（直線距離）`;
   }
-  const note = L.DomUtil.create("p", "popup-caveat", root);
-  note.textContent = "特典資訊尚未開放查詢。";
   if (cinema.position) {
     const link = L.DomUtil.create("a", "popup-link", root);
     const { latitude, longitude } = cinema.position;
@@ -301,15 +347,19 @@ function syncMarkers() {
   if (!map || !markerLayer) return;
   markerLayer.clearLayers();
   markers.clear();
-
   for (const cinema of mappableCinemas.value) {
     const { latitude, longitude } = cinema.position;
     const marker = L.marker([latitude, longitude], {
       title: cinema.cinemaName || "影城",
       icon: markerIcon(cinema.cinemaId === selectedId.value),
     });
-    marker.bindPopup(makePopup(cinema), { className: "benefit-map-popup", maxWidth: 290 });
-    marker.on("click", () => { selectedId.value = cinema.cinemaId; });
+    marker.bindPopup(makePopup(cinema), {
+      className: "benefit-map-popup",
+      maxWidth: 290,
+    });
+    marker.on("click", () => {
+      selectedId.value = cinema.cinemaId;
+    });
     markerLayer.addLayer(marker);
     markers.set(cinema.cinemaId, marker);
   }
@@ -321,7 +371,6 @@ function syncLocationCircle() {
   if (radiusCircle) map.removeLayer(radiusCircle);
   userDot = null;
   radiusCircle = null;
-
   const position = nearbyActive.value ? locateOrigin.value : null;
   if (!isWithinTaiwanBounds(position)) return;
   const center = [position.latitude, position.longitude];
@@ -330,7 +379,7 @@ function syncLocationCircle() {
     color: "#257f80",
     weight: 2,
     fillColor: "#69c5c0",
-    fillOpacity: 0.10,
+    fillOpacity: 0.1,
     interactive: false,
   }).addTo(map);
   userDot = L.circleMarker(center, {
@@ -339,7 +388,9 @@ function syncLocationCircle() {
     weight: 3,
     fillColor: "#2769bb",
     fillOpacity: 1,
-  }).addTo(map).bindPopup("你的位置");
+  })
+    .addTo(map)
+    .bindPopup("你的位置");
 }
 
 function enforceTaiwanBounds() {
@@ -355,26 +406,26 @@ function enforceTaiwanBounds() {
 function fitView() {
   if (!map) return;
   const options = { animate: !reduceMotion(), padding: [26, 26] };
-
   if (nearbyActive.value && radiusCircle) {
     map.fitBounds(radiusCircle.getBounds(), { ...options, maxZoom: 15 });
     return;
   }
   if (!activeKeyword.value && !appliedFilters.value.county) {
-    map.fitBounds(taiwanLatLngBounds, { ...options, maxZoom: 9 });
+    map.fitBounds(INITIAL_VIEW_BOUNDS, { ...options, maxZoom: 9 });
     return;
   }
-
   const positions = mappableCinemas.value.map((cinema) => [
     cinema.position.latitude,
     cinema.position.longitude,
   ]);
   if (positions.length === 1) {
-    map.setView(positions[0], Math.max(map.getMinZoom(), 14), { animate: options.animate });
+    map.setView(positions[0], Math.max(map.getMinZoom(), 14), {
+      animate: options.animate,
+    });
   } else if (positions.length > 1) {
     map.fitBounds(L.latLngBounds(positions), { ...options, maxZoom: 14 });
   } else {
-    map.fitBounds(taiwanLatLngBounds, { ...options, maxZoom: 9 });
+    map.fitBounds(INITIAL_VIEW_BOUNDS, { ...options, maxZoom: 9 });
   }
 }
 
@@ -384,10 +435,13 @@ function focusCinema(cinema) {
   if (!map || !marker) return;
   const open = () => {
     if (!map || disposed) return;
-    map.setView(marker.getLatLng(), Math.max(map.getZoom(), 15), { animate: !reduceMotion() });
+    map.setView(marker.getLatLng(), Math.max(map.getZoom(), 15), {
+      animate: !reduceMotion(),
+    });
     marker.openPopup();
   };
-  if (typeof markerLayer?.zoomToShowLayer === "function") markerLayer.zoomToShowLayer(marker, open);
+  if (typeof markerLayer?.zoomToShowLayer === "function")
+    markerLayer.zoomToShowLayer(marker, open);
   else open();
 }
 
@@ -396,12 +450,25 @@ function scrollToSelected(id) {
   nextTick(() => {
     const selected = document.getElementById(`benefit-map-cinema-${id}`);
     const container = document.getElementById("benefit-map-results");
-    if (!selected || !container || container.scrollHeight <= container.clientHeight) return;
-    const itemTop = selected.getBoundingClientRect().top
-      - container.getBoundingClientRect().top + container.scrollTop;
-    if (itemTop < container.scrollTop
-      || itemTop + selected.offsetHeight > container.scrollTop + container.clientHeight) {
-      container.scrollTo({ top: Math.max(0, itemTop - 12), behavior: reduceMotion() ? "auto" : "smooth" });
+    if (
+      !selected ||
+      !container ||
+      container.scrollHeight <= container.clientHeight
+    )
+      return;
+    const itemTop =
+      selected.getBoundingClientRect().top -
+      container.getBoundingClientRect().top +
+      container.scrollTop;
+    if (
+      itemTop < container.scrollTop ||
+      itemTop + selected.offsetHeight >
+        container.scrollTop + container.clientHeight
+    ) {
+      container.scrollTo({
+        top: Math.max(0, itemTop - 12),
+        behavior: reduceMotion() ? "auto" : "smooth",
+      });
     }
   });
 }
@@ -424,7 +491,6 @@ async function createMap() {
       console.warn("Marker 群聚未啟用，改用一般標記", error);
     }
     if (disposed || !mapEl.value) return;
-
     map = L.map(mapEl.value, {
       center: [23.8, 120.9],
       zoom: 7,
@@ -438,19 +504,19 @@ async function createMap() {
     L.control.zoom({ position: "bottomright" }).addTo(map);
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
     }).addTo(map);
-
-    markerLayer = typeof L.markerClusterGroup === "function"
-      ? L.markerClusterGroup({
-        showCoverageOnHover: false,
-        maxClusterRadius: 48,
-        spiderfyOnMaxZoom: true,
-        disableClusteringAtZoom: 16,
-      })
-      : L.layerGroup();
+    markerLayer =
+      typeof L.markerClusterGroup === "function"
+        ? L.markerClusterGroup({
+            showCoverageOnHover: false,
+            maxClusterRadius: 48,
+            spiderfyOnMaxZoom: true,
+            disableClusteringAtZoom: 16,
+          })
+        : L.layerGroup();
     markerLayer.addTo(map);
-
     // ResizeObserver 已能監聽容器變動，不再同時註冊 window resize。
     if (typeof ResizeObserver !== "undefined") {
       resizeObserver = new ResizeObserver(onResize);
@@ -466,7 +532,7 @@ async function createMap() {
     fitView();
   } catch (error) {
     console.error("特典據點地圖初始化失敗", error);
-    mapError.value = "地圖載入失敗，仍可查看影城清單。";
+    mapError.value = "地圖暫時無法顯示，你仍可以查看影城清單。";
     cleanupMap();
   } finally {
     creating = false;
@@ -488,21 +554,28 @@ function cleanupMap() {
 }
 
 watch(cinemaItems, (items) => {
-  if (selectedId.value != null && !items.some((item) => item.cinemaId === selectedId.value)) {
+  if (
+    selectedId.value != null &&
+    !items.some((item) => item.cinemaId === selectedId.value)
+  ) {
     selectedId.value = null;
   }
   syncMarkers();
 });
+
 watch(selectedId, (id) => {
-  for (const [markerId, marker] of markers) marker.setIcon(markerIcon(markerId === id));
+  for (const [markerId, marker] of markers)
+    marker.setIcon(markerIcon(markerId === id));
   scrollToSelected(id);
 });
+
 watch([nearbyActive, locateOrigin, radius], syncLocationCircle);
 
 onMounted(() => {
   void createMap();
   void loadCinemas();
 });
+
 onBeforeUnmount(() => {
   disposed = true;
   locateVersion += 1;
@@ -513,98 +586,206 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="benefit-map-page">
-    <PageIntro kicker="✦ BENEFIT MAP" lead="特典" mark="地圖" description="找影城、看位置，規劃你的下一站。" :icon-left="giftIcon"
-      :icon-right="ticketIcon" :icon-top="pinIcon" />
+    <!-- 保留共用頁面介紹、篩選模組與 API 接線 -->
+    <PageIntro
+      kicker="✦ BENEFIT MAP"
+      lead="特典"
+      mark="地圖"
+      description="從地圖出發，尋找你的下一站影城。"
+      :icon-left="giftIcon"
+      :icon-right="ticketIcon"
+      :icon-top="pinIcon"
+    />
 
-    <SearchFilter v-model="appliedFilters" title="搜尋影城" :title-icon="compassIcon" submit-label="搜尋"
-      :submit-icon="searchIcon" reset-label="清除" :fields="filterFields" />
+    <SearchFilter
+      v-model="appliedFilters"
+      title="搜尋影城"
+      :title-icon="compassIcon"
+      submit-label="搜尋"
+      :submit-icon="searchIcon"
+      reset-label="清除"
+      :fields="filterFields"
+    />
 
     <div class="map-layout">
       <section class="map-frame" aria-label="臺灣影城地圖">
         <div class="map-toolbar">
           <div class="toolbar-title">
-            <Icon :icon="mapIcon" aria-hidden="true" />
-            <div><strong>影城地圖</strong><small>點選標記查看資訊</small></div>
+            <span class="toolbar-icon"
+              ><Icon :icon="mapIcon" aria-hidden="true"
+            /></span>
+            <div class="toolbar-copy">
+              <h2>探索地圖</h2>
+              <p>點選地圖上的圖釘，查看影城資訊</p>
+            </div>
           </div>
+
           <div class="toolbar-actions">
-            <AppButton type="button" :icon="nearIcon" :disabled="!!mapError" :aria-pressed="nearbyActive"
-              @click="toggleNearby">
-              {{ locating ? "取消定位" : nearbyActive ? "取消附近搜尋" : "附近影城" }}
-            </AppButton>
-            <label v-if="nearbyActive" class="radius-control" for="benefit-map-radius">
-              <span>範圍</span>
+            <label
+              v-if="nearbyActive"
+              class="radius-control"
+              for="benefit-map-radius"
+            >
+              <span>搜尋範圍</span>
               <select id="benefit-map-radius" v-model.number="radius">
-                <option v-for="option in RADIUS_OPTIONS" :key="option.value" :value="option.value">
+                <option
+                  v-for="option in RADIUS_OPTIONS"
+                  :key="option.value"
+                  :value="option.value"
+                >
                   {{ option.label }}
                 </option>
               </select>
             </label>
+            <AppButton
+              type="button"
+              :icon="nearIcon"
+              :disabled="!!mapError"
+              :aria-pressed="nearbyActive"
+              @click="toggleNearby"
+            >
+              {{
+                locating
+                  ? "取消搜尋"
+                  : nearbyActive
+                    ? "取消附近搜尋"
+                    : "找附近影城"
+              }}
+            </AppButton>
           </div>
         </div>
 
-        <p v-if="locationNotice" class="location-notice" role="status">{{ locationNotice }}</p>
+        <p v-if="locationNotice" class="location-notice" role="status">
+          {{ locationNotice }}
+        </p>
 
         <div class="map-body">
-          <div ref="mapEl" class="map-canvas" role="region" aria-label="臺灣影城互動地圖"></div>
+          <div
+            ref="mapEl"
+            class="map-canvas"
+            role="region"
+            aria-label="臺灣影城互動地圖"
+          ></div>
+
           <div v-if="loading && !hasLoaded" class="map-overlay" role="status">
             <span class="loading-spinner" aria-hidden="true"></span>
-            影城載入中…
+            正在尋找影城…
           </div>
-          <div v-if="mapError" class="map-overlay" role="alert">{{ mapError }}</div>
-          <div v-if="hasLoaded && !!cinemas.length && !markerCount" class="map-empty-tip">
-            沒有可顯示的位置資訊
+          <div v-if="mapError" class="map-overlay" role="alert">
+            {{ mapError }}
           </div>
-        </div>
-        <div class="map-bottom-bar">
-          <span>
-            <Icon :icon="pinIcon" aria-hidden="true" /> 地圖範圍：臺灣及離島
-          </span>
+          <div
+            v-if="hasLoaded && !!cinemas.length && !markerCount"
+            class="map-empty-tip"
+          >
+            目前沒有可在地圖上顯示的影城
+          </div>
+
+          <div
+            v-if="hasLoaded && !mapError"
+            class="map-info-chip"
+            aria-live="polite"
+          >
+            <Icon :icon="pinIcon" aria-hidden="true" />
+            <span>地圖上有 {{ markerCount }} 間影城</span>
+          </div>
         </div>
       </section>
 
       <aside class="results-panel" aria-label="影城搜尋結果">
         <div class="results-heading">
-          <div>
-            <p class="eyebrow">CINEMAS</p>
-            <h2>影城清單 <span class="count">{{ hasLoaded ? total : "—" }}</span></h2>
-            <p>{{ resultHint }}</p>
+          <div class="results-heading-main">
+            <div class="results-title-row">
+              <h2>影城探索</h2>
+              <span class="count" aria-label="影城數量">
+                {{ hasLoaded ? total : "—" }} <small>間</small>
+              </span>
+            </div>
+            <p class="results-hint">{{ resultHint }}</p>
           </div>
-          <button class="refresh-button" type="button" aria-label="重新整理影城清單" :disabled="loading || refreshing"
-            @click="loadCinemas">
+          <button
+            class="refresh-button"
+            type="button"
+            aria-label="更新影城清單"
+            title="更新影城清單"
+            :disabled="loading || refreshing"
+            @click="loadCinemas"
+          >
             <Icon :icon="refreshIcon" aria-hidden="true" />
           </button>
         </div>
-        <p class="benefit-disclaimer">
-          <Icon :icon="giftIcon" aria-hidden="true" />
-          目前僅顯示影城位置，特典資訊尚未開放。
-        </p>
-        <p v-if="errorMessage" class="error-notice" role="alert">{{ errorMessage }}</p>
-        <p v-if="refreshing" class="refresh-notice" role="status">影城資料更新中…</p>
 
-        <div v-if="loading && !hasLoaded" class="panel-state" role="status">影城載入中…</div>
+        <p v-if="errorMessage" class="error-notice" role="alert">
+          {{ errorMessage }}
+        </p>
+        <p v-if="refreshing" class="refresh-notice" role="status">
+          正在更新影城清單…
+        </p>
+
+        <div v-if="loading && !hasLoaded" class="panel-state" role="status">
+          正在尋找影城…
+        </div>
         <div v-else-if="!hasLoaded" class="panel-state">
-          <p>無法載入影城清單。</p>
-          <AppButton type="button" :icon="refreshIcon" @click="loadCinemas">重新載入</AppButton>
+          <p>目前無法顯示影城，請再試一次。</p>
+          <AppButton type="button" :icon="refreshIcon" @click="loadCinemas"
+            >再試一次</AppButton
+          >
         </div>
         <div v-else-if="cinemas.length === 0" class="panel-state">
           <Icon :icon="giftIcon" aria-hidden="true" />
-          <p>{{ nearbyActive ? "附近沒有符合條件的影城，試試擴大範圍。" : "找不到符合條件的影城，試試其他名稱或縣市。" }}</p>
+          <p>
+            {{
+              nearbyActive
+                ? "這附近沒有找到符合條件的影城，試試擴大範圍或調整搜尋條件。"
+                : "沒有找到符合條件的影城，換個名稱或縣市試試吧。"
+            }}
+          </p>
         </div>
-        <div v-else id="benefit-map-results" class="cinema-list">
-          <button v-for="(cinema, index) in cinemaItems" :id="`benefit-map-cinema-${cinema.cinemaId}`"
-            :key="cinema.cinemaId" class="location-ticket" :class="{ 'is-selected': selectedId === cinema.cinemaId }"
-            type="button" :aria-pressed="selectedId === cinema.cinemaId" :disabled="!cinema.canLocate || !!mapError"
-            @click="focusCinema(cinema)">
-            <span class="ticket-index">NO. {{ String(index + 1).padStart(2, "0") }}</span>
-            <span class="ticket-county">{{ countyLabel(cinema.county) || "其他地區" }}</span>
-            <strong class="ticket-name">{{ cinema.cinemaName || "未命名影城" }}</strong>
-            <span class="ticket-address">
-              <Icon :icon="pinIcon" aria-hidden="true" />{{ cinema.cinemaAddress || "暫無地址" }}
+        <div
+          v-else
+          id="benefit-map-results"
+          class="cinema-list"
+          aria-label="符合搜尋條件的影城"
+        >
+          <button
+            v-for="(cinema, index) in cinemaItems"
+            :id="`benefit-map-cinema-${cinema.cinemaId}`"
+            :key="cinema.cinemaId"
+            type="button"
+            class="location-ticket"
+            :class="{ 'is-selected': selectedId === cinema.cinemaId }"
+            :aria-pressed="selectedId === cinema.cinemaId"
+            :disabled="!cinema.canLocate || !!mapError"
+            @click="focusCinema(cinema)"
+          >
+            <span class="ticket-stub" aria-hidden="true">
+              <span class="ticket-index">{{
+                String(index + 1).padStart(2, "0")
+              }}</span>
             </span>
-            <span v-if="cinema.distanceText" class="ticket-distance">{{ cinema.distanceText }}
-              <small>直線距離</small></span>
-            <span v-else-if="!cinema.canLocate" class="ticket-muted">暫無位置資訊</span>
-            <span v-if="cinema.canLocate && !mapError" class="ticket-link">查看位置</span>
+            <span class="ticket-content">
+              <span class="ticket-topline">
+                <span class="ticket-county">{{
+                  countyLabel(cinema.county) || "其他地區"
+                }}</span>
+                <span v-if="cinema.distanceText" class="ticket-distance"
+                  >直線距離 {{ cinema.distanceText }}</span
+                >
+                <span v-else-if="!cinema.canLocate" class="ticket-muted"
+                  >尚無地圖位置</span
+                >
+              </span>
+              <strong class="ticket-name">{{
+                cinema.cinemaName || "影城"
+              }}</strong>
+              <span class="ticket-address">
+                <Icon :icon="pinIcon" aria-hidden="true" />
+                {{ cinema.cinemaAddress || "地址尚未提供" }}
+              </span>
+            </span>
+            <span class="ticket-action" aria-hidden="true"
+              ><Icon :icon="compassIcon"
+            /></span>
           </button>
         </div>
       </aside>
@@ -613,12 +794,16 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/* 視覺規則：沿用網站既有變數，減少邊框，卡片採「旅行站點／票根」形式。 */
 .benefit-map-page {
   --map-brand: var(--c-brand, #f36c4e);
   --map-ink: var(--c-ink, #263349);
   --map-muted: var(--c-muted, #6c7380);
   --map-surface: var(--c-card, #fff);
   --map-border: var(--c-border, #eae1d9);
+  --map-warm: #fffaf5;
+  --map-soft: #fff1e8;
+  --map-navy: #202c45;
   color: var(--map-ink);
   font-size: var(--text-body, 1.0625rem);
 }
@@ -633,32 +818,31 @@ onBeforeUnmount(() => {
 .benefit-map-page button {
   cursor: pointer;
 }
-
 .benefit-map-page button:disabled {
   cursor: not-allowed;
 }
-
 .benefit-map-page button:focus-visible,
 .benefit-map-page select:focus-visible {
   outline: 2px solid var(--map-brand);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
 .map-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(310px, .8fr);
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1.55fr) minmax(365px, 0.83fr);
+  gap: 1.25rem;
+  align-items: stretch;
 }
 
 .map-frame,
 .results-panel {
-  height: min(70vh, 730px);
-  min-height: 510px;
   min-width: 0;
-  border: 1.5px solid var(--map-border);
-  border-radius: 22px;
+  height: min(72vh, 740px);
+  min-height: 520px;
+  border: 1px solid #f0e3d6;
+  border-radius: 24px;
   background: var(--map-surface);
-  box-shadow: var(--shadow-soft);
+  box-shadow: 0 14px 35px rgb(65 43 29 / 6%);
 }
 
 .map-frame {
@@ -669,64 +853,80 @@ onBeforeUnmount(() => {
 
 .map-toolbar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: .75rem;
-  padding: .8rem 1rem;
-  border-bottom: 1px solid var(--map-border);
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  min-height: 86px;
+  padding: 1rem 1.25rem;
   background: #fffdf9;
 }
 
 .toolbar-title {
   display: flex;
   align-items: center;
-  gap: .55rem;
   min-width: 0;
+  gap: 0.75rem;
 }
 
-.toolbar-title> :deep(svg) {
+.toolbar-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 45px;
+  height: 45px;
+  border-radius: 15px;
+  background: var(--map-soft);
   color: var(--map-brand);
+}
+
+.toolbar-icon :deep(svg) {
   font-size: 1.55rem;
 }
-
-.toolbar-title strong {
-  display: block;
-  font-size: var(--text-feature-title, 1.25rem);
-  font-weight: 900;
+.toolbar-copy {
+  min-width: 0;
 }
-
-.toolbar-title small {
-  display: block;
+.toolbar-copy h2 {
+  margin: 0;
+  font-size: var(--text-feature-title, 1.25rem);
+  line-height: 1.35;
+  font-weight: 900;
+  letter-spacing: 0.015em;
+}
+.toolbar-copy p {
+  margin: 0.12rem 0 0;
   color: var(--map-muted);
   font-size: var(--text-control, 1rem);
 }
 
 .toolbar-actions {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: .6rem;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .toolbar-actions :deep(.app-button) {
-  min-height: 40px;
-  padding: .45rem .9rem;
+  min-height: 42px;
+  padding: 0.48rem 0.9rem;
+  border-radius: 14px;
+  box-shadow: none;
 }
 
 .radius-control {
   display: inline-flex;
   align-items: center;
-  gap: .4rem;
+  gap: 0.4rem;
   color: var(--map-muted);
   font-weight: 700;
+  font-size: 1rem;
 }
 
 .radius-control select {
-  max-width: 126px;
-  min-height: 40px;
-  padding: .35rem .5rem;
-  border: 1.5px solid var(--map-border);
+  max-width: 135px;
+  min-height: 42px;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid var(--map-border);
   border-radius: 12px;
   background: #fff;
   color: var(--map-ink);
@@ -734,16 +934,16 @@ onBeforeUnmount(() => {
 
 .location-notice {
   margin: 0;
-  padding: .55rem 1rem;
-  background: #fff8e8;
-  color: #795a21;
+  padding: 0.6rem 1rem;
+  background: #fff6e8;
+  color: #785521;
   font-weight: 700;
 }
 
 .map-body {
   position: relative;
   flex: 1;
-  min-height: 230px;
+  min-height: 260px;
   isolation: isolate;
 }
 
@@ -756,6 +956,34 @@ onBeforeUnmount(() => {
   background: #e6eef0;
 }
 
+.map-info-chip,
+.map-empty-tip {
+  position: absolute;
+  bottom: 1.1rem;
+  left: 1.1rem;
+  z-index: 400;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: calc(100% - 6.5rem);
+  padding: 0.55rem 0.85rem;
+  border: 1px solid rgb(255 255 255 / 75%);
+  border-radius: 999px;
+  background: rgb(255 253 249 / 96%);
+  color: var(--map-navy);
+  box-shadow: 0 5px 17px rgb(19 40 64 / 12%);
+  font-size: 1rem;
+  font-weight: 750;
+  pointer-events: none;
+}
+.map-info-chip :deep(svg) {
+  color: var(--map-brand);
+}
+.map-empty-tip {
+  bottom: 4.3rem;
+  border-radius: 12px;
+}
+
 .map-overlay {
   position: absolute;
   inset: 0;
@@ -764,9 +992,9 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  gap: .8rem;
+  gap: 0.8rem;
   padding: 1rem;
-  background: #fffdf0e8;
+  background: rgb(255 253 249 / 92%);
   text-align: center;
   font-weight: 800;
 }
@@ -777,140 +1005,102 @@ onBeforeUnmount(() => {
   border: 4px solid #f6d5cb;
   border-top-color: var(--map-brand);
   border-radius: 50%;
-  animation: map-spin .8s linear infinite;
-}
-
-.map-empty-tip {
-  position: absolute;
-  z-index: 400;
-  bottom: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  width: max-content;
-  max-width: 90%;
-  padding: .55rem .8rem;
-  border-radius: 14px;
-  background: #fffffff2;
-  box-shadow: 0 2px 10px #0002;
-  text-align: center;
-}
-
-.map-bottom-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: .5rem;
-  flex-wrap: wrap;
-  padding: .55rem .85rem;
-  background: #fffdf9;
-  color: var(--map-muted);
-  font-size: var(--text-control, 1rem);
-}
-
-.map-bottom-bar span {
-  display: inline-flex;
-  align-items: center;
-  gap: .25rem;
+  animation: map-spin 0.8s linear infinite;
 }
 
 .results-panel {
   display: flex;
   flex-direction: column;
+  gap: 0;
   overflow: hidden;
-  padding: 1rem .95rem;
+  padding: 1.15rem 1.05rem 1rem;
 }
 
 .results-heading {
   display: flex;
-  align-items: flex-start;
   justify-content: space-between;
-  gap: .65rem;
-  padding: 0 .2rem .85rem;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0 0.2rem 0.6rem;
 }
 
-.results-heading h2 {
-  margin: .2rem 0;
-  font-size: var(--text-section-title, 1.875rem);
-  line-height: 1.3;
-  font-weight: 900;
+.results-heading-main {
+  min-width: 0;
 }
-
-.results-heading p {
+.results-title-row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+.results-title-row h2 {
   margin: 0;
-  color: var(--map-muted);
-}
-
-.results-heading .eyebrow {
-  color: #b36a53;
-  font-size: var(--text-control, 1rem);
-  overflow-wrap: anywhere;
-  font-weight: 800;
-  letter-spacing: .08em;
+  color: var(--map-navy);
+  font-size: var(--text-section-title, 1.875rem);
+  line-height: 1.25;
+  font-weight: 900;
+  letter-spacing: -0.03em;
 }
 
 .count {
-  display: inline-grid;
-  place-items: center;
-  min-width: 2.1rem;
-  padding: 0 .4rem;
-  border-radius: 10px;
-  background: #ffede2;
-  color: #b75537;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.23rem;
+  padding: 0.1rem 0.55rem;
+  border-radius: 11px;
+  background: var(--map-soft);
+  color: #b85539;
+  font-size: 1.2rem;
+  line-height: 1.4;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+.count small {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.results-hint {
+  margin: 0.4rem 0 0;
+  color: var(--map-muted);
+  font-size: 1rem;
 }
 
 .refresh-button {
   display: grid;
   place-items: center;
   flex: none;
-  width: 42px;
-  height: 42px;
-  border: 1px solid var(--map-border);
-  border-radius: 12px;
+  width: 43px;
+  height: 43px;
+  border: 1px solid #efe6dc;
+  border-radius: 14px;
   background: #fff;
-  color: var(--map-muted);
+  color: #656b74;
+  transition:
+    background 0.2s,
+    color 0.2s,
+    transform 0.2s;
 }
-
 .refresh-button :deep(svg) {
   font-size: 1.3rem;
 }
-
 .refresh-button:hover:not(:disabled) {
   color: var(--map-brand);
-  background: #fff6ee;
-}
-
-.benefit-disclaimer {
-  display: flex;
-  gap: .5rem;
-  margin: 0 0 .85rem;
-  padding: .55rem .7rem;
-  border: 1px dashed #e9d9c4;
-  border-radius: 12px;
-  background: #fffbf5;
-  color: #786859;
-  font-size: var(--text-control, 1rem);
-}
-
-.benefit-disclaimer :deep(svg) {
-  flex: none;
-  margin-top: .1rem;
-  color: #c5883d;
-  font-size: 1.1rem;
+  background: var(--map-soft);
+  transform: rotate(20deg);
 }
 
 .error-notice,
 .refresh-notice {
-  margin: 0 0 .75rem;
-  padding: .7rem;
+  margin: 0 0.2rem 0.65rem;
+  padding: 0.65rem 0.8rem;
   border-radius: 12px;
   font-weight: 700;
 }
-
 .error-notice {
   color: #a74735;
   background: #fff0ed;
 }
-
 .refresh-notice {
   color: #246960;
   background: #edf9f6;
@@ -918,132 +1108,164 @@ onBeforeUnmount(() => {
 
 .panel-state {
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex: 1;
-  gap: .85rem;
+  gap: 0.8rem;
   padding: 1rem;
   color: var(--map-muted);
   text-align: center;
 }
-
 .panel-state p {
   margin: 0;
 }
-
 .panel-state :deep(svg) {
   font-size: 2rem;
-  color: #e0a18a;
+  color: #d89a80;
 }
 
 .cinema-list {
   display: flex;
-  flex-direction: column;
-  gap: .75rem;
   flex: 1;
+  flex-direction: column;
+  gap: 0.65rem;
   min-height: 0;
-  padding: .15rem .3rem .35rem .1rem;
+  padding: 0.12rem 0.45rem 0.35rem 0.2rem;
   overflow: auto;
   scrollbar-gutter: stable;
+  overscroll-behavior: contain;
 }
 
+/* 車票卡片：左側是站點編號，右側名稱與地址；不使用厚重外框。 */
 .location-ticket {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: .4rem .6rem;
+  grid-template-columns: 63px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 0.85rem;
   flex-shrink: 0;
   width: 100%;
-  padding: .85rem 1rem;
-  border: 1.5px solid #eee2d9;
-  border-left: 4px solid #ed9e79;
-  border-radius: 15px;
-  background: #fff;
+  min-height: 112px;
+  padding: 0 0.85rem 0 0;
+  border: 1px solid #f1e8df;
+  border-radius: 17px;
+  background: var(--map-warm);
   color: var(--map-ink);
   text-align: left;
-  box-shadow: 0 3px 10px #28354d0b;
-  transition: transform .18s, border-color .18s, background .18s;
+  box-shadow: 0 2px 9px rgb(46 34 26 / 3%);
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
 }
 
-/* 卡片內的地址與操作提示用 17px，輸入與工具列按鈕維持 16px */
-.benefit-map-page .location-ticket {
-  font-size: var(--text-body, 1.0625rem);
+.ticket-stub {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  align-self: stretch;
+  margin: -1px 0 -1px -1px;
+  border-right: 1px dashed #efccbb;
+  border-radius: 17px 0 0 17px;
+  background: #fff0e6;
+  color: #b75c3e;
 }
-
-.location-ticket:hover:not(:disabled) {
-  transform: translateY(-2px);
-  border-color: #ed9e79;
-}
-
-.location-ticket.is-selected {
-  border-color: var(--map-brand);
-  background: #fff8f2;
-}
-
-.location-ticket:disabled {
-  opacity: .6;
-}
-
 .ticket-index {
-  color: #b57356;
-  font-size: var(--text-control, 1rem);
-  font-weight: 800;
+  font-size: 1.45rem;
+  line-height: 1.2;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
 }
-
+.ticket-content {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.17rem;
+  padding-block: 0.7rem;
+}
+.ticket-topline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.6rem;
+  min-width: 0;
+}
 .ticket-county {
-  color: #397b78;
-  font-size: var(--text-control, 1rem);
+  color: #a4654d;
+  font-size: 1rem;
   font-weight: 800;
 }
-
+.ticket-distance,
+.ticket-muted {
+  color: #81766f;
+  font-size: 1rem;
+  font-weight: 600;
+}
 .ticket-name {
-  grid-column: 1/-1;
-  font-size: var(--text-card-title, 1.375rem);
-  line-height: 1.4;
+  display: block;
+  color: var(--map-navy);
+  font-size: 1.2rem;
+  line-height: 1.35;
   font-weight: 900;
   overflow-wrap: anywhere;
 }
-
 .ticket-address {
   display: flex;
   align-items: flex-start;
-  gap: .2rem;
-  grid-column: 1/-1;
-  color: var(--map-muted);
+  gap: 0.27rem;
+  color: #726e6b;
+  font-size: 1rem;
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
-
 .ticket-address :deep(svg) {
   flex: none;
-  margin-top: .15rem;
+  margin-top: 0.15rem;
+  font-size: 1.07rem;
+  color: #aa8272;
+}
+.ticket-action {
+  color: #b3aaa2;
+  font-size: 1.25rem;
+  transition:
+    transform 0.18s ease,
+    color 0.18s ease;
 }
 
-.ticket-distance {
-  color: #ad5e45;
-  font-weight: 800;
+.location-ticket:hover:not(:disabled) {
+  transform: translateX(3px);
+  border-color: #efc2ad;
+  background: #fff5ee;
+  box-shadow: 0 5px 15px rgb(46 34 26 / 7%);
+}
+.location-ticket:hover:not(:disabled) .ticket-action {
+  color: var(--map-brand);
+  transform: rotate(20deg);
+}
+.location-ticket.is-selected {
+  border-color: var(--map-brand);
+  background: #fff5ef;
+  box-shadow: 0 0 0 1px rgb(243 108 78 / 30%);
+}
+.location-ticket.is-selected .ticket-stub {
+  background: var(--map-brand);
+  color: #fff;
+  border-right-color: rgb(255 255 255 / 60%);
+}
+.location-ticket.is-selected .ticket-action {
+  color: var(--map-brand);
+}
+.location-ticket:disabled {
+  opacity: 0.63;
 }
 
-.ticket-distance small {
-  color: var(--map-muted);
-  font-size: var(--text-control, 1rem);
-  font-weight: 600;
-}
-
-.ticket-muted {
-  color: var(--map-muted);
-}
-
-.ticket-link {
-  justify-self: end;
-  color: #af593d;
-  font-weight: 800;
-}
-
+/* Leaflet 的標記和群聚使用珊瑚橘／深藍，避免和其他縣市色混雜。 */
 .map-canvas :deep(.benefit-marker-wrap) {
   border: none;
   background: transparent;
 }
-
 .map-canvas :deep(.benefit-marker) {
   display: block;
   width: 21px;
@@ -1055,72 +1277,58 @@ onBeforeUnmount(() => {
   background: #f36c4e;
   box-shadow: 0 3px 10px #1d354c66;
 }
-
 .map-canvas :deep(.benefit-marker.is-selected) {
-  background: #273d5b;
+  background: var(--map-navy);
+  box-shadow:
+    0 0 0 4px rgb(255 255 255 / 60%),
+    0 4px 13px rgb(29 53 76 / 35%);
 }
-
 .map-canvas :deep(.marker-cluster-small),
 .map-canvas :deep(.marker-cluster-medium),
 .map-canvas :deep(.marker-cluster-large) {
-  background: #f1bda0b0;
+  background: #ffd3bcb8;
 }
-
 .map-canvas :deep(.marker-cluster-small div),
 .map-canvas :deep(.marker-cluster-medium div),
 .map-canvas :deep(.marker-cluster-large div) {
   background: var(--map-brand);
   color: #fff;
-  font-size: var(--text-control, 1rem);
+  font-size: 1rem;
   font-weight: 900;
 }
-
 .map-canvas :deep(.leaflet-control-attribution) {
-  font-size: var(--text-control, 1rem);
+  font-size: 1rem;
   line-height: 1.4;
 }
-
 .map-canvas :deep(.benefit-map-popup .leaflet-popup-content-wrapper) {
   border-radius: 14px;
 }
-
 .map-canvas :deep(.benefit-popup) {
   min-width: 190px;
-  font-size: var(--text-control, 1rem);
+  font-size: 1rem;
   line-height: 1.5;
 }
-
 .map-canvas :deep(.popup-eyebrow) {
   color: #a85f46;
   font-weight: 800;
 }
-
 .map-canvas :deep(.popup-title) {
   display: block;
-  margin: .3rem 0;
-  font-size: var(--text-feature-title, 1.25rem);
+  margin: 0.3rem 0;
+  font-size: 1.25rem;
 }
-
 .map-canvas :deep(.popup-address),
 .map-canvas :deep(.popup-distance) {
   margin: 0;
   color: #516273;
 }
-
 .map-canvas :deep(.popup-distance) {
-  margin-top: .35rem;
+  margin-top: 0.35rem;
   font-weight: 800;
 }
-
-.map-canvas :deep(.popup-caveat) {
-  margin: .5rem 0 0;
-  color: #837364;
-  font-size: var(--text-control, 1rem);
-}
-
 .map-canvas :deep(.popup-link) {
   display: inline-block;
-  margin-top: .55rem;
+  margin-top: 0.55rem;
   color: #a9553e;
   font-weight: 800;
 }
@@ -1131,74 +1339,81 @@ onBeforeUnmount(() => {
   }
 }
 
-@media (max-width: 1020px) {
+@media (max-width: 1100px) {
   .map-layout {
-    grid-template-columns: minmax(0, 1.2fr) minmax(280px, .8fr);
+    grid-template-columns: minmax(0, 1.25fr) minmax(330px, 0.85fr);
+  }
+  .ticket-name {
+    font-size: 1.125rem;
   }
 }
 
-@media (max-width: 780px) {
+@media (max-width: 800px) {
   .map-layout {
     grid-template-columns: 1fr;
   }
-
   .map-frame {
-    height: 58vh;
-    min-height: 400px;
+    height: 56vh;
+    min-height: 410px;
   }
-
   .results-panel {
     height: auto;
-    max-height: none;
-    min-height: 240px;
+    min-height: 260px;
   }
-
   .cinema-list {
-    overflow: visible;
+    flex: initial;
+    max-height: 560px;
   }
-
-  .toolbar-title small {
+  .toolbar-copy p {
     display: none;
   }
 }
 
 @media (max-width: 520px) {
-  .map-toolbar {
-    align-items: flex-start;
-    padding: .7rem;
+  .map-layout {
+    gap: 0.85rem;
   }
-
+  .map-toolbar {
+    padding: 0.8rem;
+  }
   .toolbar-actions {
     width: 100%;
-    gap: .4rem;
   }
-
   .toolbar-actions :deep(.app-button) {
     flex: 1;
-    padding: .4rem .5rem;
   }
-
   .radius-control {
     width: 100%;
     justify-content: space-between;
   }
-
   .radius-control select {
+    width: 58%;
     max-width: none;
-    width: 60%;
   }
-
   .map-frame {
-    height: 61vh;
+    height: 58vh;
     min-height: 425px;
   }
-
   .results-panel {
-    padding: .8rem;
+    padding: 1rem 0.8rem;
   }
-
-  .results-heading h2 {
+  .results-title-row h2 {
     font-size: 1.625rem;
+  }
+  .location-ticket {
+    grid-template-columns: 55px minmax(0, 1fr) 20px;
+    gap: 0.55rem;
+    padding-right: 0.55rem;
+  }
+  .ticket-index {
+    font-size: 1.3rem;
+  }
+  .ticket-name {
+    font-size: 1.125rem;
+  }
+  .map-info-chip {
+    left: 0.65rem;
+    bottom: 0.65rem;
   }
 }
 
@@ -1206,9 +1421,14 @@ onBeforeUnmount(() => {
   .loading-spinner {
     animation: none;
   }
-
-  .location-ticket {
+  .location-ticket,
+  .ticket-action,
+  .refresh-button {
     transition: none;
+  }
+  .location-ticket:hover:not(:disabled),
+  .refresh-button:hover:not(:disabled) {
+    transform: none;
   }
 }
 </style>

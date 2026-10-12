@@ -69,11 +69,15 @@ defineProps({
 .hero-copy {
   position: relative;
   z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-self: start;
 }
 
 .hero-kicker {
   display: inline-block;
-  margin: 0 0 0.5rem;
+  align-self: flex-start;
+  margin: 0 0 1rem;
   padding: 0.2rem 0.8rem;
   border-radius: 999px;
   background: #fff1cc;
@@ -85,7 +89,7 @@ defineProps({
 }
 
 .hero h1 {
-  margin-bottom: 0.4rem;
+  margin: 0 0 0.25rem;
   font-size: var(--text-page-title, 2.1875rem);
   line-height: 1.3;
   font-weight: 900;
