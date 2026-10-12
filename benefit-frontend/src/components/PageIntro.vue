@@ -79,19 +79,22 @@ defineProps({
   background: #fff1cc;
   color: #865500;
   font-family: var(--font-latin);
+  font-size: var(--text-control, 1rem);
   font-weight: 700;
   letter-spacing: 0.08em;
 }
 
 .hero h1 {
   margin-bottom: 0.4rem;
-  font-size: clamp(1.8rem, 3vw, 2.3rem);
+  font-size: var(--text-page-title, 2.1875rem);
+  line-height: 1.3;
   font-weight: 900;
 }
 
 .hero-description {
   margin: 0;
   color: var(--c-muted);
+  font-size: var(--text-body, 1.0625rem);
 }
 
 .title-mark {
@@ -169,6 +172,13 @@ defineProps({
     color: var(--c-brand);
     font-size: 1.8rem;
     animation: twinkle 3s ease-in-out infinite;
+  }
+}
+
+/* 小螢幕保留標題層級，同時避免破版 */
+@media (max-width: 519px) {
+  .hero h1 {
+    font-size: 2rem;
   }
 }
 

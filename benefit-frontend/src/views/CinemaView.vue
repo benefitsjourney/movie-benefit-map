@@ -111,24 +111,11 @@ watch(
 <template>
   <section class="cinema-page">
     <!-- 頁面介紹 -->
-    <PageIntro
-      kicker="✦ CINEMA JOURNEY"
-      lead="下一站，"
-      mark="電影院"
-      tail="！"
-      description="探索城市裡的每間影城，開啟你的特典旅程。"
-      :icon-left="ticketIcon"
-      :icon-right="popcornIcon"
-      :icon-top="pinIcon"
-    />
+    <PageIntro kicker="✦ CINEMA JOURNEY" lead="下一站，" mark="電影院" tail="！" description="探索城市裡的每間影城，開啟你的特典旅程。"
+      :icon-left="ticketIcon" :icon-right="popcornIcon" :icon-top="pinIcon" />
 
-    <SearchFilter
-      v-model="appliedFilters"
-      title="尋找下一站"
-      :title-icon="compassIcon"
-      submit-label="探索影城"
-      :fields="filterFields"
-    />
+    <SearchFilter v-model="appliedFilters" title="尋找下一站" :title-icon="compassIcon" submit-label="探索影城"
+      :fields="filterFields" />
 
     <!-- 載入中 -->
     <div v-if="loading" class="state-panel" role="status">
@@ -174,17 +161,9 @@ watch(
 
       <!-- 影城票券 -->
       <div v-if="cinemas.length" class="cinema-list">
-        <TicketCard
-          v-for="(cinema, index) in cinemas"
-          :key="cinema.cinemaId"
-          :color="countyTicketColor(cinema.county)"
-          :appear="index < 6"
-          :stamp="countyLabel(cinema.county)"
-          :title="cinema.cinemaName"
-          :href="cinema.officialWebsiteUrl || ''"
-          link-text="影城官網"
-          empty-text="尚未提供官網"
-        >
+        <TicketCard v-for="(cinema, index) in cinemas" :key="cinema.cinemaId" :color="countyTicketColor(cinema.county)"
+          :appear="index < 6" :stamp="countyLabel(cinema.county)" :title="cinema.cinemaName"
+          :href="cinema.officialWebsiteUrl || ''" link-text="影城官網" empty-text="尚未提供官網">
           <template #detail>
             <Icon :icon="pinIcon" aria-hidden="true" />
             <span>{{ cinema.cinemaAddress || "地址未提供" }}</span>
@@ -215,7 +194,8 @@ watch(
 }
 
 .state-panel h2 {
-  font-size: 1.2rem;
+  font-size: var(--text-section-title, 1.875rem);
+  line-height: 1.3;
   font-weight: 900;
 }
 
@@ -267,19 +247,20 @@ watch(
 
 .result-title {
   color: var(--c-navy);
-  font-size: 1.05rem;
+  font-size: var(--text-feature-title, 1.25rem);
   font-weight: 800;
 }
 
 .result-meta {
   color: #8d877e;
+  font-size: var(--text-body, 1.0625rem);
   font-weight: 600;
 }
 
 .result-count {
   margin-right: 0.2rem;
   color: var(--c-brand);
-  font-size: 1.2rem;
+  font-size: var(--text-feature-title, 1.25rem);
   font-weight: 800;
 }
 
@@ -292,6 +273,7 @@ watch(
   border-radius: 999px;
   background: #f3b23c;
   color: #fff;
+  font-size: var(--text-control, 1rem);
   font-weight: 800;
   white-space: nowrap;
   text-decoration: none;
@@ -326,6 +308,7 @@ watch(
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }

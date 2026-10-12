@@ -234,6 +234,7 @@ const safeHref = computed(() => {
   flex: 1;
   flex-direction: column;
   padding: 1rem 1.1rem;
+  font-size: var(--text-body, 1.0625rem);
 }
 
 .ticket-film {
@@ -258,13 +259,14 @@ const safeHref = computed(() => {
   border: 2px solid var(--ticket-ink);
   border-radius: 7px;
   color: var(--ticket-ink);
+  font-size: var(--text-control, 1rem);
   font-weight: 800;
   transform: rotate(-5deg);
 }
 
 .ticket-body h2 {
   margin: 0.9rem 0 0;
-  font-size: 1.28rem;
+  font-size: var(--text-card-title, 1.375rem);
   font-weight: 900;
   line-height: 1.4;
   overflow-wrap: anywhere;
@@ -275,6 +277,7 @@ const safeHref = computed(() => {
   gap: 0.4rem;
   margin: 0.7rem 0 0;
   color: #3e4450;
+  font-size: var(--text-body, 1.0625rem);
   overflow-wrap: anywhere;
 }
 
@@ -308,6 +311,7 @@ const safeHref = computed(() => {
   border-radius: 999px;
   background: #fff;
   color: var(--ticket-ink);
+  font-size: var(--text-control, 1rem);
   font-weight: 700;
   text-decoration: none;
 }
@@ -328,6 +332,7 @@ const safeHref = computed(() => {
 
 .ticket-empty {
   color: var(--c-muted);
+  font-size: var(--text-control, 1rem);
   font-weight: 700;
 }
 
