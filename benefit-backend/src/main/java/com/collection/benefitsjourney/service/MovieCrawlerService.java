@@ -312,7 +312,7 @@ public class MovieCrawlerService {
                 && Objects.equals(date, existing.releaseDate());
     }
 
-    private Document connect(String url) throws IOException {
+    Document connect(String url) throws IOException {
         return Jsoup.connect(url)
                 .userAgent("Mozilla/5.0")
                 .timeout(TIMEOUT)

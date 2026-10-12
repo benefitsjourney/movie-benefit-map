@@ -5,12 +5,15 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import org.springframework.stereotype.Service;
+
 import com.collection.benefitsjourney.domain.CinemaBean;
 import com.collection.benefitsjourney.dto.CinemaMapResponse;
 import com.collection.benefitsjourney.enums.County;
 import com.collection.benefitsjourney.repository.CinemaRepository;
 import com.collection.benefitsjourney.repository.LikeKeywords;
 
+@Service
 public class CinemaMapService {
     private static final double EARTH_RADIUS_METERS = 6371000;
     private static final double DEFAULT_RADIUS_METERS = 5000;
