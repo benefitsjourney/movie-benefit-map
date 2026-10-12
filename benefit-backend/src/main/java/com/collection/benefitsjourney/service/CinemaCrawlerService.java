@@ -60,10 +60,7 @@ public class CinemaCrawlerService {
         long startTime = System.nanoTime();
 
         try {
-            Document doc = Jsoup.connect(ATMOVIES_SHOWTIME_URL)
-                    .userAgent("Mozilla/5.0")
-                    .timeout(REQUEST_TIMEOUT_MS)
-                    .get();
+            Document doc = connect(ATMOVIES_SHOWTIME_URL);
 
             List<String> areaUrls = doc
                     .select("a[href^=/showtime/a]")
@@ -160,13 +157,18 @@ public class CinemaCrawlerService {
         }
     }
 
+    /** 統一 HTTP 下載入口，供同 package 的單元測試透過 Spy 模擬。 */
+    Document connect(String url) throws IOException {
+        return Jsoup.connect(url)
+                .userAgent("Mozilla/5.0")
+                .timeout(REQUEST_TIMEOUT_MS)
+                .get();
+    }
+
     /** 抓取指定縣市的影城資料 */
     private Stream<CinemaResponse> getCinemasByAreaUrl(String areaUrl) {
         try {
-            Document doc = Jsoup.connect(areaUrl)
-                    .userAgent("Mozilla/5.0")
-                    .timeout(REQUEST_TIMEOUT_MS)
-                    .get();
+            Document doc = connect(areaUrl);
 
             return doc.select("a[href^=/showtime/t]")
                     .stream()
@@ -342,10 +344,7 @@ public class CinemaCrawlerService {
         String mapUrl = ATMOVIES_MAP_URL + sourceId;
 
         try {
-            Document doc = Jsoup.connect(mapUrl)
-                    .userAgent("Mozilla/5.0")
-                    .timeout(REQUEST_TIMEOUT_MS)
-                    .get();
+            Document doc = connect(mapUrl);
 
             Matcher matcher = COORDINATE_PATTERN.matcher(doc.html());
 

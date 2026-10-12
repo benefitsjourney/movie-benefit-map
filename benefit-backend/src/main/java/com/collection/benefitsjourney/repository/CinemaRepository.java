@@ -29,15 +29,19 @@ public interface CinemaRepository extends JpaRepository<CinemaBean, Integer> {
             @Param("isVisible") Boolean isVisible,
             Pageable pageable);
 
-    /** 取得地圖可顯示的影城 */
+    /** 取得地圖可顯示的影城，名稱與縣市條件與列表查詢相同 */
     @Query("""
             SELECT c FROM CinemaBean c
             WHERE c.isActive = true
             AND c.isVisible = true
             AND c.latitude IS NOT NULL
             AND c.longitude IS NOT NULL
+            AND (:keyword IS NULL OR c.cinemaName LIKE :keyword)
+            AND (:county IS NULL OR c.county = :county)
             """)
-    List<CinemaBean> findAllForMap();
+    List<CinemaBean> findAllForMap(
+            @Param("keyword") String keyword,
+            @Param("county") County county);
 
     /** 依外部來源的影城辨認ID尋找影城 */
     Optional<CinemaBean> findBySourceId(String sourceId);

@@ -1,0 +1,163 @@
+package com.collection.benefitsjourney.controller;
+
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
+import org.springframework.http.HttpHeaders;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import com.collection.benefitsjourney.enums.ExportType;
+import com.collection.benefitsjourney.jwt.JsonWebTokenFilter;
+import com.collection.benefitsjourney.service.ExcelService;
+
+/**
+ * 只測試 ExcelController 的 HTTP 路由、參數轉換、回應 Header 和例外處理。
+ * ExcelService 使用 Mock，不產生實際 Excel，也不連線資料庫。
+ */
+@WebMvcTest(controllers = ExcelController.class,
+        excludeFilters = @ComponentScan.Filter(
+                type = FilterType.ASSIGNABLE_TYPE,
+                classes = JsonWebTokenFilter.class))
+@AutoConfigureMockMvc(addFilters = false)
+class ExcelControllerTest {
+
+    private static final String EXCEL_CONTENT_TYPE =
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @MockitoBean
+    private ExcelService excelService;
+
+    @Nested
+    @DisplayName("GET /export - 正常匯出")
+    class ExportTests {
+
+        @Test
+        @DisplayName("CINEMA 應回傳 Excel、正確的檔名和二進位內容")
+        void exportCinema() throws Exception {
+            byte[] bytes = {1, 2, 3, 4};
+            when(excelService.export(ExportType.CINEMA)).thenReturn(bytes);
+
+            mockMvc.perform(get("/export").param("type", "CINEMA"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(EXCEL_CONTENT_TYPE))
+                    .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"cinema.xlsx\""))
+                    .andExpect(content().bytes(bytes));
+
+            verify(excelService).export(ExportType.CINEMA);
+        }
+
+        @Test
+        @DisplayName("MOVIE 應回傳 Excel、正確的檔名和二進位內容")
+        void exportMovie() throws Exception {
+            byte[] bytes = {5, 6, 7};
+            when(excelService.export(ExportType.MOVIE)).thenReturn(bytes);
+
+            mockMvc.perform(get("/export").param("type", "MOVIE"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(EXCEL_CONTENT_TYPE))
+                    .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"movie.xlsx\""))
+                    .andExpect(content().bytes(bytes));
+
+            verify(excelService).export(ExportType.MOVIE);
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /export - 參數驗證")
+    class ParameterTests {
+
+        @Test
+        @DisplayName("缺少 type 應回傳 400，不呼叫 Service")
+        void missingType() throws Exception {
+            mockMvc.perform(get("/export"))
+                    .andExpect(status().isBadRequest());
+
+            verifyNoInteractions(excelService);
+        }
+
+        @Test
+        @DisplayName("無效的 ExportType 應回傳 400，不呼叫 Service")
+        void invalidType() throws Exception {
+            mockMvc.perform(get("/export").param("type", "UNKNOWN"))
+                    .andExpect(status().isBadRequest());
+
+            verifyNoInteractions(excelService);
+        }
+    }
+
+    @Nested
+    @DisplayName("不支援的 HTTP Method")
+    class HttpMethodTests {
+
+        @Test
+        @DisplayName("POST /export 應回傳 405")
+        void postExport() throws Exception {
+            mockMvc.perform(post("/export").param("type", "CINEMA"))
+                    .andExpect(status().isMethodNotAllowed())
+                    .andExpect(jsonPath("$.status").value(405));
+
+            verifyNoInteractions(excelService);
+        }
+
+        @Test
+        @DisplayName("PUT /export 應回傳 405")
+        void putExport() throws Exception {
+            mockMvc.perform(put("/export").param("type", "CINEMA"))
+                    .andExpect(status().isMethodNotAllowed());
+
+            verifyNoInteractions(excelService);
+        }
+
+        @Test
+        @DisplayName("DELETE /export 應回傳 405")
+        void deleteExport() throws Exception {
+            mockMvc.perform(delete("/export").param("type", "CINEMA"))
+                    .andExpect(status().isMethodNotAllowed());
+
+            verifyNoInteractions(excelService);
+        }
+    }
+
+    @Nested
+    @DisplayName("未預期的程式錯誤")
+    class UnexpectedErrorTests {
+
+        @Test
+        @DisplayName("Service 匯出失敗時應回傳 500")
+        void exportFailure() throws Exception {
+            when(excelService.export(ExportType.CINEMA))
+                    .thenThrow(new IllegalStateException("Excel 匯出失敗"));
+
+            mockMvc.perform(get("/export").param("type", "CINEMA"))
+                    .andExpect(status().isInternalServerError())
+                    .andExpect(jsonPath("$.status").value(500))
+                    .andExpect(jsonPath("$.error").value("Internal Server Error"))
+                    .andExpect(jsonPath("$.message").value("系統發生錯誤"));
+
+            verify(excelService).export(ExportType.CINEMA);
+        }
+    }
+}

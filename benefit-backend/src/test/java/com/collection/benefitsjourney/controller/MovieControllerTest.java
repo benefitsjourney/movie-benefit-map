@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -18,6 +19,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
 import java.time.LocalDateTime;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,12 +53,6 @@ class MovieControllerTest {
     private MockMvc mockMvc;
     @MockitoBean
     private MovieService movieService;
-
-    /**
-     * =========================================================
-     * GET /movies
-     * =========================================================
-     */
     @Nested
     @DisplayName("GET /movies")
     class FindAllTests {
@@ -69,7 +65,7 @@ class MovieControllerTest {
                     null,
                     null,
                     1,
-                    10,
+                    24,
                     MovieSort.SortBy.MOVIE_ID,
                     SortOrder.ASC);
         }
@@ -147,10 +143,10 @@ class MovieControllerTest {
         @DisplayName("Service 發生查詢錯誤時應回傳對應狀態碼")
         void findAll_ServiceBadRequest_ShouldReturn400() throws Exception {
             when(movieService.findAll(
-                    any(),
-                    any(),
+                    isNull(),
+                    isNull(),
                     eq(1),
-                    eq(10),
+                    eq(24),
                     eq(MovieSort.SortBy.MOVIE_ID),
                     eq(SortOrder.ASC)))
                     .thenThrow(new ResponseStatusException(
@@ -162,14 +158,8 @@ class MovieControllerTest {
                     .andExpect(jsonPath("$.error").value("Bad Request"))
                     .andExpect(jsonPath("$.message").value("查詢參數錯誤"));
         }
-
     }
 
-    /**
-     * =========================================================
-     * GET /movies/{id}
-     * =========================================================
-     */
     @Nested
     @DisplayName("GET /movies/{id}")
     class FindByIdTests {
@@ -204,14 +194,8 @@ class MovieControllerTest {
                             .value("找不到電影 ID：999"));
             verify(movieService).findById(999);
         }
-
     }
 
-    /**
-     * =========================================================
-     * POST /movies
-     * =========================================================
-     */
     @Nested
     @DisplayName("POST /movies")
     class CreateMovieTests {
@@ -444,14 +428,8 @@ class MovieControllerTest {
                     .andExpect(jsonPath("$.message")
                             .value("電影名稱不可為空"));
         }
-
     }
 
-    /**
-     * =========================================================
-     * PATCH /movies/{id}
-     * =========================================================
-     */
     @Nested
     @DisplayName("PATCH /movies/{id}")
     class UpdateMovieTests {
@@ -771,14 +749,8 @@ class MovieControllerTest {
             verify(movieService, never())
                     .updateMovie(any(), any());
         }
-
     }
 
-    /**
-     * =========================================================
-     * HTTP Method
-     * =========================================================
-     */
     @Nested
     @DisplayName("不支援的 HTTP Method")
     class HttpMethodTests {
@@ -816,14 +788,8 @@ class MovieControllerTest {
                     .content("{}"))
                     .andExpect(status().isMethodNotAllowed());
         }
-
     }
 
-    /**
-     * =========================================================
-     * 未預期錯誤
-     * =========================================================
-     */
     @Nested
     @DisplayName("未預期的程式錯誤")
     class UnexpectedErrorTests {
@@ -885,17 +851,14 @@ class MovieControllerTest {
                     .andExpect(jsonPath("$.message")
                             .value("系統發生錯誤"));
         }
-
     }
 
-    /** JWT Filter 測試：不經 MockMvc，直接驗證公開及受保護端點。 */
     @Nested
     @DisplayName("JWT 權限測試")
     class JwtTests {
         private JsonWebTokenFilter filter;
         private JsonWebTokenUtility utility;
         private FilterChain chain;
-
         @BeforeEach
         void setUp() {
             utility = mock(JsonWebTokenUtility.class);
