@@ -13,11 +13,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.collection.benefitsjourney.dto.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaResponse;
-import com.collection.benefitsjourney.dto.NearbyCinemaResponse;
+import com.collection.benefitsjourney.dto.CinemaMapResponse;
 import com.collection.benefitsjourney.dto.PageResponse;
 import com.collection.benefitsjourney.enums.CinemaSort;
 import com.collection.benefitsjourney.enums.County;
 import com.collection.benefitsjourney.enums.SortOrder;
+import com.collection.benefitsjourney.service.CinemaMapService;
 import com.collection.benefitsjourney.service.CinemaService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,8 +34,11 @@ public class CinemaController {
 
     private final CinemaService cinemaService;
 
-    public CinemaController(CinemaService cinemaService) {
+    private final CinemaMapService cinemaMapService;
+
+    public CinemaController(CinemaService cinemaService, CinemaMapService cinemaMapService) {
         this.cinemaService = cinemaService;
+        this.cinemaMapService = cinemaMapService;
     }
 
     @GetMapping
@@ -93,15 +97,22 @@ public class CinemaController {
         return ResponseEntity.ok(cinemaService.updateCinema(id, request));
     }
 
-    /** 取得指定座標附近的影城 */
-    @GetMapping("/nearby")
-    @Operation(summary = "取得指定座標附近的影城")
-    public ResponseEntity<NearbyCinemaResponse> findNearby(
-            @RequestParam(defaultValue = "25.0480") double latitude,
-            @RequestParam(defaultValue = "121.5170") double longitude,
-            @RequestParam(defaultValue = "20000") double radius) {
+    /** 取得全台或附近影城地圖資料 */
+    @GetMapping("/map")
+    @Operation(summary = "取得地圖影城資料，未提供座標時回傳全台影城")
+    public ResponseEntity<CinemaMapResponse> findMapCinemas(
+            @Parameter(description = "影城名稱模糊搜尋關鍵字") @RequestParam(required = false) String keyword,
+
+            @Parameter(description = "縣市篩選") @RequestParam(required = false) County county,
+
+            @Parameter(description = "緯度，需與經度同時提供") @RequestParam(required = false) Double latitude,
+
+            @Parameter(description = "經度，需與緯度同時提供") @RequestParam(required = false) Double longitude,
+
+            @Parameter(description = "搜尋半徑（公尺），需搭配座標，預設 5000") @RequestParam(required = false) Double radius) {
 
         return ResponseEntity.ok(
-                cinemaService.findNearby(latitude, longitude, radius));
+                cinemaMapService.findNearby(
+                        keyword, county, latitude, longitude, radius));
     }
 }
