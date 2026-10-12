@@ -11,8 +11,8 @@ import closeIcon from "@iconify-icons/mdi/close";
 const route = useRoute();
 const menuOpen = ref(false);
 const links = [
-  { to: "/map", label: "地圖", icon: mapIcon },
-  { to: "/cinemas", label: "影城", icon: movieIcon },
+  { to: "/map", label: "地圖查詢", icon: mapIcon },
+  { to: "/cinemas", label: "影城探索", icon: movieIcon },
 ];
 
 const isActive = (path) =>
