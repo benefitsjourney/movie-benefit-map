@@ -4,7 +4,7 @@ import AppNavbar from "@/components/AppNavbar.vue";
 
 <template>
   <AppNavbar />
-  <main class="container page-main">
+  <main class="page-main">
     <RouterView />
   </main>
 </template>
@@ -16,5 +16,6 @@ import AppNavbar from "@/components/AppNavbar.vue";
 .page-main {
   padding-top: 1.35rem;
   padding-bottom: 3rem;
+  padding-inline: 4rem;
 }
 </style>

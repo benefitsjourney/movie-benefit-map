@@ -15,6 +15,7 @@ import {
   countyTicketColor,
 } from "@/constants/county";
 import AppButton from "@/components/AppButton.vue";
+import PageIntro from "@/components/PageIntro.vue";
 import SearchFilter from "@/components/SearchFilter.vue";
 import TicketCard from "@/components/TicketCard.vue";
 
@@ -110,29 +111,11 @@ watch(
 <template>
   <section class="cinema-page">
     <!-- 頁面介紹 -->
-    <header class="hero">
-      <div class="hero-copy">
-        <p class="hero-kicker">✦ CINEMA JOURNEY</p>
-        <h1>下一站，<span class="title-mark">電影院</span>！</h1>
-        <p>探索城市裡的每間影城，開啟你的特典旅程。</p>
-      </div>
+    <PageIntro kicker="✦ CINEMA JOURNEY" lead="下一站，" mark="電影院" tail="！" description="探索城市裡的每間影城，開啟你的特典旅程。"
+      :icon-left="ticketIcon" :icon-right="popcornIcon" :icon-top="pinIcon" />
 
-      <div class="hero-art" aria-hidden="true">
-        <span class="hero-path"></span>
-        <Icon :icon="ticketIcon" class="art-ticket" />
-        <Icon :icon="popcornIcon" class="art-popcorn" />
-        <Icon :icon="pinIcon" class="art-pin" />
-        <span class="art-star">✦</span>
-      </div>
-    </header>
-
-    <SearchFilter
-      v-model="appliedFilters"
-      title="尋找下一站"
-      :title-icon="compassIcon"
-      submit-label="探索影城"
-      :fields="filterFields"
-    />
+    <SearchFilter v-model="appliedFilters" title="尋找下一站" :title-icon="compassIcon" submit-label="探索影城"
+      :fields="filterFields" />
 
     <!-- 載入中 -->
     <div v-if="loading" class="state-panel" role="status">
@@ -178,17 +161,9 @@ watch(
 
       <!-- 影城票券 -->
       <div v-if="cinemas.length" class="cinema-list">
-        <TicketCard
-          v-for="(cinema, index) in cinemas"
-          :key="cinema.cinemaId"
-          :color="countyTicketColor(cinema.county)"
-          :appear="index < 6"
-          :stamp="countyLabel(cinema.county)"
-          :title="cinema.cinemaName"
-          :href="cinema.officialWebsiteUrl || ''"
-          link-text="影城官網"
-          empty-text="尚未提供官網"
-        >
+        <TicketCard v-for="(cinema, index) in cinemas" :key="cinema.cinemaId" :color="countyTicketColor(cinema.county)"
+          :appear="index < 6" :stamp="countyLabel(cinema.county)" :title="cinema.cinemaName"
+          :href="cinema.officialWebsiteUrl || ''" link-text="影城官網" empty-text="尚未提供官網">
           <template #detail>
             <Icon :icon="pinIcon" aria-hidden="true" />
             <span>{{ cinema.cinemaAddress || "地址未提供" }}</span>
@@ -200,68 +175,6 @@ watch(
 </template>
 
 <style scoped>
-/* 頁面主視覺 */
-.hero {
-  position: relative;
-  display: grid;
-  margin-bottom: 1rem;
-  align-items: center;
-  min-height: 180px;
-  padding: 1.5rem;
-  overflow: hidden;
-  border: 1.5px solid var(--c-border);
-  border-radius: 22px;
-  background: var(--c-card);
-  box-shadow: var(--shadow-soft);
-}
-
-.hero::after {
-  position: absolute;
-  top: -70px;
-  right: -55px;
-  width: 190px;
-  height: 190px;
-  border-radius: 50%;
-  background: rgb(255 200 87 / 35%);
-  content: "";
-}
-
-.hero-copy {
-  position: relative;
-  z-index: 1;
-}
-
-.hero-kicker {
-  display: inline-block;
-  margin: 0 0 0.5rem;
-  padding: 0.2rem 0.8rem;
-  border-radius: 999px;
-  background: #fff1cc;
-  color: #865500;
-  font-family: var(--font-latin);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-}
-
-.hero h1 {
-  margin-bottom: 0.4rem;
-  font-size: clamp(1.8rem, 3vw, 2.3rem);
-  font-weight: 900;
-}
-
-.hero-copy > p:last-child {
-  margin: 0;
-  color: var(--c-muted);
-}
-
-.title-mark {
-  background: linear-gradient(#ffe08a, #ffe08a) left 85% / 100% 0.38em no-repeat;
-}
-
-.hero-art {
-  display: none;
-}
-
 /* 載入與錯誤提示 */
 .state-panel {
   display: grid;
@@ -281,7 +194,8 @@ watch(
 }
 
 .state-panel h2 {
-  font-size: 1.2rem;
+  font-size: var(--text-section-title, 1.875rem);
+  line-height: 1.3;
   font-weight: 900;
 }
 
@@ -333,19 +247,20 @@ watch(
 
 .result-title {
   color: var(--c-navy);
-  font-size: 1.05rem;
+  font-size: var(--text-feature-title, 1.25rem);
   font-weight: 800;
 }
 
 .result-meta {
   color: #8d877e;
+  font-size: var(--text-body, 1.0625rem);
   font-weight: 600;
 }
 
 .result-count {
   margin-right: 0.2rem;
   color: var(--c-brand);
-  font-size: 1.2rem;
+  font-size: var(--text-feature-title, 1.25rem);
   font-weight: 800;
 }
 
@@ -358,6 +273,7 @@ watch(
   border-radius: 999px;
   background: #f3b23c;
   color: #fff;
+  font-size: var(--text-control, 1rem);
   font-weight: 800;
   white-space: nowrap;
   text-decoration: none;
@@ -392,6 +308,7 @@ watch(
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -400,16 +317,6 @@ watch(
 @keyframes float {
   50% {
     translate: 0 -7px;
-  }
-}
-
-@keyframes twinkle {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 1;
   }
 }
 
@@ -435,67 +342,6 @@ watch(
 
 /* 平板 */
 @media (min-width: 768px) {
-  .hero {
-    grid-template-columns: 1.2fr 0.8fr;
-    min-height: 215px;
-  }
-
-  .hero-art {
-    position: relative;
-    display: block;
-    height: 160px;
-  }
-
-  .hero-path {
-    position: absolute;
-    top: 45px;
-    left: 0;
-    width: 100%;
-    height: 90px;
-    border-top: 3px dashed var(--c-brand);
-    border-radius: 50%;
-    transform: rotate(-16deg);
-  }
-
-  .hero-art > svg {
-    position: absolute;
-    filter: drop-shadow(0 6px 0 rgb(41 43 53 / 9%));
-  }
-
-  .art-ticket {
-    top: 28px;
-    left: 10%;
-    color: var(--c-brand);
-    font-size: 5rem;
-    transform: rotate(-8deg);
-    animation: float 4.5s ease-in-out infinite;
-  }
-
-  .art-popcorn {
-    right: 8%;
-    bottom: 0;
-    color: var(--c-sun);
-    font-size: 4.7rem;
-    animation: float 4.5s ease-in-out 0.6s infinite;
-  }
-
-  .art-pin {
-    top: 0;
-    right: 20%;
-    color: var(--c-sky);
-    font-size: 3.5rem;
-    animation: float 4.5s ease-in-out 0.3s infinite;
-  }
-
-  .art-star {
-    position: absolute;
-    top: 0;
-    left: 35%;
-    color: var(--c-brand);
-    font-size: 1.8rem;
-    animation: twinkle 3s ease-in-out infinite;
-  }
-
   .cinema-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

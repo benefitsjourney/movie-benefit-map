@@ -27,11 +27,19 @@ export function countyLabel(county) {
 }
 
 const TICKET_COLOR_BY_REGION = {
-  blue: ["KEELUNG", "TAIPEI", "NEW_TAIPEI", "TAOYUAN", "HSINCHU", "YILAN"],
-  green: ["MIAOLI", "TAICHUNG", "CHANGHUA", "NANTOU", "YUNLIN"],
-  orange: ["CHIAYI", "TAINAN", "KAOHSIUNG", "PINGTUNG"],
-  purple: ["HUALIEN", "TAITUNG"],
-  yellow: ["PENGHU", "KINMEN", "LIENCHIANG"],
+  blue: [
+    "KEELUNG", "TAIPEI", "NEW_TAIPEI",
+    "TAOYUAN", "HSINCHU", "YILAN"
+  ],
+  green: [
+    "MIAOLI", "TAICHUNG", "CHANGHUA",
+    "NANTOU", "YUNLIN"
+  ],
+  orange: [
+    "CHIAYI", "TAINAN", "KAOHSIUNG",
+    "PINGTUNG", "HUALIEN", "TAITUNG",
+    "PENGHU", "KINMEN", "LIENCHIANG"
+  ],
 };
 
 export const COUNTY_TICKET_COLORS = Object.fromEntries(

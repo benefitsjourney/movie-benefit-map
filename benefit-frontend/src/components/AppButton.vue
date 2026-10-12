@@ -61,6 +61,8 @@ const buttonStyle = computed(() =>
   background: var(--btn-bg);
   color: #fff;
   font: inherit;
+  font-size: var(--text-control, 1rem);
+  line-height: 1.5;
   font-weight: 800;
   white-space: nowrap;
   cursor: pointer;

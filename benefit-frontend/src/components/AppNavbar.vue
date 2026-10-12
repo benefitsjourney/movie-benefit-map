@@ -11,8 +11,8 @@ import closeIcon from "@iconify-icons/mdi/close";
 const route = useRoute();
 const menuOpen = ref(false);
 const links = [
-  { to: "/map", label: "地圖", icon: mapIcon },
-  { to: "/cinemas", label: "影城", icon: movieIcon },
+  { to: "/map", label: "地圖查詢", icon: mapIcon },
+  { to: "/cinemas", label: "影城探索", icon: movieIcon },
 ];
 
 const isActive = (path) =>
@@ -174,7 +174,7 @@ const isActive = (path) =>
 }
 
 .brand-name {
-  font-size: 1.3rem;
+  font-size: var(--text-card-title, 1.375rem);
   font-weight: 900;
 }
 
@@ -192,7 +192,7 @@ const isActive = (path) =>
   gap: 0.45rem;
   padding: 0.5rem 1rem 0.65rem;
   color: #fff9f1;
-  font-size: 1rem;
+  font-size: var(--text-control, 1rem);
   font-weight: 700;
   text-decoration: none;
   transition: color var(--ease);
