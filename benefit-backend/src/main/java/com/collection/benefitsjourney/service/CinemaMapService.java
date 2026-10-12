@@ -59,7 +59,7 @@ public class CinemaMapService {
     private CinemaMapResponse nationwideCinemas(List<CinemaBean> allCinemas) {
 
         List<CinemaMapResponse.Cinema> cinemas = allCinemas.stream()
-                .sorted(Comparator.comparing(CinemaBean::getCinemaId))
+                .sorted(Comparator.comparing(cinema -> cinema.getCinemaId()))
                 .map(cinema -> CinemaMapResponse.Cinema.from(cinema, null))
                 .toList();
 
@@ -94,7 +94,7 @@ public class CinemaMapService {
 
         // 使用原始距離排序，相同距離時依影城 ID 排序
         results.sort(
-                Comparator.comparingDouble(CinemaDistance::distance)
+                Comparator.comparingDouble((CinemaDistance result) -> result.distance())
                         .thenComparing(result -> result.cinema().getCinemaId()));
 
         // 排序完成後再將距離四捨五入
