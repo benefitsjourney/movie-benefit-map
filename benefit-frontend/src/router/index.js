@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import CinemaView from '@/views/CinemaView.vue'
 import MapView from '@/views/MapView.vue'
+import MovieView from '@/views/MovieView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -8,6 +9,11 @@ const router = createRouter({
     {
       path: '/',
       redirect: '/cinemas',
+    },
+    {
+      path: '/movies',
+      name: 'movies',
+      component: MovieView,
     },
     {
       path: '/cinemas',

@@ -61,18 +61,28 @@ const hasTitle = computed(() => Boolean(props.title) || Boolean(slots.title));
 const hasDetail = computed(
   () => Boolean(props.detail) || Boolean(slots.detail),
 );
-const safeHref = computed(() => {
-  const url = typeof props.href === "string" ? props.href.trim() : "";
-  return /^https?:\/\//i.test(url) ? url : "";
-});
+const hasPoster = computed(() => Boolean(slots.poster));
+const linkHref = computed(() => props.href.trim());
+const hasAction = computed(
+  () =>
+    Boolean(slots.action) ||
+    Boolean(linkHref.value && props.linkText) ||
+    Boolean(props.emptyText),
+);
 </script>
 
 <template>
   <article
     class="ticket"
-    :class="[`tone-${tone}`, { 'ticket-appear': appear }]"
+    :class="[
+      `tone-${tone}`,
+      { 'ticket-appear': appear, 'ticket-poster-card': hasPoster },
+    ]"
   >
     <div class="ticket-reel" aria-hidden="true"></div>
+    <div v-if="hasPoster" class="ticket-poster">
+      <slot name="poster" />
+    </div>
     <div class="ticket-body">
       <div v-if="hasStamp" class="ticket-head">
         <span class="ticket-stamp">
@@ -89,11 +99,11 @@ const safeHref = computed(() => {
       <slot />
     </div>
 
-    <div class="ticket-stub">
+    <div class="ticket-stub" :class="{ 'ticket-stub-mark': !hasAction }">
       <slot name="action">
         <a
-          v-if="safeHref && linkText"
-          :href="safeHref"
+          v-if="linkHref && linkText"
+          :href="linkHref"
           target="_blank"
           rel="noopener noreferrer"
           class="ticket-link"
@@ -111,6 +121,23 @@ const safeHref = computed(() => {
     </div>
   </article>
 </template>
+
+<!-- 票券列表共用的基礎網格；各頁面自行指定響應式欄數。 -->
+<style>
+.ticket-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 1.1rem;
+  scroll-margin-top: 5.5rem;
+  transition: opacity var(--ease);
+}
+
+.ticket-grid.is-loading {
+  opacity: 0.48;
+  pointer-events: none;
+}
+</style>
 
 <style scoped>
 .ticket {
@@ -146,8 +173,12 @@ const safeHref = computed(() => {
       transparent var(--notch-r),
       #000 calc(var(--notch-r) + 0.5px)
     );
-  -webkit-mask-size: 51% 100%, 51% 100%;
-  -webkit-mask-position: left center, right center;
+  -webkit-mask-size:
+    51% 100%,
+    51% 100%;
+  -webkit-mask-position:
+    left center,
+    right center;
   -webkit-mask-repeat: no-repeat;
   mask-image:
     radial-gradient(
@@ -160,8 +191,12 @@ const safeHref = computed(() => {
       transparent var(--notch-r),
       #000 calc(var(--notch-r) + 0.5px)
     );
-  mask-size: 51% 100%, 51% 100%;
-  mask-position: left center, right center;
+  mask-size:
+    51% 100%,
+    51% 100%;
+  mask-position:
+    left center,
+    right center;
   mask-repeat: no-repeat;
 }
 
@@ -187,9 +222,9 @@ const safeHref = computed(() => {
 }
 
 .tone-yellow {
-  --accent: #ffc857;
-  --ticket-pale: #fff6df;
-  --ticket-ink: #865500;
+  --accent: #ead4a0;
+  --ticket-pale: #faf0d8;
+  --ticket-ink: #a87432;
 }
 
 .tone-green {
@@ -229,6 +264,40 @@ const safeHref = computed(() => {
   background-size: 20px 14px;
 }
 
+.ticket-poster {
+  display: grid;
+  place-items: center;
+  margin: 0.65rem 0.65rem 0;
+  overflow: hidden;
+  border-radius: 12px;
+  aspect-ratio: 2 / 3;
+  background: var(--ticket-pale);
+}
+
+.ticket-poster :slotted(img) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 0.35s ease;
+}
+
+.ticket:hover .ticket-poster :slotted(img) {
+  transform: scale(1.045);
+}
+
+.ticket-poster :slotted(.poster-fallback) {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--ticket-ink);
+  background:
+    radial-gradient(circle at 50% 42%, rgb(255 255 255 / 72%), transparent 58%),
+    var(--ticket-pale);
+}
+
 .ticket-body {
   display: flex;
   flex: 1;
@@ -265,11 +334,15 @@ const safeHref = computed(() => {
 }
 
 .ticket-body h2 {
-  margin: 0.9rem 0 0;
+  margin: 0;
   font-size: var(--text-card-title, 1.375rem);
   font-weight: 900;
   line-height: 1.4;
   overflow-wrap: anywhere;
+}
+
+.ticket-head + h2 {
+  margin-top: 0.9rem;
 }
 
 .ticket-detail {
@@ -301,8 +374,17 @@ const safeHref = computed(() => {
   background: var(--ticket-pale);
 }
 
+.ticket-stub-mark {
+  justify-content: center;
+}
+
+.ticket-stub-mark .ticket-film {
+  margin-left: 0;
+}
+
 .ticket-link,
-:slotted(.ticket-link) {
+:slotted(.ticket-link),
+:slotted(.ticket-chip) {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
@@ -314,6 +396,10 @@ const safeHref = computed(() => {
   font-size: var(--text-control, 1rem);
   font-weight: 700;
   text-decoration: none;
+}
+
+:slotted(.ticket-chip) {
+  cursor: default;
 }
 
 .ticket-link:hover,
@@ -334,6 +420,47 @@ const safeHref = computed(() => {
   color: var(--c-muted);
   font-size: var(--text-control, 1rem);
   font-weight: 700;
+}
+
+.ticket-poster-card {
+  --stub-size: 2.625rem;
+  min-height: 0;
+  border-radius: 16px;
+}
+
+.ticket-poster-card .ticket-body {
+  padding: 0.7rem 0.75rem 0.35rem;
+}
+
+.ticket-poster-card .ticket-body h2 {
+  font-size: 1rem;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.ticket-poster-card .ticket-detail {
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+
+.ticket-poster-card .ticket-detail :slotted(svg) {
+  margin-top: 0.05rem;
+  font-size: 1rem;
+}
+
+.ticket-poster-card .ticket-stub {
+  gap: 0.45rem;
+  padding: 0.35rem 0.75rem;
+}
+
+.ticket-poster-card .ticket-film {
+  font-size: 1.05rem;
 }
 
 @keyframes rise {
