@@ -69,7 +69,7 @@ class MovieServiceTest {
             PageResponse<MovieResponse> result = movieService.findAll(
                     "測試", true,
                     3, 20,
-                    MovieSort.SortBy.MOVIE_NAME,
+                    MovieSort.SortBy.RELEASE_DATE,
                     SortOrder.DESC);
             assertNotNull(result);
             ArgumentCaptor<String> keywordCaptor = ArgumentCaptor.forClass(String.class);
@@ -83,15 +83,16 @@ class MovieServiceTest {
             Pageable pageable = pageableCaptor.getValue();
             assertEquals(2, pageable.getPageNumber());
             assertEquals(20, pageable.getPageSize());
-            Sort.Order order = pageable.getSort().getOrderFor(
-                    MovieSort.SortBy.MOVIE_NAME.getProperty());
-            assertNotNull(order);
-            assertEquals(Sort.Direction.DESC, order.getDirection());
+            Sort.Order releaseDate = pageable.getSort().getOrderFor("releaseDate");
+            assertNotNull(releaseDate);
+            assertEquals(Sort.Direction.DESC, releaseDate.getDirection());
+            assertEquals(Sort.Direction.ASC,
+                    pageable.getSort().getOrderFor("movieId").getDirection());
         }
 
         @Test
-        @DisplayName("預設排序方向 ASC 應正確套用")
-        void shouldUseAscendingSort() {
+        @DisplayName("未帶篩選時仍依 movieId 升序")
+        void shouldSortByMovieIdAscending() {
             when(movieRepository.findAllByFilters(
                     nullable(String.class),
                     nullable(Boolean.class),
@@ -114,7 +115,7 @@ class MovieServiceTest {
             assertEquals(
                     Sort.Direction.ASC,
                     pageable.getSort()
-                            .getOrderFor(MovieSort.SortBy.MOVIE_ID.getProperty())
+                            .getOrderFor("movieId")
                             .getDirection());
         }
     }

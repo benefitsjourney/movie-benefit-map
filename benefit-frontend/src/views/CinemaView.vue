@@ -9,6 +9,7 @@ import ticketIcon from "@iconify-icons/mdi/ticket-outline";
 import popcornIcon from "@iconify-icons/mdi/popcorn";
 
 import { COUNTY_LABELS, countyLabel, countyTicketColor } from "@/constants/county";
+import { CINEMA_SORT_DEFAULT } from "@/constants/sort";
 import { useApiCollection } from "@/composables/useApiCollection";
 import PageIntro from "@/components/PageIntro.vue";
 import ResultBanner from "@/components/ResultBanner.vue";
@@ -36,7 +37,12 @@ const filterFields = [
 ];
 
 const requestParams = computed(() => {
-  const params = { page: 1, size: 200 };
+  const params = {
+    page: 1,
+    size: 200,
+    orderBy: CINEMA_SORT_DEFAULT.orderBy,
+    sort: CINEMA_SORT_DEFAULT.sort,
+  };
   const keyword = filters.value.keyword?.trim();
   if (keyword) params.keyword = keyword;
   if (filters.value.county) params.county = filters.value.county;

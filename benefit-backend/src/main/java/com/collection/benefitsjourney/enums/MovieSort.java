@@ -4,7 +4,6 @@ public class MovieSort {
 
     public enum SortBy {
         MOVIE_ID("movieId"),
-        MOVIE_NAME("movieName"),
         RELEASE_DATE("releaseDate"),
         CREATED_AT("createdAt"),
         UPDATED_AT("updatedAt");

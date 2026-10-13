@@ -4,7 +4,6 @@ public class CinemaSort {
 
     public enum SortBy {
         CINEMA_ID("cinemaId"),
-        CINEMA_NAME("cinemaName"),
         COUNTY("county"),
         CREATED_AT("createdAt"),
         UPDATED_AT("updatedAt");

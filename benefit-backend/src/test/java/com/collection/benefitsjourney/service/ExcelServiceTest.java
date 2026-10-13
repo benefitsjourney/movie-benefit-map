@@ -30,8 +30,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.collection.benefitsjourney.dto.PageResponse;
-import com.collection.benefitsjourney.enums.CinemaSort;
 import com.collection.benefitsjourney.enums.CinemaResourceType;
+import com.collection.benefitsjourney.enums.CinemaSort;
 import com.collection.benefitsjourney.enums.MovieSort;
 import com.collection.benefitsjourney.enums.SortOrder;
 
