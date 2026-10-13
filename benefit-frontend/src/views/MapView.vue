@@ -169,30 +169,28 @@ const params = computed(() => {
 
 const queryKey = computed(() => JSON.stringify(params.value));
 let requestController = null;
-let requestVersion = 0;
 let locateVersion = 0;
 let lastSuccessKey = null;
 
 function abortRequest() {
-  requestVersion += 1;
   requestController?.abort();
   requestController = null;
 }
 
 async function loadCinemas() {
   abortRequest();
-  const version = requestVersion;
   const current = new AbortController();
   requestController = current;
+  const { signal } = current;
   const requestKey = queryKey.value;
   loading.value = true;
   errorMessage.value = "";
   try {
     const { data } = await http.get("/cinemas/map", {
       params: { ...params.value },
-      signal: current.signal,
+      signal,
     });
-    if (current.signal.aborted || version !== requestVersion) return;
+    if (signal.aborted) return;
     if (
       !Array.isArray(data?.cinemas) ||
       !Number.isInteger(data?.total) ||
@@ -209,16 +207,17 @@ async function loadCinemas() {
     lastSuccessKey = requestKey;
     if (shouldFit) {
       await nextTick(); // 先讓 Vue 更新清單與 Leaflet Marker。
-      if (!current.signal.aborted && version === requestVersion) fitView();
+      if (signal.aborted) return;
+      fitView();
     }
   } catch (error) {
-    if (current.signal.aborted || version !== requestVersion) return;
+    if (signal.aborted) return;
     console.error("影城地圖資料載入失敗", error);
     errorMessage.value = hasLoaded.value
       ? "暫時無法更新，目前仍顯示上一次的搜尋結果。"
       : "暫時無法取得影城資訊，請稍後再試。";
   } finally {
-    if (version === requestVersion) {
+    if (requestController === current) {
       requestController = null;
       loading.value = false;
     }
@@ -708,7 +707,7 @@ onBeforeUnmount(() => {
             type="button"
             aria-label="更新影城清單"
             title="更新影城清單"
-            :disabled="loading || refreshing"
+            :disabled="loading"
             @click="loadCinemas"
           >
             <Icon :icon="refreshIcon" aria-hidden="true" />

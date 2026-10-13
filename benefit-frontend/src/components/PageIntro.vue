@@ -89,7 +89,7 @@ defineProps({
 }
 
 .hero h1 {
-  margin: 0 0 0.25rem;
+  margin: 0.25rem 0 0.25rem;
   font-size: var(--text-page-title, 2.1875rem);
   line-height: 1.3;
   font-weight: 900;

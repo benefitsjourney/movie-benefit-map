@@ -3,6 +3,7 @@ import { ref } from "vue";
 import { useRoute } from "vue-router";
 import { Icon } from "@iconify/vue";
 import filmIcon from "@iconify-icons/mdi/filmstrip";
+import clapperboardIcon from "@iconify-icons/mdi/clapperboard-outline";
 import movieIcon from "@iconify-icons/mdi/movie-open-outline";
 import mapIcon from "@iconify-icons/mdi/map-outline";
 import menuIcon from "@iconify-icons/mdi/menu";
@@ -13,6 +14,7 @@ const menuOpen = ref(false);
 const links = [
   { to: "/map", label: "地圖查詢", icon: mapIcon },
   { to: "/cinemas", label: "影城探索", icon: movieIcon },
+  { to: "/movies", label: "電影探索", icon: clapperboardIcon },
 ];
 
 const isActive = (path) =>
@@ -194,6 +196,7 @@ const isActive = (path) =>
   color: #fff9f1;
   font-size: var(--text-control, 1rem);
   font-weight: 700;
+  white-space: nowrap;
   text-decoration: none;
   transition: color var(--ease);
 }
@@ -260,6 +263,7 @@ const isActive = (path) =>
   }
   .nav-links.is-open {
     display: flex;
+    flex-wrap: wrap;
   }
 }
 
