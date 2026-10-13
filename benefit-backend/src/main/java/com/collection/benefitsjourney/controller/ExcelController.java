@@ -5,7 +5,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.collection.benefitsjourney.enums.ExportType;
+import com.collection.benefitsjourney.enums.CinemaResourceType;
 import com.collection.benefitsjourney.service.ExcelService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,7 +22,7 @@ public class ExcelController {
 
     @GetMapping(produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     @Operation(summary = "匯出Excel資料")
-    public ResponseEntity<byte[]> export(@RequestParam ExportType type) {
+    public ResponseEntity<byte[]> export(@RequestParam CinemaResourceType type) {
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,

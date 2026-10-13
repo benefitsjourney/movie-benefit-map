@@ -5,6 +5,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
@@ -227,6 +228,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(status)
+                .contentType(MediaType.APPLICATION_JSON)
                 .body(response);
     }
 }
