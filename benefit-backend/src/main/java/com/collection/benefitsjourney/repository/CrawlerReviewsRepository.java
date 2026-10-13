@@ -1,5 +1,7 @@
 package com.collection.benefitsjourney.repository;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -21,4 +23,9 @@ public interface CrawlerReviewsRepository extends JpaRepository<CrawlerReviewBea
             @Param("crawlerType") CinemaResourceType crawlerType,
             @Param("reviewStatus") ReviewStatus reviewStatus,
             Pageable pageable);
+
+    List<CrawlerReviewBean> findByCrawlerTypeAndEntityIdAndFieldName(
+            CinemaResourceType crawlerType,
+            Integer entityId,
+            String fieldName);
 }
