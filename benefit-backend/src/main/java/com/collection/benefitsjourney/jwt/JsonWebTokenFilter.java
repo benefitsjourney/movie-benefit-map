@@ -44,6 +44,18 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 || (uri.equals("/movies") && method.equals("GET"))
                 || (uri.matches("/movies/\\d+") && method.equals("GET"))
 
+                // 交換刊登 API 白名單：只允許公開 GET 查詢
+                || (uri.equals("/exchange-listings")
+                        && method.equals("GET"))
+                || (uri.matches("/exchange-listings/\\d+")
+                        && method.equals("GET"))
+
+                // 票券刊登 API 白名單：只允許公開 GET 查詢
+                || (uri.equals("/ticket-listings")
+                        && method.equals("GET"))
+                || (uri.matches("/ticket-listings/\\d+")
+                        && method.equals("GET"))
+
                 // Swagger 白名單
                 || uri.equals("/swagger-ui.html")
                 || uri.startsWith("/swagger-ui/")
