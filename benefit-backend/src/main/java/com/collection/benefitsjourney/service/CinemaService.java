@@ -43,10 +43,26 @@ public class CinemaService {
             CinemaSort.SortBy orderBy,
             SortOrder sort) {
 
-        PageRequest pageable = PageRequest.of(
-                page - 1,
-                size,
-                cinemaSort(orderBy, sort));
+        Sort.Direction direction = sort == SortOrder.DESC
+                ? Sort.Direction.DESC
+                : Sort.Direction.ASC;
+
+        Sort order;
+        if (orderBy == CinemaSort.SortBy.COUNTY) {
+            // 整個 CASE 必須包在括號裡。Spring Data 看到不含括號的排序欄位，會再把查詢別名接在最前面。
+            String northToSouth = "(" + County.northToSouthExpression("c.county") + ")";
+            order = JpaSort.unsafe(direction, northToSouth);
+        } else {
+            order = Sort.by(direction, orderBy.getProperty());
+        }
+
+        if (orderBy != CinemaSort.SortBy.CINEMA_ID) {
+            order = order.and(Sort.by(
+                    Sort.Direction.ASC,
+                    TypedPropertyPath.path((CinemaBean cinema) -> cinema.getCinemaId())));
+        }
+
+        PageRequest pageable = PageRequest.of(page - 1, size, order);
 
         Page<CinemaResponse> result = cinemaRepository.findAllByFilters(
                 LikeKeywords.toLikeKeyword(keyword),
@@ -57,33 +73,6 @@ public class CinemaService {
                 .map(CinemaResponse::from);
 
         return PageResponse.from(result);
-    }
-
-    /** 縣市依由北到南的順序，其餘欄位依實體屬性排序 */
-    private Sort cinemaSort(CinemaSort.SortBy orderBy, SortOrder sort) {
-        Sort.Direction direction = sort == SortOrder.DESC
-                ? Sort.Direction.DESC
-                : Sort.Direction.ASC;
-
-        if (orderBy == CinemaSort.SortBy.COUNTY) {
-            // 整個 CASE 必須包在括號裡。Spring Data 看到不含括號的排序欄位，會再把查詢別名接在最前面。
-            String northToSouth = "(" + County.northToSouthExpression("c.county") + ")";
-            return JpaSort.unsafe(direction, northToSouth)
-                    .and(cinemaIdAsc());
-        }
-
-        Sort primary = Sort.by(direction, orderBy.getProperty());
-        if (orderBy == CinemaSort.SortBy.CINEMA_ID) {
-            return primary;
-        }
-        return primary.and(cinemaIdAsc());
-    }
-
-    /** 次排序固定依影城 ID 升冪，避免分頁結果順序不穩定 */
-    private static Sort cinemaIdAsc() {
-        return Sort.by(
-                Sort.Direction.ASC,
-                TypedPropertyPath.path((CinemaBean cinema) -> cinema.getCinemaId()));
     }
 
     /** 取得指定id影城資料 */

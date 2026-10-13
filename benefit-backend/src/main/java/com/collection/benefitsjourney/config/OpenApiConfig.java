@@ -16,6 +16,7 @@ import com.collection.benefitsjourney.controller.BenefitReportAdminController;
 import com.collection.benefitsjourney.controller.AdminController;
 import com.collection.benefitsjourney.controller.CinemaController;
 import com.collection.benefitsjourney.controller.CrawlerController;
+import com.collection.benefitsjourney.controller.CrawlerReviewsController;
 import com.collection.benefitsjourney.controller.ExcelController;
 import com.collection.benefitsjourney.controller.MovieController;
 import com.collection.benefitsjourney.controller.UserController;
@@ -39,8 +40,9 @@ public class OpenApiConfig {
             MovieController.class,
             BenefitController.class,
             CrawlerController.class,
-            ExcelController.class,
-            BenefitReportAdminController.class);
+            CrawlerReviewsController.class,
+            BenefitReportAdminController.class,
+            ExcelController.class);
 
     private static final String SECURITY = "BearerAuth";
 
