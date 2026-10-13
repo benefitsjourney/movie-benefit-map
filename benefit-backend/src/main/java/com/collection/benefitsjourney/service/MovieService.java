@@ -6,6 +6,7 @@ import static com.collection.benefitsjourney.exception.ExceptionUtils.notFound;
 
 import java.util.Optional;
 
+import org.springframework.data.core.TypedPropertyPath;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -42,10 +43,17 @@ public class MovieService {
                 ? Sort.Direction.DESC
                 : Sort.Direction.ASC;
 
+        Sort movieSort = Sort.by(direction, orderBy.getProperty());
+        if (orderBy != MovieSort.SortBy.MOVIE_ID) {
+            movieSort = movieSort.and(Sort.by(
+                    Sort.Direction.ASC,
+                    TypedPropertyPath.path((MovieBean movie) -> movie.getMovieId())));
+        }
+
         PageRequest pageable = PageRequest.of(
                 page - 1,
                 size,
-                Sort.by(direction, orderBy.getProperty()));
+                movieSort);
 
         Page<MovieResponse> result = movieRepository.findAllByFilters(
                 LikeKeywords.toLikeKeyword(keyword),

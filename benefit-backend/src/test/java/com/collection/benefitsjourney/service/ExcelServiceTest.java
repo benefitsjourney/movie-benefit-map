@@ -30,8 +30,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.collection.benefitsjourney.dto.PageResponse;
+import com.collection.benefitsjourney.enums.CinemaResourceType;
 import com.collection.benefitsjourney.enums.CinemaSort;
-import com.collection.benefitsjourney.enums.ExportType;
 import com.collection.benefitsjourney.enums.MovieSort;
 import com.collection.benefitsjourney.enums.SortOrder;
 
@@ -125,7 +125,7 @@ class ExcelServiceTest {
                     new CinemaRow(100, "信義威秀", true),
                     new CinemaRow(101, "京站威秀", false)), 2));
 
-            byte[] result = excelService.export(ExportType.CINEMA);
+            byte[] result = excelService.export(CinemaResourceType.CINEMA);
 
             try (XSSFWorkbook workbook = readWorkbook(result)) {
                 assertEquals(1, workbook.getNumberOfSheets());
@@ -157,7 +157,7 @@ class ExcelServiceTest {
         void emptyCinema() throws Exception {
             stubCinemaPage(1, page(List.of(), 0));
 
-            byte[] result = excelService.export(ExportType.CINEMA);
+            byte[] result = excelService.export(CinemaResourceType.CINEMA);
 
             try (XSSFWorkbook workbook = readWorkbook(result)) {
                 Sheet sheet = workbook.getSheet("CINEMA");
@@ -181,7 +181,7 @@ class ExcelServiceTest {
         void exportMovie() throws Exception {
             stubMoviePage(1, page(List.of(new MovieRow(1, "測試電影")), 1));
 
-            byte[] result = excelService.export(ExportType.MOVIE);
+            byte[] result = excelService.export(CinemaResourceType.MOVIE);
 
             try (XSSFWorkbook workbook = readWorkbook(result)) {
                 Sheet sheet = workbook.getSheet("MOVIE");
@@ -209,7 +209,7 @@ class ExcelServiceTest {
             stubMoviePage(1, page(firstPage, 201));
             stubMoviePage(2, page(List.of(new MovieRow(201, "電影201")), 201));
 
-            byte[] result = excelService.export(ExportType.MOVIE);
+            byte[] result = excelService.export(CinemaResourceType.MOVIE);
 
             try (XSSFWorkbook workbook = readWorkbook(result)) {
                 Sheet sheet = workbook.getSheet("MOVIE");
@@ -240,7 +240,7 @@ class ExcelServiceTest {
             stubMoviePage(1, page(List.of(new MovieRow(1, "唯一電影")), 3));
             stubMoviePage(2, page(List.of(), 3));
 
-            byte[] result = excelService.export(ExportType.MOVIE);
+            byte[] result = excelService.export(CinemaResourceType.MOVIE);
 
             try (XSSFWorkbook workbook = readWorkbook(result)) {
                 assertEquals(2, workbook.getSheet("MOVIE").getPhysicalNumberOfRows());
@@ -265,7 +265,7 @@ class ExcelServiceTest {
             stubMoviePage(1, page(List.of(
                     new MixedRow(5, "中文名稱", false, null)), 1));
 
-            byte[] result = excelService.export(ExportType.MOVIE);
+            byte[] result = excelService.export(CinemaResourceType.MOVIE);
 
             try (XSSFWorkbook workbook = readWorkbook(result)) {
                 Sheet sheet = workbook.getSheet("MOVIE");
@@ -296,7 +296,7 @@ class ExcelServiceTest {
                     new TextRow(null));
             stubCinemaPage(1, page(rows, rows.size()));
 
-            byte[] result = excelService.export(ExportType.CINEMA);
+            byte[] result = excelService.export(CinemaResourceType.CINEMA);
 
             try (XSSFWorkbook workbook = readWorkbook(result)) {
                 Sheet sheet = workbook.getSheet("CINEMA");
@@ -330,7 +330,7 @@ class ExcelServiceTest {
 
             IllegalStateException exception = assertThrows(
                     IllegalStateException.class,
-                    () -> excelService.export(ExportType.CINEMA));
+                    () -> excelService.export(CinemaResourceType.CINEMA));
 
             assertEquals("查詢失敗", exception.getMessage());
             verifyNoInteractions(movieService);

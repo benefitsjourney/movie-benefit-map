@@ -54,7 +54,7 @@ public class CinemaController {
 
             @Parameter(description = "排序欄位") @RequestParam(defaultValue = "CINEMA_ID") CinemaSort.SortBy orderBy,
 
-            @Parameter(description = "排序方向") @RequestParam(defaultValue = "ASC") SortOrder sort,
+            @Parameter(description = "排序方向，縣市升序為由北到南") @RequestParam(defaultValue = "ASC") SortOrder sort,
 
             @Parameter(description = "頁碼") @RequestParam(defaultValue = "1") int page,
 

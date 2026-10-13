@@ -1,67 +1,92 @@
 package com.collection.benefitsjourney.enums;
 
-/** 臺灣縣市代碼 */
+/** 臺灣縣市代碼。排序數值越小越北。 */
 public enum County {
     /** 基隆 */
-    KEELUNG,
+    KEELUNG(0),
 
     /** 臺北 */
-    TAIPEI,
+    TAIPEI(1),
 
     /** 新北市 */
-    NEW_TAIPEI,
+    NEW_TAIPEI(2),
 
     /** 桃園 */
-    TAOYUAN,
+    TAOYUAN(3),
 
     /** 新竹 */
-    HSINCHU,
+    HSINCHU(4),
 
     /** 宜蘭 */
-    YILAN,
+    YILAN(5),
 
     /** 苗栗 */
-    MIAOLI,
+    MIAOLI(6),
 
     /** 臺中 */
-    TAICHUNG,
+    TAICHUNG(7),
 
     /** 彰化 */
-    CHANGHUA,
+    CHANGHUA(8),
 
     /** 南投 */
-    NANTOU,
+    NANTOU(9),
 
     /** 雲林 */
-    YUNLIN,
+    YUNLIN(10),
 
     /** 嘉義 */
-    CHIAYI,
+    CHIAYI(11),
 
     /** 臺南 */
-    TAINAN,
+    TAINAN(12),
 
     /** 高雄 */
-    KAOHSIUNG,
+    KAOHSIUNG(13),
 
     /** 屏東 */
-    PINGTUNG,
+    PINGTUNG(14),
 
     /** 花蓮 */
-    HUALIEN,
+    HUALIEN(15),
 
     /** 臺東 */
-    TAITUNG,
+    TAITUNG(16),
 
     /** 澎湖 */
-    PENGHU,
+    PENGHU(17),
 
     /** 金門 */
-    KINMEN,
+    KINMEN(18),
 
     /** 連江 */
-    LIENCHIANG,
+    LIENCHIANG(19),
 
     /** 未知 */
-    UNKNOWN;
+    UNKNOWN(20);
+
+    private final int northToSouth;
+
+    County(int northToSouth) {
+        this.northToSouth = northToSouth;
+    }
+
+    public int northToSouth() {
+        return northToSouth;
+    }
+
+    /** 產生由北到南的 JPQL CASE，數值越小越北 */
+    public static String northToSouthExpression(String path) {
+        StringBuilder expression = new StringBuilder("CASE ").append(path);
+        for (County county : values()) {
+            expression.append(" WHEN ")
+                    .append(County.class.getName())
+                    .append('.')
+                    .append(county.name())
+                    .append(" THEN ")
+                    .append(county.northToSouth);
+        }
+        expression.append(" ELSE ").append(values().length).append(" END");
+        return expression.toString();
+    }
 }

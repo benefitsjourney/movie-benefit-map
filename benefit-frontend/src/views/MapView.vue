@@ -22,6 +22,7 @@ import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import http from "@/plugins/axios";
 import { COUNTY_LABELS, countyLabel } from "@/constants/county";
+import { CINEMA_SORT_DEFAULT, compareCinemas } from "@/constants/sort";
 import AppButton from "@/components/AppButton.vue";
 import PageIntro from "@/components/PageIntro.vue";
 import SearchFilter from "@/components/SearchFilter.vue";
@@ -54,9 +55,9 @@ const GEO_OPTIONS = {
 const filterFields = [
   {
     key: "keyword",
-    label: "影城名稱",
+    label: "關鍵字",
     type: "search",
-    placeholder: "例如：威秀、國賓",
+    placeholder: "搜尋影城名稱",
     icon: searchIcon,
   },
   {
@@ -127,8 +128,8 @@ function formatDistance(value) {
 }
 
 // API 資料統一加工，避免在 Marker / Popup / 清單重複轉座標、檢查範圍、換算距離。
-const cinemaItems = computed(() =>
-  cinemas.value.map((cinema) => {
+const cinemaItems = computed(() => {
+  const items = cinemas.value.map((cinema) => {
     const position = getCinemaCoordinates(cinema);
     return {
       ...cinema,
@@ -136,8 +137,13 @@ const cinemaItems = computed(() =>
       canLocate: cinema.cinemaId != null && isWithinTaiwanBounds(position),
       distanceText: formatDistance(cinema.distance),
     };
-  }),
-);
+  });
+  // 附近模式沿用 API：距離由近到遠，相同距離再依影城 ID。
+  if (nearbyActive.value) return items;
+  return [...items].sort((left, right) =>
+    compareCinemas(left, right, CINEMA_SORT_DEFAULT),
+  );
+});
 const mappableCinemas = computed(() =>
   cinemaItems.value.filter((cinema) => cinema.canLocate),
 );
@@ -147,11 +153,12 @@ const activeKeyword = computed(() =>
 );
 const resultHint = computed(() => {
   if (nearbyActive.value && resultRadius.value != null) {
-    return `距離你 ${formatDistance(resultRadius.value)}內的影城`;
+    return `距離你 ${formatDistance(resultRadius.value)}內，由近到遠`;
   }
-  return appliedFilters.value.county || activeKeyword.value
+  const scope = appliedFilters.value.county || activeKeyword.value
     ? "搜尋結果"
     : "全台影城";
+  return `${scope}，由北到南`;
 });
 
 // 唯一資料來源為 GET /cinemas/map，不在前端自行做 API 搜尋結果的距離篩選。
@@ -598,11 +605,9 @@ onBeforeUnmount(() => {
 
     <SearchFilter
       v-model="appliedFilters"
-      title="搜尋影城"
+      title="尋找下一站"
       :title-icon="compassIcon"
-      submit-label="搜尋"
-      :submit-icon="searchIcon"
-      reset-label="清除"
+      submit-label="探索影城"
       :fields="filterFields"
     />
 

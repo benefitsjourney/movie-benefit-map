@@ -1,6 +1,9 @@
 
 package com.collection.benefitsjourney.service;
 
+import static com.collection.benefitsjourney.exception.ExceptionUtils.badRequest;
+import static com.collection.benefitsjourney.exception.ExceptionUtils.notFound;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Map;
@@ -28,7 +31,7 @@ public class ExcelService {
     private final JsonMapper mapper;
 
     /** 匯出指定類型的全部資料 */
-    public byte[] export(ExportType type) {
+    public byte[] export(CinemaResourceType type) {
 
         try (XSSFWorkbook workbook = new XSSFWorkbook();
                 ByteArrayOutputStream output = new ByteArrayOutputStream()) {
@@ -68,7 +71,7 @@ public class ExcelService {
             return output.toByteArray();
 
         } catch (IOException e) {
-            throw new IllegalStateException("Excel 匯出失敗", e);
+            throw badRequest("Excel 匯出失敗：" + e.getMessage());
         }
     }
 
@@ -98,7 +101,7 @@ public class ExcelService {
     }
 
     /** 根據類型取得指定頁面的資料 */
-    private PageResponse<?> findAll(ExportType type, int page, int size) {
+    private PageResponse<?> findAll(CinemaResourceType type, int page, int size) {
 
         return switch (type) {
 
@@ -113,6 +116,8 @@ public class ExcelService {
                     page, size,
                     MovieSort.SortBy.MOVIE_ID,
                     SortOrder.ASC);
+
+            default -> throw notFound("不支援的類型：" + type);
         };
     }
 }

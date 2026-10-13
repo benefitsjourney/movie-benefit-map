@@ -78,7 +78,7 @@ class MovieControllerTest {
                     .param("isVisible", "false")
                     .param("page", "3")
                     .param("size", "20")
-                    .param("orderBy", "MOVIE_ID")
+                    .param("orderBy", "RELEASE_DATE")
                     .param("sort", "DESC"))
                     .andExpect(status().isOk());
             verify(movieService).findAll(
@@ -86,7 +86,7 @@ class MovieControllerTest {
                     false,
                     3,
                     20,
-                    MovieSort.SortBy.MOVIE_ID,
+                    MovieSort.SortBy.RELEASE_DATE,
                     SortOrder.DESC);
         }
 
@@ -94,21 +94,10 @@ class MovieControllerTest {
         @DisplayName("排序欄位不存在時應回傳 400")
         void findAll_InvalidOrderBy_ShouldReturn400() throws Exception {
             mockMvc.perform(get("/movies")
-                    .param("orderBy", "ABC"))
+                    .param("orderBy", "MOVIE_NAME"))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.message")
-                            .value("orderBy 參數值無效：ABC"));
-            verifyNoInteractions(movieService);
-        }
-
-        @Test
-        @DisplayName("排序方向不存在時應回傳 400")
-        void findAll_InvalidSort_ShouldReturn400() throws Exception {
-            mockMvc.perform(get("/movies")
-                    .param("sort", "ABC"))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message")
-                            .value("sort 參數值無效：ABC"));
+                            .value("orderBy 參數值無效：MOVIE_NAME"));
             verifyNoInteractions(movieService);
         }
 

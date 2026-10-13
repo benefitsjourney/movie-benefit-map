@@ -87,7 +87,7 @@ class CinemaServiceTest {
 
             PageResponse<CinemaResponse> result = cinemaService.findAll(
                     "威秀", County.TAIPEI, true, false,
-                    3, 20, CinemaSort.SortBy.CINEMA_NAME, SortOrder.DESC);
+                    3, 20, CinemaSort.SortBy.CINEMA_ID, SortOrder.ASC);
 
             assertNotNull(result);
 
@@ -102,15 +102,14 @@ class CinemaServiceTest {
             Pageable pageable = pageableCaptor.getValue();
             assertEquals(2, pageable.getPageNumber());
             assertEquals(20, pageable.getPageSize());
-            Sort.Order order = pageable.getSort().getOrderFor(
-                    CinemaSort.SortBy.CINEMA_NAME.getProperty());
+            Sort.Order order = pageable.getSort().getOrderFor("cinemaId");
             assertNotNull(order);
-            assertEquals(Sort.Direction.DESC, order.getDirection());
+            assertEquals(Sort.Direction.ASC, order.getDirection());
         }
 
         @Test
-        @DisplayName("預設排序方向 ASC 應正確套用")
-        void shouldUseAscendingSort() {
+        @DisplayName("縣市排序應由北到南，同縣市再依 cinemaId")
+        void shouldSortCountyFromNorthToSouth() {
             when(cinemaRepository.findAllByFilters(
                     nullable(String.class), nullable(County.class),
                     nullable(Boolean.class), nullable(Boolean.class),
@@ -119,7 +118,7 @@ class CinemaServiceTest {
 
             PageResponse<CinemaResponse> result = cinemaService.findAll(
                     null, null, null, null,
-                    1, 10, CinemaSort.SortBy.CINEMA_ID, SortOrder.ASC);
+                    1, 10, CinemaSort.SortBy.COUNTY, SortOrder.ASC);
 
             assertNotNull(result);
             ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
@@ -131,9 +130,18 @@ class CinemaServiceTest {
             Pageable pageable = captor.getValue();
             assertEquals(0, pageable.getPageNumber());
             assertEquals(10, pageable.getPageSize());
+            String countyOrder = pageable.getSort().stream().findFirst().orElseThrow().getProperty();
+            assertEquals(Sort.Direction.ASC, pageable.getSort().stream().findFirst().orElseThrow().getDirection());
+            assertTrue(countyOrder.startsWith("(CASE "));
+            assertTrue(countyOrder.endsWith("END)"));
+            assertTrue(countyOrder.contains("KEELUNG THEN " + County.KEELUNG.northToSouth()));
+            assertTrue(countyOrder.contains("PINGTUNG THEN " + County.PINGTUNG.northToSouth()));
+            assertTrue(County.HSINCHU.northToSouth() < County.YILAN.northToSouth());
+            assertTrue(County.YILAN.northToSouth() < County.MIAOLI.northToSouth());
+            assertEquals(5, County.YILAN.northToSouth());
+            assertTrue(County.TAITUNG.northToSouth() < County.UNKNOWN.northToSouth());
             assertEquals(Sort.Direction.ASC,
-                    pageable.getSort().getOrderFor(
-                            CinemaSort.SortBy.CINEMA_ID.getProperty()).getDirection());
+                    pageable.getSort().getOrderFor("cinemaId").getDirection());
         }
     }
 

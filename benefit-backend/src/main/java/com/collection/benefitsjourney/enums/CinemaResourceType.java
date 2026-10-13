@@ -1,6 +1,7 @@
 package com.collection.benefitsjourney.enums;
 
-public enum ExportType {
+public enum CinemaResourceType {
     CINEMA,
-    MOVIE
+    MOVIE,
+    BENEFIT
 }

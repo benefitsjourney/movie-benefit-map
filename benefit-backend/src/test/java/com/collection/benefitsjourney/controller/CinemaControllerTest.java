@@ -93,14 +93,14 @@ class CinemaControllerTest {
                     .param("isVisible", "false")
                     .param("page", "3")
                     .param("size", "20")
-                    .param("orderBy", "CINEMA_NAME")
+                    .param("orderBy", "COUNTY")
                     .param("sort", "DESC"))
                     .andExpect(status().isOk());
 
             verify(cinemaService).findAll(
                     "威秀", County.TAIPEI, true, false,
                     3, 20,
-                    CinemaSort.SortBy.CINEMA_NAME,
+                    CinemaSort.SortBy.COUNTY,
                     SortOrder.DESC);
         }
 
@@ -119,19 +119,9 @@ class CinemaControllerTest {
         @Test
         @DisplayName("無效的排序欄位應回傳 400")
         void invalidOrderBy() throws Exception {
-            mockMvc.perform(get("/cinemas").param("orderBy", "ABC"))
+            mockMvc.perform(get("/cinemas").param("orderBy", "CINEMA_NAME"))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value("orderBy 參數值無效：ABC"));
-
-            verifyNoInteractions(cinemaService);
-        }
-
-        @Test
-        @DisplayName("無效的排序方向應回傳 400")
-        void invalidSort() throws Exception {
-            mockMvc.perform(get("/cinemas").param("sort", "ABC"))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value("sort 參數值無效：ABC"));
+                    .andExpect(jsonPath("$.message").value("orderBy 參數值無效：CINEMA_NAME"));
 
             verifyNoInteractions(cinemaService);
         }

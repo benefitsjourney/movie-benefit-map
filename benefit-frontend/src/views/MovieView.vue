@@ -11,6 +11,7 @@ import compassIcon from "@iconify-icons/mdi/compass-outline";
 import cinemaIcon from "@iconify-icons/mdi/movie-open-outline";
 import calendarIcon from "@iconify-icons/mdi/calendar-blank-outline";
 
+import { MOVIE_SORT_DEFAULT, MOVIE_SORT_OPTIONS, parseMovieSort } from "@/constants/sort";
 import { useApiCollection } from "@/composables/useApiCollection";
 import PageIntro from "@/components/PageIntro.vue";
 import Pagination from "@/components/Pagination.vue";
@@ -48,26 +49,20 @@ const filterFields = [
     key: "sortKey",
     label: "排序",
     type: "select",
-    emptyLabel: "上映日期（新 → 舊）",
+    emptyLabel: MOVIE_SORT_DEFAULT.label,
     icon: sortIcon,
-    options: [
-      { value: "RELEASE_DATE:ASC", label: "上映日期（舊 → 新）" },
-      { value: "MOVIE_NAME:ASC", label: "電影名稱（前 → 後）" },
-      { value: "MOVIE_NAME:DESC", label: "電影名稱（後 → 前）" },
-    ],
+    options: MOVIE_SORT_OPTIONS,
   },
 ];
 
 const requestParams = computed(() => {
-  const [orderBy, sort] = filters.value.sortKey.split(":");
-  const validSort = ["RELEASE_DATE", "MOVIE_NAME"].includes(orderBy) &&
-    ["ASC", "DESC"].includes(sort);
+  const { orderBy, sort } = parseMovieSort(filters.value.sortKey);
   const params = {
     page: page.value,
     size: PAGE_SIZE,
     isVisible: true,
-    orderBy: validSort ? orderBy : "RELEASE_DATE",
-    sort: validSort ? sort : "DESC",
+    orderBy,
+    sort,
   };
   const keyword = filters.value.keyword?.trim();
   if (keyword) params.keyword = keyword;
