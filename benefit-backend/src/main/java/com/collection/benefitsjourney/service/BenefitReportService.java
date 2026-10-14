@@ -56,6 +56,20 @@ public class BenefitReportService {
         report.setSourceUrl(request.sourceUrl());
         report.setStatus(BenefitReportStatus.PENDING.name());
         report.setReviewNote(USER_REPORT_NOTE);
+        // 是否為會員限定（必填）
+        report.setIsMemberOnly(request.isMemberOnly());
+        if (request.benefitType() != null) {
+            report.setBenefitType(request.benefitType().name());
+        }
+        
+        // 開始日必填
+        report.setStartDate(request.startDate());
+        report.setEndDate(request.endDate());
+
+        if (request.endDate() != null
+                && request.endDate().isBefore(request.startDate())) {
+            throw ExceptionUtils.badRequest("結束日期不可早於開始日期");
+        }
 
         // 電影：有id用資料庫的，沒有就一定要填自訂名稱
         if (request.movieId() != null) {
@@ -67,8 +81,9 @@ public class BenefitReportService {
         } else {
             throw ExceptionUtils.badRequest("請選擇電影，或填寫電影名稱");
         }
+        
 
-        // 影城：同電影的做法
+        // 影城：同電影做法
         if (request.cinemaId() != null) {
             CinemaBean cinema = cinemaRepository.findById(request.cinemaId())
                     .orElseThrow(() -> ExceptionUtils.badRequest("找不到影城ID：" + request.cinemaId()));
@@ -88,7 +103,7 @@ public class BenefitReportService {
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
 
         Page<BenefitReportUserResponse> result = benefitReportRepository
-                .findByUser_UsersIdOrderByCreatedAtDesc(usersId, PageRequest.of(safePage - 1, safeSize))
+                .findByUser_UsersIdOrderByCreatedAtDescBenefitReportIdDesc(usersId, PageRequest.of(safePage - 1, safeSize))
                 .map(BenefitReportUserResponse::from);
 
         return PageResponse.from(result);

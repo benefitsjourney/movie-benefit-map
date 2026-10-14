@@ -8,7 +8,10 @@ import com.collection.benefitsjourney.domain.BenefitReportBean;
 public record BenefitReportUserResponse(
         Integer benefitReportId,
         Integer cinemaId,
+        String cinemaName,
         Integer movieId,
+        String movieName,
+        Integer benefitId,
         String benefitName,
         String customCinemaName,
         String customMovieName,
@@ -23,7 +26,10 @@ public record BenefitReportUserResponse(
         return new BenefitReportUserResponse(
                 bean.getBenefitReportId(),
                 bean.getCinema() != null ? bean.getCinema().getCinemaId() : null,
+                bean.getCinema() != null ? bean.getCinema().getCinemaName() : null,
                 bean.getMovie() != null ? bean.getMovie().getMovieId() : null,
+                bean.getMovie() != null ? bean.getMovie().getMovieName() : null,
+                bean.getBenefit() != null ? bean.getBenefit().getBenefitId() : null,
                 bean.getBenefitName(),
                 bean.getCustomCinemaName(),
                 bean.getCustomMovieName(),

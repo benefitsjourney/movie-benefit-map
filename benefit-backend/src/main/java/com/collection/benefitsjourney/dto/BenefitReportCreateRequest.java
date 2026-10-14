@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import com.collection.benefitsjourney.enums.BenefitType;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 /**
@@ -33,13 +34,15 @@ public record BenefitReportCreateRequest(
         @Size(max = 100, message = "特典名稱長度不可超過100字元")
         String benefitName,
 
-        // 是否為會員限定（可先不填，由管理員審核時補齊）
+        // 是否為會員限定
+        @NotNull(message = "是否為會員限定不能為空")
         Boolean isMemberOnly,
 
         // 特典類型（可先不填，由管理員審核時補齊）
         BenefitType benefitType,
 
-        // 開始領取日期（可先不填，由管理員審核時補齊）
+        // 開始領取日期
+        @NotNull(message = "開始領取日期不能為空")
         LocalDateTime startDate,
 
         // 結束領取日期（可先不填，由管理員審核時補齊）
