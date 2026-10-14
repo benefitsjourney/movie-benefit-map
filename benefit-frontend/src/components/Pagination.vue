@@ -57,6 +57,7 @@ onBeforeUnmount(() => {
   <nav class="pager" :aria-label="label">
     <AppButton
       type="button"
+      color="coral"
       :icon="chevronLeft"
       :disabled="page <= 1"
       @click="select(page - 1)"
@@ -81,6 +82,7 @@ onBeforeUnmount(() => {
 
     <AppButton
       type="button"
+      color="coral"
       :disabled="page >= totalPages"
       @click="select(page + 1)"
     >
@@ -128,7 +130,7 @@ onBeforeUnmount(() => {
 
 .pager-page.active {
   border-color: transparent;
-  background: var(--c-brand);
+  background: #ff7049;
   color: #fff;
 }
 
@@ -142,7 +144,7 @@ onBeforeUnmount(() => {
 }
 
 .pager-page:focus-visible {
-  outline: 2px solid var(--c-brand);
+  outline: 2px solid #ff7049;
   outline-offset: 3px;
 }
 

@@ -1,14 +1,8 @@
-/* 全域配色與字級：src/assets/main.css（或專案目前載入的主樣式檔） */
+@import "./front.css";
+@import "./admin.css";
+
+/* 前後台共用：字級、字體、版面骨架 */
 :root {
-  --c-brand: #ff7049;
-  --c-sun: #ffc857;
-  --c-sky: #7ea7e8;
-  --c-bg: #fff9f1;
-  --c-card: #fffdf8;
-  --c-ink: #292b35;
-  --c-muted: #5c564e;
-  --c-navy: #1e2b45;
-  --c-border: #f3e0c4;
   --shadow-soft: 0 10px 24px rgb(41 43 53 / 7%);
   --ease: 0.25s ease;
   --font-latin: "Fredoka", "Trebuchet MS", sans-serif;
@@ -46,10 +40,16 @@ body {
   font-size: var(--text-body);
   line-height: 1.6;
   color: var(--c-ink);
-  background: var(--c-bg);
-  background-image:
-    radial-gradient(circle at 0% 0%, rgb(255 200 87 / 25%), transparent 32%),
-    radial-gradient(circle at 100% 10%, rgb(126 167 232 / 18%), transparent 28%);
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.page-main {
+  padding-top: 1.35rem;
+  padding-bottom: 3rem;
+  padding-inline: 4rem;
 }
 
 ::selection {

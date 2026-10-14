@@ -1,7 +1,27 @@
+<script>
+export const THEMES = {
+  yellow: {
+    "--result-mark": "#f3b23c",
+    "--result-mark-hover": "#e09a1a",
+    "--result-meta": "#8d877e",
+    "--result-count": "#ff7049",
+    "--result-title": "#1e2b45",
+  },
+  purple: {
+    "--result-mark": "#8574df",
+    "--result-mark-hover": "#5141a3",
+    "--result-meta": "#6d6882",
+    "--result-count": "#8D72ED",
+    "--result-title": "#27346B",
+  },
+};
+</script>
+
 <script setup>
+import { computed } from "vue";
 import { Icon } from "@iconify/vue";
 
-defineProps({
+const props = defineProps({
   icon: { type: [Object, String], required: true },
   title: { type: String, required: true },
   count: { type: Number, default: 0 },
@@ -10,12 +30,18 @@ defineProps({
   actionTo: { type: String, required: true },
   actionIcon: { type: [Object, String], required: true },
   actionLabel: { type: String, required: true },
+  theme: {
+    type: String,
+    default: "yellow",
+    validator: (value) => Object.hasOwn(THEMES, value),
+  },
 });
 
+const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
 </script>
 
 <template>
-  <div class="result-banner" aria-live="polite">
+  <div class="result-banner" aria-live="polite" :style="themeStyle">
     <span class="result-mark" aria-hidden="true">
       <Icon :icon="icon" />
     </span>
@@ -59,7 +85,7 @@ defineProps({
   width: 42px;
   height: 42px;
   border-radius: 12px;
-  background: #f3b23c;
+  background: var(--result-mark, #f3b23c);
   color: #fff;
 }
 
@@ -79,20 +105,20 @@ defineProps({
 }
 
 .result-title {
-  color: var(--c-navy);
+  color: var(--result-title);
   font-size: var(--text-feature-title, 1.25rem);
   font-weight: 800;
 }
 
 .result-meta {
-  color: #8d877e;
+  color: var(--result-meta, #8d877e);
   font-size: var(--text-body, 1.0625rem);
   font-weight: 600;
 }
 
 .result-count {
   margin-right: 0.2rem;
-  color: var(--c-brand);
+  color: var(--result-count);
   font-size: var(--text-feature-title, 1.25rem);
   font-weight: 800;
 }
@@ -104,14 +130,14 @@ defineProps({
   gap: 0.3rem;
   padding: 0.45rem 0.95rem;
   border-radius: 999px;
-  background: #f3b23c;
+  background: var(--result-mark, #f3b23c);
   color: #fff;
   font-size: var(--text-control, 1rem);
   font-weight: 800;
   white-space: nowrap;
   text-decoration: none;
   cursor: pointer;
-  box-shadow: 0 6px 14px rgb(243 178 60 / 40%);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--result-mark, #f3b23c) 40%, transparent);
   transition:
     background var(--ease),
     box-shadow var(--ease),
@@ -119,8 +145,8 @@ defineProps({
 }
 
 .result-scope:hover {
-  background: #e09a1a;
-  box-shadow: 0 10px 18px rgb(224 154 26 / 42%);
+  background: var(--result-mark-hover, #e09a1a);
+  box-shadow: 0 10px 18px color-mix(in srgb, var(--result-mark-hover, #e09a1a) 42%, transparent);
   transform: translateY(-2px);
 }
 
@@ -133,7 +159,7 @@ defineProps({
 }
 
 .result-scope:focus-visible {
-  outline: 2px solid #e09a1a;
+  outline: 2px solid var(--result-mark-hover, #e09a1a);
   outline-offset: 3px;
 }
 

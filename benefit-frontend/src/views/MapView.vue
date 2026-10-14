@@ -800,7 +800,7 @@ onBeforeUnmount(() => {
 <style scoped>
 /* 視覺規則：沿用網站既有變數，減少邊框，卡片採「旅行站點／票根」形式。 */
 .benefit-map-page {
-  --map-brand: var(--c-brand, #f36c4e);
+  --map-brand: #ff7049;
   --map-ink: var(--c-ink, #263349);
   --map-muted: var(--c-muted, #6c7380);
   --map-surface: var(--c-card, #fff);

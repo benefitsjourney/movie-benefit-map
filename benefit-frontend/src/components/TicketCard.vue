@@ -72,54 +72,59 @@ const hasAction = computed(
 </script>
 
 <template>
-  <article
-    class="ticket"
-    :class="[
-      `tone-${tone}`,
-      { 'ticket-appear': appear, 'ticket-poster-card': hasPoster },
-    ]"
-  >
-    <div class="ticket-reel" aria-hidden="true"></div>
-    <div v-if="hasPoster" class="ticket-poster">
-      <slot name="poster" />
-    </div>
-    <div class="ticket-body">
-      <div v-if="hasStamp" class="ticket-head">
-        <span class="ticket-stamp">
-          <slot name="stamp">{{ stamp }}</slot>
-        </span>
+  <div class="ticket-frame">
+    <article
+      class="ticket"
+      :class="[
+        `tone-${tone}`,
+        {
+          'ticket-appear': appear,
+          'ticket-poster-card': hasPoster,
+        },
+      ]"
+    >
+      <div class="ticket-reel" aria-hidden="true"></div>
+      <div v-if="hasPoster" class="ticket-poster">
+        <slot name="poster" />
+      </div>
+      <div class="ticket-body">
+        <div v-if="hasStamp" class="ticket-head">
+          <span class="ticket-stamp">
+            <slot name="stamp">{{ stamp }}</slot>
+          </span>
+        </div>
+
+        <h2 v-if="hasTitle">
+          <slot name="title">{{ title }}</slot>
+        </h2>
+        <p v-if="hasDetail" class="ticket-detail">
+          <slot name="detail">{{ detail }}</slot>
+        </p>
+        <slot />
       </div>
 
-      <h2 v-if="hasTitle">
-        <slot name="title">{{ title }}</slot>
-      </h2>
-      <p v-if="hasDetail" class="ticket-detail">
-        <slot name="detail">{{ detail }}</slot>
-      </p>
-      <slot />
-    </div>
-
-    <div class="ticket-stub" :class="{ 'ticket-stub-mark': !hasAction }">
-      <slot name="action">
-        <a
-          v-if="linkHref && linkText"
-          :href="linkHref"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="ticket-link"
-        >
-          {{ linkText }}
-          <Icon :icon="externalIcon" aria-hidden="true" />
-        </a>
-        <span v-else-if="emptyText" class="ticket-empty">{{ emptyText }}</span>
-      </slot>
-      <span class="ticket-film">
-        <slot name="mark">
-          <Icon :icon="filmIcon" aria-hidden="true" />
+      <div class="ticket-stub" :class="{ 'ticket-stub-mark': !hasAction }">
+        <slot name="action">
+          <a
+            v-if="linkHref && linkText"
+            :href="linkHref"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="ticket-link"
+          >
+            {{ linkText }}
+            <Icon :icon="externalIcon" aria-hidden="true" />
+          </a>
+          <span v-else-if="emptyText" class="ticket-empty">{{ emptyText }}</span>
         </slot>
-      </span>
-    </div>
-  </article>
+        <span class="ticket-film">
+          <slot name="mark">
+            <Icon :icon="filmIcon" aria-hidden="true" />
+          </slot>
+        </span>
+      </div>
+    </article>
+  </div>
 </template>
 
 <!-- 票券列表共用的基礎網格；各頁面自行指定響應式欄數。 -->
@@ -140,10 +145,25 @@ const hasAction = computed(
 </style>
 
 <style scoped>
+.ticket-frame {
+  display: flex;
+  min-width: 0;
+  filter: drop-shadow(
+    0 6px 8px color-mix(in srgb, var(--c-ink) 18%, transparent)
+  );
+  transition: filter var(--ease);
+}
+
+.ticket-frame:hover {
+  filter: drop-shadow(
+    0 14px 16px color-mix(in srgb, var(--c-ink) 24%, transparent)
+  );
+}
+
 .ticket {
-  --accent: #ffc857;
-  --ticket-pale: #fff6df;
-  --ticket-ink: #865500;
+  --accent: #ffe08a;
+  --ticket-pale: #fffbeb;
+  --ticket-ink: #8a6400;
   --ticket-border: 1.5px;
   --dash: 2px;
   --stub-size: 4.5rem;
@@ -152,16 +172,16 @@ const hasAction = computed(
     100% - var(--ticket-border) - var(--stub-size) + (var(--dash) / 2)
   );
   display: flex;
+  flex: 1;
   flex-direction: column;
+  width: 100%;
   min-width: 0;
   min-height: 235px;
-  border: var(--ticket-border) solid rgb(41 43 53 / 9%);
+  border: var(--ticket-border) solid
+    color-mix(in srgb, var(--ticket-ink) 34%, white);
   border-radius: 20px;
   background: #fff;
-  box-shadow: var(--shadow-soft);
-  transition:
-    transform var(--ease),
-    box-shadow var(--ease);
+  transition: transform var(--ease);
   -webkit-mask-image:
     radial-gradient(
       circle at 0 var(--notch-y),
@@ -202,7 +222,6 @@ const hasAction = computed(
 
 .ticket:hover {
   transform: translateY(-5px);
-  box-shadow: 0 16px 28px rgb(41 43 53 / 12%);
 }
 
 .ticket-appear {
@@ -222,9 +241,9 @@ const hasAction = computed(
 }
 
 .tone-yellow {
-  --accent: #ead4a0;
-  --ticket-pale: #faf0d8;
-  --ticket-ink: #a87432;
+  --accent: #ffe08a;
+  --ticket-pale: #fffbeb;
+  --ticket-ink: #8a6400;
 }
 
 .tone-green {
@@ -393,30 +412,39 @@ const hasAction = computed(
   border-radius: 999px;
   background: #fff;
   color: var(--ticket-ink);
+  font: inherit;
   font-size: var(--text-control, 1rem);
   font-weight: 700;
   text-decoration: none;
+  cursor: pointer;
 }
 
 :slotted(.ticket-chip) {
   cursor: default;
 }
 
-.ticket-link:hover,
+.ticket-link:hover:not(:disabled),
 .ticket-link:focus-visible,
-:slotted(.ticket-link:hover),
+:slotted(.ticket-link:hover:not(:disabled)),
 :slotted(.ticket-link:focus-visible) {
   background: var(--accent);
   color: var(--c-ink);
 }
 
+.ticket-link:disabled,
+:slotted(.ticket-link:disabled) {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .ticket-link:focus-visible,
 :slotted(.ticket-link:focus-visible) {
-  outline: 2px solid var(--c-brand);
+  outline: 2px solid var(--ticket-ink);
   outline-offset: 2px;
 }
 
-.ticket-empty {
+.ticket-empty,
+:slotted(.ticket-empty) {
   color: var(--c-muted);
   font-size: var(--text-control, 1rem);
   font-weight: 700;

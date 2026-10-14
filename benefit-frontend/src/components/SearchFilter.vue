@@ -1,3 +1,16 @@
+<script>
+export const THEMES = {
+  coral: {
+    "--filter-accent": "#ff7049",
+    "--filter-focus": "rgb(255 112 73 / 20%)",
+  },
+  purple: {
+    "--filter-accent": "#8D72ED",
+    "--filter-focus": "rgb(141 114 237 / 20%)",
+  },
+};
+</script>
+
 <script setup>
 import { computed, reactive, useId, watch } from "vue";
 import { Icon } from "@iconify/vue";
@@ -15,10 +28,16 @@ const props = defineProps({
   titleIcon: { type: [Object, String], default: () => searchIcon },
   submitLabel: { type: String, default: "搜尋" },
   submitIcon: { type: [Object, String], default: () => searchIcon },
-  submitColor: { type: String, default: "" },
   resetLabel: { type: String, default: "清除條件" },
   fields: { type: Array, default: () => [] },
+  theme: {
+    type: String,
+    default: "coral",
+    validator: (value) => Object.hasOwn(THEMES, value),
+  },
 });
+
+const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.coral);
 
 const fieldId = useId();
 const draft = reactive({});
@@ -81,7 +100,7 @@ function resetQuery() {
 </script>
 
 <template>
-  <div class="search-filter">
+  <div class="search-filter" :style="themeStyle">
     <h2 v-if="title" class="search-filter-title">
       <Icon v-if="titleIcon" :icon="titleIcon" aria-hidden="true" />
       {{ title }}
@@ -113,11 +132,11 @@ function resetQuery() {
       </div>
 
       <div class="search-filter-actions">
-        <AppButton class="search-submit" type="submit" :icon="submitIcon" :color="submitColor">
+        <AppButton class="search-submit" type="submit" :icon="submitIcon" :color="theme">
           {{ submitLabel }}
         </AppButton>
 
-        <AppButton v-if="showReset" class="search-reset" type="button" variant="reset" :icon="refreshIcon"
+        <AppButton v-if="showReset" class="search-reset" type="button" variant="reset" :color="theme" :icon="refreshIcon"
           @click="resetQuery">
           {{ resetLabel }}
         </AppButton>
@@ -148,7 +167,7 @@ function resetQuery() {
 
 .search-filter-title svg,
 .field-control>svg {
-  color: var(--c-brand);
+  color: var(--filter-accent);
 }
 
 .search-filter-title svg {
@@ -202,13 +221,13 @@ function resetQuery() {
 
 .form-select:focus,
 .form-control:focus {
-  border-color: var(--c-brand);
-  box-shadow: 0 0 0 3px rgb(255 112 73 / 20%);
+  border-color: var(--filter-accent);
+  box-shadow: 0 0 0 3px var(--filter-focus);
 }
 
 .form-select:focus-visible,
 .form-control:focus-visible {
-  outline: 2px solid var(--c-brand);
+  outline: 2px solid var(--filter-accent);
   outline-offset: 2px;
 }
 

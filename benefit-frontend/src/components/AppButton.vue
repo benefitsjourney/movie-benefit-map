@@ -1,3 +1,16 @@
+<script>
+export const COLORS = {
+  coral: {
+    "--btn-bg": "#ff7049",
+    "--btn-muted": "#5c564e",
+  },
+  purple: {
+    "--btn-bg": "#8D72ED",
+    "--btn-muted": "#6d6882",
+  },
+};
+</script>
+
 <script setup>
 import { computed } from "vue";
 import { Icon } from "@iconify/vue";
@@ -7,12 +20,12 @@ const props = defineProps({
     type: String,
     default: "button",
   },
-  // 沒指定時使用品牌橘色；可傳 CSS 顏色，例如 #79cdb5
   color: {
     type: String,
-    default: "",
+    default: "coral",
+    validator: (value) => Object.hasOwn(COLORS, value),
   },
-  // 外觀名稱。傳 "reset" 切換成灰棕色文字的輕量按鈕
+  // 外觀名稱。傳 "reset" 切換成淡色文字的輕量按鈕
   variant: {
     type: String,
     default: "",
@@ -27,19 +40,11 @@ const props = defineProps({
   },
 });
 
-const buttonStyle = computed(() =>
-  props.color ? { "--btn-bg": props.color } : undefined,
-);
+const buttonStyle = computed(() => COLORS[props.color] ?? COLORS.coral);
 </script>
 
 <template>
-  <button
-    class="app-button"
-    :class="variant"
-    :type="type"
-    :disabled="disabled"
-    :style="buttonStyle"
-  >
+  <button class="app-button" :class="variant" :type="type" :disabled="disabled" :style="buttonStyle">
     <slot name="icon">
       <Icon v-if="icon" :icon="icon" aria-hidden="true" />
     </slot>
@@ -49,7 +54,6 @@ const buttonStyle = computed(() =>
 
 <style scoped>
 .app-button {
-  --btn-bg: var(--c-brand);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -100,7 +104,7 @@ const buttonStyle = computed(() =>
   min-height: 0;
   padding: 0.15rem 0.1rem;
   background: transparent;
-  color: var(--c-muted);
+  color: var(--btn-muted);
   font-weight: 700;
   box-shadow: none;
   transition: color var(--ease);
@@ -114,7 +118,7 @@ const buttonStyle = computed(() =>
 .app-button.reset:hover:not(:disabled) {
   transform: none;
   box-shadow: none;
-  color: var(--c-brand);
+  color: var(--btn-bg);
 }
 
 .app-button.reset:hover:not(:disabled) :deep(svg) {
@@ -126,6 +130,6 @@ const buttonStyle = computed(() =>
 }
 
 .app-button.reset:focus-visible {
-  outline-color: var(--c-brand);
+  outline-color: var(--btn-bg);
 }
 </style>
