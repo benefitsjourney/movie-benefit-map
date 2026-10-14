@@ -142,11 +142,14 @@ public class BenefitReportAdminService {
         BenefitReportBean report = getPendingOrThrow(id);
 
         report.setStatus(BenefitReportStatus.REJECTED.name());
-
+        
+        // 駁回理由：有填就使用管理員填寫的內容，沒填則使用預設文字
         if (request != null
                 && request.reviewNote() != null
                 && !request.reviewNote().isBlank()) {
-            report.setReviewNote(request.reviewNote());
+            report.setReviewNote(request.reviewNote().trim());
+        } else {
+            report.setReviewNote("審核未通過");
         }
 
         return BenefitReportAdminResponse.from(benefitReportRepository.save(report));
