@@ -1,0 +1,19 @@
+/* 後台頁面底色與文字 */
+.theme-admin {
+  --c-bg: #F8F6FF;
+  --c-card: #FFFFFF;
+  --c-ink: #292B35;
+  --c-muted: #666078;
+  --c-border: #E5DCF5;
+
+  color: var(--c-ink);
+  background-color: var(--c-bg);
+  background-image:
+    radial-gradient(circle at 0% 0%, rgb(183 122 255 / 16%), transparent 32%),
+    radial-gradient(circle at 100% 10%, rgb(147 184 240 / 20%), transparent 28%);
+}
+
+.theme-admin ::selection {
+  color: var(--c-ink);
+  background: #DCC5FF;
+}

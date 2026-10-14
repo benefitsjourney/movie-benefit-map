@@ -1,7 +1,31 @@
+<script>
+export const THEMES = {
+  yellow: {
+    "--hero-corner": "color-mix(in srgb, #ffc857 35%, transparent)",
+    "--hero-kicker": "#fff1cc",
+    "--hero-kicker-text": "#865500",
+    "--hero-title": "#ffe08a",
+    "--hero-left": "#ff7049",
+    "--hero-right": "#ffc857",
+    "--hero-top": "#7ea7e8",
+  },
+  purple: {
+    "--hero-corner": "color-mix(in srgb, #C99BFF 35%, transparent)",
+    "--hero-kicker": "#F2E5FF",
+    "--hero-kicker-text": "#7545A3",
+    "--hero-title": "#E7C9FF",
+    "--hero-left": "#F5BFD3",
+    "--hero-right": "#E7C9FF",
+    "--hero-top": "#93B8F0",
+  },
+};
+</script>
+
 <script setup>
+import { computed } from "vue";
 import { Icon } from "@iconify/vue";
 
-defineProps({
+const props = defineProps({
   kicker: { type: String, required: true },
   lead: { type: String, default: "" },
   mark: { type: String, required: true },
@@ -10,17 +34,23 @@ defineProps({
   iconLeft: { type: [Object, String], required: true },
   iconRight: { type: [Object, String], required: true },
   iconTop: { type: [Object, String], required: true },
+  theme: {
+    type: String,
+    default: "yellow",
+    validator: (value) => Object.hasOwn(THEMES, value),
+  },
 });
+
+const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
 </script>
 
 <template>
-  <header class="hero">
+  <header class="hero" :style="themeStyle">
     <div class="hero-copy">
       <p class="hero-kicker">{{ kicker }}</p>
 
       <h1>
-        {{ lead }}<span class="title-mark">{{ mark }}</span
-        >{{ tail }}
+        {{ lead }}<span class="title-mark">{{ mark }}</span>{{ tail }}
       </h1>
 
       <p class="hero-description">{{ description }}</p>
@@ -50,7 +80,7 @@ defineProps({
   overflow: hidden;
   border: 1.5px solid var(--c-border);
   border-radius: 22px;
-  background: var(--c-card);
+  background-color: var(--c-card);
   box-shadow: var(--shadow-soft);
 }
 
@@ -61,7 +91,7 @@ defineProps({
   width: 190px;
   height: 190px;
   border-radius: 50%;
-  background: rgb(255 200 87 / 35%);
+  background: var(--hero-corner);
   content: "";
 }
 
@@ -80,8 +110,8 @@ defineProps({
   margin: 0 0 1rem;
   padding: 0.2rem 0.8rem;
   border-radius: 999px;
-  background: #fff1cc;
-  color: #865500;
+  background: var(--hero-kicker, #fff1cc);
+  color: var(--hero-kicker-text, #865500);
   font-family: var(--font-latin);
   font-size: var(--text-control, 1rem);
   font-weight: 700;
@@ -102,7 +132,7 @@ defineProps({
 }
 
 .title-mark {
-  background: linear-gradient(#ffe08a, #ffe08a) left 85% / 100% 0.38em no-repeat;
+  background: linear-gradient(var(--hero-title, #ffe08a), var(--hero-title, #ffe08a)) left 85% / 100% 0.38em no-repeat;
 }
 
 /* 裝飾區域 */
@@ -141,7 +171,7 @@ defineProps({
     left: 0;
     width: 100%;
     height: 90px;
-    border-top: 3px dashed var(--c-brand);
+    border-top: 3px dashed var(--hero-left);
     border-radius: 50%;
     transform: rotate(-16deg);
   }
@@ -149,7 +179,7 @@ defineProps({
   .art-left {
     top: 28px;
     left: 10%;
-    --icon-color: var(--c-brand);
+    --icon-color: var(--hero-left);
     --icon-size: 5rem;
     transform: rotate(-8deg);
   }
@@ -157,7 +187,7 @@ defineProps({
   .art-right {
     right: 8%;
     bottom: 0;
-    --icon-color: var(--c-sun);
+    --icon-color: var(--hero-right);
     --icon-size: 4.7rem;
     --delay: 0.6s;
   }
@@ -165,7 +195,7 @@ defineProps({
   .art-top {
     top: 0;
     right: 20%;
-    --icon-color: var(--c-sky);
+    --icon-color: var(--hero-top);
     --icon-size: 3.5rem;
     --delay: 0.3s;
   }
@@ -173,7 +203,7 @@ defineProps({
   .art-star {
     top: 0;
     left: 35%;
-    color: var(--c-brand);
+    color: var(--hero-left);
     font-size: 1.8rem;
     animation: twinkle 3s ease-in-out infinite;
   }
@@ -194,10 +224,12 @@ defineProps({
 }
 
 @keyframes twinkle {
+
   0%,
   100% {
     opacity: 0.35;
   }
+
   50% {
     opacity: 1;
   }
@@ -205,6 +237,7 @@ defineProps({
 
 /* 無障礙：減少動畫 */
 @media (prefers-reduced-motion: reduce) {
+
   .art-icon,
   .art-star {
     animation: none;
