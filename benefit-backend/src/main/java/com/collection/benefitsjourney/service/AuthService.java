@@ -1,28 +1,30 @@
 package com.collection.benefitsjourney.service;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import com.collection.benefitsjourney.domain.UsersBean;
+import com.collection.benefitsjourney.dto.ChangePasswordRequest;
 import com.collection.benefitsjourney.dto.RegisterRequest;
 import com.collection.benefitsjourney.repository.UsersRepository;
-import com.collection.benefitsjourney.dto.ChangePasswordRequest;
-
-import java.util.Optional;
 
 @Service 
 public class AuthService {
     private final UsersRepository usersRepository;
     private final PasswordEncoder passwordEncoder;
+    private final LoginLogService loginLogService;
 
     public AuthService(
             UsersRepository usersRepository,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            LoginLogService loginLogService) {
 
         this.usersRepository = usersRepository;
         this.passwordEncoder = passwordEncoder;
+        this.loginLogService = loginLogService;
     }
 
     /**
@@ -71,33 +73,60 @@ public class AuthService {
         /**
      * 一般帳號密碼登入
      */
-    public UsersBean login(String account, String password) {
+    public UsersBean login(String account, String password,String ipAddress,String userAgent) {
 
     // 根據帳號尋找會員
     Optional<UsersBean> optionalUser =
             usersRepository.findByAccount(account);
 
-    // 找不到帳號
+    // 找不到帳號 記錄失敗，user_id 為 NULL
     if (optionalUser.isEmpty()) {
+        loginLogService.saveLoginLog(
+                null,
+                "FAILED",
+                ipAddress,
+                userAgent
+        );
         throw new IllegalArgumentException("帳號或密碼錯誤");
     }
 
     UsersBean usersBean = optionalUser.get();
 
-    // 只有被管理員停權的帳號不能登入
-    if ("BANNED".equals(usersBean.getStatus())) {
+    // 被管理員停權、註銷的帳號不能登入：記錄失敗
+    if ("BANNED".equals(usersBean.getStatus()) || "DELETED".equals(usersBean.getStatus())) {
+        loginLogService.saveLoginLog(
+                usersBean,
+                "FAILED",
+                ipAddress,
+                userAgent
+        );
         throw new IllegalArgumentException("此帳號目前無法登入");
     }
 
-    // 使用 BCrypt 驗證密碼
+    // 使用 BCrypt 驗證密碼 密碼錯誤：記錄失敗
     if (!passwordEncoder.matches(password, usersBean.getPassword())) {
+        loginLogService.saveLoginLog(
+            usersBean,
+            "FAILED",
+            ipAddress,
+            userAgent
+        );
         throw new IllegalArgumentException("帳號或密碼錯誤");
     }
 
-    // 更新修改時間
+    // 登入成功：更新會員修改時間
     usersBean.setUpdatedAt(LocalDateTime.now());
+    UsersBean savedUser = usersRepository.save(usersBean);
+    // 記錄登入成功
+        loginLogService.saveLoginLog(
+        savedUser,
+        "SUCCESS",
+        ipAddress,
+        userAgent
+        );
 
-    return usersRepository.save(usersBean);
+    return savedUser;
+
 }
 
         /**

@@ -93,27 +93,28 @@ public class UsersService {
                     .orElseThrow(() ->
                             new IllegalArgumentException("找不到會員")
                     );
-
-                    // 已經停用的會員不能再次申請停用
-                    if ("INACTIVE".equals(usersBean.getStatus())) {
-                        throw new IllegalArgumentException(
-                                "此帳號已經停用"
-                        );
-                    }
-
+                    
                     if ("BANNED".equals(usersBean.getStatus())) {
                         throw new IllegalArgumentException(
                             "此帳號已被管理員停權"
                         );
                     }
-                    
-                    if (!"INACTIVE".equals(status)) {
+
+                    // 不允許重複設定相同狀態
+                    if (usersBean.getStatus().equals(status)) {
                         throw new IllegalArgumentException(
-                                "會員只能自行停用帳號，無法自行啟用"
+                            "帳號目前已經是此狀態"
+                    );
+                    }
+                    
+                    // 會員只能設定 ACTIVE 或 INACTIVE
+                    if (!"ACTIVE".equals(status) && !"INACTIVE".equals(status)) {
+                        throw new IllegalArgumentException(
+                                "會員只能自行停用或啟用帳號"
                         );
                     }
                     
-        usersBean.setStatus("INACTIVE");
+        usersBean.setStatus(status);
         usersBean.setUpdatedAt(LocalDateTime.now());
 
         return usersRepository.save(usersBean);
