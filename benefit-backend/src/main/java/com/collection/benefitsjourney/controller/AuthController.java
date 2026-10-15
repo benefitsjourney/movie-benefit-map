@@ -11,6 +11,7 @@ import com.collection.benefitsjourney.jwt.JsonWebTokenUtility;
 import com.collection.benefitsjourney.service.AuthService;
 
 import jakarta.validation.Valid;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
 @RequestMapping("/auth")
@@ -57,13 +58,15 @@ public class AuthController {
     // 一般帳號密碼登入
     @PostMapping("/login")
     public LoginResponse login(
-            @Valid @RequestBody LoginRequest request) {
+            @Valid @RequestBody LoginRequest request , HttpServletRequest httpRequest) {
 
         // 1. 驗證帳號密碼
         UsersBean usersBean =
                 authService.login(
                         request.getAccount(),
-                        request.getPassword()
+                        request.getPassword(),
+                        httpRequest.getRemoteAddr(),
+                        httpRequest.getHeader("User-Agent")
                 );
 
 

@@ -1,21 +1,30 @@
 package com.collection.benefitsjourney.jwt;
 
 import java.io.IOException;
+import java.util.Collections;
 
-import org.springframework.stereotype.Component;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.stereotype.Component;
+
+import com.collection.benefitsjourney.repository.UsersRepository;
+import com.collection.benefitsjourney.domain.UsersBean;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 
 @Component
-@RequiredArgsConstructor
 public class JsonWebTokenFilter extends OncePerRequestFilter {
 
     private final JsonWebTokenUtility jsonWebTokenUtility;
+    private final UsersRepository usersRepository;
+        public JsonWebTokenFilter( JsonWebTokenUtility jsonWebTokenUtility,UsersRepository usersRepository) {
+                this.jsonWebTokenUtility = jsonWebTokenUtility;
+                this.usersRepository = usersRepository;
+        }
 
     @Override
     protected boolean shouldNotFilter(
@@ -32,8 +41,8 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 || uri.equals("/auth/google")
                 || uri.equals("/auth/password/forgot")
                 || uri.equals("/auth/password/reset")
-                || uri.matches("/users/\\d+")
-                || uri.matches("/users/\\d+/posts")
+                || (uri.matches("/users/\\d+") && method.equals("GET"))
+                || (uri.matches("/users/\\d+/posts") && method.equals("GET"))
 
                 // 影城 API 白名單
                 || (uri.equals("/cinemas") && (method.equals("GET")))
@@ -66,47 +75,105 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 || uri.startsWith("/swagger-ui/")
                 || uri.equals("/v3/api-docs")
                 || uri.startsWith("/v3/api-docs/");
-    }
-
-    @Override
-    protected void doFilterInternal(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain)
-            throws ServletException, IOException {
+}
+        // 驗證 JWT
+        @Override
+        protected void doFilterInternal(
+                HttpServletRequest request,
+                HttpServletResponse response,
+                FilterChain filterChain)
+                throws ServletException, IOException {
 
         String auth = request.getHeader("Authorization");
 
-        System.out.println(
-                "Authorization = " + auth);
-
-        // 沒有 Authorization
+        // 沒有 Bearer Token
         if (auth == null || !auth.startsWith("Bearer ")) {
-
-            response.setStatus(
-                    HttpServletResponse.SC_FORBIDDEN);
-
-            return;
+                response.sendError(
+                        HttpServletResponse.SC_UNAUTHORIZED,"請先登入");
+                return;
         }
 
-        // 取得 JWT
         String token = auth.substring(7);
-
-        // 驗證 JWT
         String subject = jsonWebTokenUtility.validateToken(token);
 
-        // JWT 驗證成功
-        if (subject != null) {
-
-            request.setAttribute("usersId", Integer.valueOf(subject));
-
-            filterChain.doFilter(request, response);
-
+        if (subject == null || subject.isBlank()) {
+                response.sendError(
+                        HttpServletResponse.SC_UNAUTHORIZED,
+                        "Token 無效或已過期");
+                return;
+        }
+        final Integer usersId;
+            // 確認 subject 可以轉成會員 ID
+        try {
+                usersId = Integer.valueOf(subject);
+        }catch (NumberFormatException e) {
+            response.sendError(
+                    HttpServletResponse.SC_UNAUTHORIZED,
+                    "Token 會員 ID 格式錯誤");
             return;
         }
+        // 每次請求都確認會員目前的資料庫狀態
+        UsersBean usersBean = usersRepository.findById(usersId)
+                .orElse(null);
 
-        // JWT 驗證失敗
-        response.setStatus(
-                HttpServletResponse.SC_FORBIDDEN);
-    }
+        if (usersBean == null) {
+        response.sendError(
+                HttpServletResponse.SC_UNAUTHORIZED,
+                "會員不存在");
+        return;
+        }
+
+        String status = usersBean.getStatus();
+
+        // 已停權或已刪除的會員不能使用舊 Token
+        if ("BANNED".equals(status) || "DELETED".equals(status)) {
+        response.sendError(
+                HttpServletResponse.SC_FORBIDDEN,
+                "此帳號目前無法使用");
+        return;
+        }
+
+        // 已停用會員只能呼叫自己的狀態 API，重新啟用帳號
+        boolean isMyStatusApi =
+                request.getMethod().equals("PATCH")
+                && request.getRequestURI().equals("/users/me/status");
+
+        if ("INACTIVE".equals(status) && !isMyStatusApi) {
+        response.sendError(
+                HttpServletResponse.SC_FORBIDDEN,
+                "此帳號已停用，請先重新啟用");
+        return;
+        }
+
+        // 將會員 ID 傳給 Controller
+            request.setAttribute("usersId", usersId);
+
+                // 設定 Spring Security 的登入身分
+                String role = usersBean.getRole();
+
+                if (!"ADMIN".equals(role) && !"USER".equals(role)) {
+                response.sendError(
+                        HttpServletResponse.SC_FORBIDDEN,
+                        "會員角色無效"
+                );
+                return;
+                }
+
+            UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(
+                        subject,
+                        null,
+                        Collections.singletonList(
+                                new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                                        "ROLE_" + role
+                                )
+                        )
+                );
+
+            SecurityContextHolder.getContext()
+                .setAuthentication(authentication);
+
+                filterChain.doFilter(request, response);
+
+        }
 }
