@@ -1,3 +1,14 @@
+<script>
+export const COLORS = {
+  coral: {
+    "--pager-bg": "#ff7049",
+  },
+  purple: {
+    "--pager-bg": "#8D72ED",
+  },
+};
+</script>
+
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { Icon } from "@iconify/vue";
@@ -9,9 +20,16 @@ const props = defineProps({
   page: { type: Number, required: true },
   totalPages: { type: Number, required: true },
   label: { type: String, default: "分頁" },
+  color: {
+    type: String,
+    default: "coral",
+    validator: (value) => Object.hasOwn(COLORS, value),
+  },
 });
 
 const emit = defineEmits(["update:page"]);
+
+const pagerStyle = computed(() => COLORS[props.color] ?? COLORS.coral);
 
 const compact = ref(
   typeof window !== "undefined" &&
@@ -54,10 +72,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <nav class="pager" :aria-label="label">
+  <nav class="pager" :style="pagerStyle" :aria-label="label">
     <AppButton
       type="button"
-      color="coral"
+      :color="color"
       :icon="chevronLeft"
       :disabled="page <= 1"
       @click="select(page - 1)"
@@ -82,7 +100,7 @@ onBeforeUnmount(() => {
 
     <AppButton
       type="button"
-      color="coral"
+      :color="color"
       :disabled="page >= totalPages"
       @click="select(page + 1)"
     >
@@ -130,7 +148,7 @@ onBeforeUnmount(() => {
 
 .pager-page.active {
   border-color: transparent;
-  background: #ff7049;
+  background: var(--pager-bg);
   color: #fff;
 }
 
@@ -144,7 +162,7 @@ onBeforeUnmount(() => {
 }
 
 .pager-page:focus-visible {
-  outline: 2px solid #ff7049;
+  outline: 2px solid var(--pager-bg);
   outline-offset: 3px;
 }
 

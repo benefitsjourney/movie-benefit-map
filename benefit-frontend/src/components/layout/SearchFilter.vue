@@ -142,6 +142,10 @@ function resetQuery() {
         </AppButton>
       </div>
     </form>
+
+    <div v-if="$slots.default" class="search-filter-results">
+      <slot />
+    </div>
   </div>
 </template>
 
@@ -245,6 +249,14 @@ function resetQuery() {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem 1rem;
+}
+
+.search-filter-results:has(*) {
+  margin-top: 2rem;
+}
+
+.search-filter-results:not(:has(*)) {
+  display: none;
 }
 
 @media (max-width: 519px) {

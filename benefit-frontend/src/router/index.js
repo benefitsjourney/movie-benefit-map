@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import FrontLayout from '@/layouts/FrontLayout.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
+import AdminCinemaView from '@/views/AdminCinemaView.vue'
 import AdminCrawlerView from '@/views/AdminCrawlerView.vue'
 import CinemaView from '@/views/CinemaView.vue'
 import MapView from '@/views/MapView.vue'
@@ -43,6 +44,11 @@ const router = createRouter({
           path: 'crawler',
           name: 'admin-crawler',
           component: AdminCrawlerView,
+        },
+        {
+          path: 'cinemas',
+          name: 'admin-cinemas',
+          component: AdminCinemaView,
         },
       ],
     },

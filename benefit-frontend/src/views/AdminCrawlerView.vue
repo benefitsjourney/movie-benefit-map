@@ -156,23 +156,60 @@ async function syncCrawler(crawler) {
     <PageIntro kicker="✦ DATA SYNC" lead="資料" mark="同步" description="更新影城與電影資訊，執行期間請勿離開頁面。" :icon-left="movieIcon"
       :icon-right="clapperboardIcon" :icon-top="databaseIcon" theme="purple" />
 
-    <div class="ticket-grid">
-      <TicketCard v-for="crawler in crawlers" :key="crawler.key" color="purple" :stamp="crawler.stamp"
-        :title="crawler.title" :detail="crawler.description">
-        <template #action>
-          <button type="button" class="ticket-link" :disabled="anyRunning()" @click="runCrawler(crawler)">
-            <Icon :icon="databaseIcon" aria-hidden="true" />
-            {{ jobs[crawler.key].status === "running" ? "同步中…" : "立即同步" }}
-          </button>
-        </template>
-      </TicketCard>
+    <div class="sync-panel">
+      <h2 class="sync-panel-title">
+        <Icon :icon="databaseIcon" aria-hidden="true" />
+        同步項目
+      </h2>
+
+      <div class="ticket-grid">
+        <TicketCard v-for="crawler in crawlers" :key="crawler.key" color="purple" :stamp="crawler.stamp"
+          :title="crawler.title" :detail="crawler.description">
+          <template #action>
+            <button type="button" class="ticket-link" :disabled="anyRunning()" @click="runCrawler(crawler)">
+              <Icon :icon="databaseIcon" aria-hidden="true" />
+              {{ jobs[crawler.key].status === "running" ? "同步中…" : "立即同步" }}
+            </button>
+          </template>
+        </TicketCard>
+      </div>
     </div>
   </section>
 </template>
 
 <style scoped>
+.sync-panel {
+  padding: 1.15rem 1.35rem 1.35rem;
+  border: 1.5px solid var(--c-border);
+  border-radius: 22px;
+  background: var(--c-card);
+  box-shadow: var(--shadow-soft);
+}
+
+.sync-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 1.5rem;
+  color: var(--c-ink);
+  font-size: var(--text-section-title);
+  line-height: 1.3;
+  font-weight: 900;
+}
+
+.sync-panel-title svg {
+  color: #8d72ed;
+  font-size: var(--text-card-title);
+}
+
 .ticket-grid :deep(.ticket-body h2) {
   font-size: var(--text-feature-title);
+}
+
+@media (max-width: 519px) {
+  .sync-panel-title {
+    font-size: var(--text-feature-title);
+  }
 }
 
 @media (min-width: 768px) {
