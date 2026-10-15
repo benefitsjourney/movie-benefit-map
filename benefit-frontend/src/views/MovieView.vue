@@ -82,7 +82,6 @@ const resultUnit = computed(() =>
   filters.value.keyword?.trim() ? "部符合條件的電影" : "部電影等你探索",
 );
 
-// 電影卡片的顯示邏輯只在本頁使用，不必再拆成專用元件。
 function posterUrl(movie) {
   const url =
     typeof movie.imageUrl === "string" ? movie.imageUrl.trim() : "";

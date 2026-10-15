@@ -423,12 +423,27 @@ const hasAction = computed(
   cursor: default;
 }
 
-.ticket-link:hover:not(:disabled),
-.ticket-link:focus-visible,
-:slotted(.ticket-link:hover:not(:disabled)),
-:slotted(.ticket-link:focus-visible) {
+.ticket-link.is-dark,
+:slotted(.ticket-link.is-dark) {
+  border-color: var(--ticket-ink);
+  background: var(--ticket-ink);
+  color: #fff;
+}
+
+.ticket-link:hover:not(:disabled):not(.is-dark),
+.ticket-link:focus-visible:not(.is-dark),
+:slotted(.ticket-link:hover:not(:disabled):not(.is-dark)),
+:slotted(.ticket-link:focus-visible:not(.is-dark)) {
   background: var(--accent);
   color: var(--c-ink);
+}
+
+.ticket-link.is-dark:hover:not(:disabled),
+.ticket-link.is-dark:focus-visible,
+:slotted(.ticket-link.is-dark:hover:not(:disabled)),
+:slotted(.ticket-link.is-dark:focus-visible) {
+  background: color-mix(in srgb, var(--ticket-ink) 78%, white);
+  color: #fff;
 }
 
 .ticket-link:disabled,
