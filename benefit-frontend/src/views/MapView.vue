@@ -23,9 +23,9 @@ import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import http from "@/plugins/axios";
 import { COUNTY_LABELS, countyLabel } from "@/constants/county";
 import { CINEMA_SORT_DEFAULT, compareCinemas } from "@/constants/sort";
-import AppButton from "@/components/AppButton.vue";
-import PageIntro from "@/components/PageIntro.vue";
-import SearchFilter from "@/components/SearchFilter.vue";
+import AppButton from "@/components/ui/Button.vue";
+import PageIntro from "@/components/layout/PageIntro.vue";
+import SearchFilter from "@/components/layout/SearchFilter.vue";
 
 // Leaflet 座標使用 [緯度, 經度]；涵蓋本島、澎湖、金門與馬祖。
 const TAIWAN_BOUNDS = [
@@ -469,7 +469,7 @@ function scrollToSelected(id) {
     if (
       itemTop < container.scrollTop ||
       itemTop + selected.offsetHeight >
-        container.scrollTop + container.clientHeight
+      container.scrollTop + container.clientHeight
     ) {
       container.scrollTo({
         top: Math.max(0, itemTop - 12),
@@ -516,11 +516,11 @@ async function createMap() {
     markerLayer =
       typeof L.markerClusterGroup === "function"
         ? L.markerClusterGroup({
-            showCoverageOnHover: false,
-            maxClusterRadius: 48,
-            spiderfyOnMaxZoom: true,
-            disableClusteringAtZoom: 16,
-          })
+          showCoverageOnHover: false,
+          maxClusterRadius: 48,
+          spiderfyOnMaxZoom: true,
+          disableClusteringAtZoom: 16,
+        })
         : L.layerGroup();
     markerLayer.addTo(map);
     // ResizeObserver 已能監聽容器變動，不再同時註冊 window resize。
@@ -593,31 +593,19 @@ onBeforeUnmount(() => {
 <template>
   <section class="benefit-map-page">
     <!-- 保留共用頁面介紹、篩選模組與 API 接線 -->
-    <PageIntro
-      kicker="✦ BENEFIT MAP"
-      lead="特典"
-      mark="地圖"
-      description="從地圖出發，尋找你的下一站影城。"
-      :icon-left="giftIcon"
-      :icon-right="ticketIcon"
-      :icon-top="pinIcon"
-    />
+    <PageIntro kicker="✦ BENEFIT MAP" lead="特典" mark="地圖" description="從地圖出發，尋找你的下一站影城。" :icon-left="giftIcon"
+      :icon-right="ticketIcon" :icon-top="pinIcon" />
 
-    <SearchFilter
-      v-model="appliedFilters"
-      title="尋找下一站"
-      :title-icon="compassIcon"
-      submit-label="探索影城"
-      :fields="filterFields"
-    />
+    <SearchFilter v-model="appliedFilters" title="尋找下一站" :title-icon="compassIcon" submit-label="探索影城"
+      :fields="filterFields" />
 
     <div class="map-layout">
       <section class="map-frame" aria-label="臺灣影城地圖">
         <div class="map-toolbar">
           <div class="toolbar-title">
-            <span class="toolbar-icon"
-              ><Icon :icon="mapIcon" aria-hidden="true"
-            /></span>
+            <span class="toolbar-icon">
+              <Icon :icon="mapIcon" aria-hidden="true" />
+            </span>
             <div class="toolbar-copy">
               <h2>探索地圖</h2>
               <p>點選地圖上的圖釘，查看影城資訊</p>
@@ -625,29 +613,16 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="toolbar-actions">
-            <label
-              v-if="nearbyActive"
-              class="radius-control"
-              for="benefit-map-radius"
-            >
+            <label v-if="nearbyActive" class="radius-control" for="benefit-map-radius">
               <span>搜尋範圍</span>
               <select id="benefit-map-radius" v-model.number="radius">
-                <option
-                  v-for="option in RADIUS_OPTIONS"
-                  :key="option.value"
-                  :value="option.value"
-                >
+                <option v-for="option in RADIUS_OPTIONS" :key="option.value" :value="option.value">
                   {{ option.label }}
                 </option>
               </select>
             </label>
-            <AppButton
-              type="button"
-              :icon="nearIcon"
-              :disabled="!!mapError"
-              :aria-pressed="nearbyActive"
-              @click="toggleNearby"
-            >
+            <AppButton type="button" :icon="nearIcon" :disabled="!!mapError" :aria-pressed="nearbyActive"
+              @click="toggleNearby">
               {{
                 locating
                   ? "取消搜尋"
@@ -664,12 +639,7 @@ onBeforeUnmount(() => {
         </p>
 
         <div class="map-body">
-          <div
-            ref="mapEl"
-            class="map-canvas"
-            role="region"
-            aria-label="臺灣影城互動地圖"
-          ></div>
+          <div ref="mapEl" class="map-canvas" role="region" aria-label="臺灣影城互動地圖"></div>
 
           <div v-if="loading && !hasLoaded" class="map-overlay" role="status">
             <span class="loading-spinner" aria-hidden="true"></span>
@@ -678,18 +648,11 @@ onBeforeUnmount(() => {
           <div v-if="mapError" class="map-overlay" role="alert">
             {{ mapError }}
           </div>
-          <div
-            v-if="hasLoaded && !!cinemas.length && !markerCount"
-            class="map-empty-tip"
-          >
+          <div v-if="hasLoaded && !!cinemas.length && !markerCount" class="map-empty-tip">
             目前沒有可在地圖上顯示的影城
           </div>
 
-          <div
-            v-if="hasLoaded && !mapError"
-            class="map-info-chip"
-            aria-live="polite"
-          >
+          <div v-if="hasLoaded && !mapError" class="map-info-chip" aria-live="polite">
             <Icon :icon="pinIcon" aria-hidden="true" />
             <span>地圖上有 {{ markerCount }} 間影城</span>
           </div>
@@ -707,14 +670,8 @@ onBeforeUnmount(() => {
             </div>
             <p class="results-hint">{{ resultHint }}</p>
           </div>
-          <button
-            class="refresh-button"
-            type="button"
-            aria-label="更新影城清單"
-            title="更新影城清單"
-            :disabled="loading"
-            @click="loadCinemas"
-          >
+          <button class="refresh-button" type="button" aria-label="更新影城清單" title="更新影城清單" :disabled="loading"
+            @click="loadCinemas">
             <Icon :icon="refreshIcon" aria-hidden="true" />
           </button>
         </div>
@@ -731,9 +688,7 @@ onBeforeUnmount(() => {
         </div>
         <div v-else-if="!hasLoaded" class="panel-state">
           <p>目前無法顯示影城，請再試一次。</p>
-          <AppButton type="button" :icon="refreshIcon" @click="loadCinemas"
-            >再試一次</AppButton
-          >
+          <AppButton type="button" :icon="refreshIcon" @click="loadCinemas">再試一次</AppButton>
         </div>
         <div v-else-if="cinemas.length === 0" class="panel-state">
           <Icon :icon="giftIcon" aria-hidden="true" />
@@ -745,23 +700,11 @@ onBeforeUnmount(() => {
             }}
           </p>
         </div>
-        <div
-          v-else
-          id="benefit-map-results"
-          class="cinema-list"
-          aria-label="符合搜尋條件的影城"
-        >
-          <button
-            v-for="(cinema, index) in cinemaItems"
-            :id="`benefit-map-cinema-${cinema.cinemaId}`"
-            :key="cinema.cinemaId"
-            type="button"
-            class="location-ticket"
-            :class="{ 'is-selected': selectedId === cinema.cinemaId }"
-            :aria-pressed="selectedId === cinema.cinemaId"
-            :disabled="!cinema.canLocate || !!mapError"
-            @click="focusCinema(cinema)"
-          >
+        <div v-else id="benefit-map-results" class="cinema-list" aria-label="符合搜尋條件的影城">
+          <button v-for="(cinema, index) in cinemaItems" :id="`benefit-map-cinema-${cinema.cinemaId}`"
+            :key="cinema.cinemaId" type="button" class="location-ticket"
+            :class="{ 'is-selected': selectedId === cinema.cinemaId }" :aria-pressed="selectedId === cinema.cinemaId"
+            :disabled="!cinema.canLocate || !!mapError" @click="focusCinema(cinema)">
             <span class="ticket-stub" aria-hidden="true">
               <span class="ticket-index">{{
                 String(index + 1).padStart(2, "0")
@@ -772,12 +715,8 @@ onBeforeUnmount(() => {
                 <span class="ticket-county">{{
                   countyLabel(cinema.county) || "其他地區"
                 }}</span>
-                <span v-if="cinema.distanceText" class="ticket-distance"
-                  >直線距離 {{ cinema.distanceText }}</span
-                >
-                <span v-else-if="!cinema.canLocate" class="ticket-muted"
-                  >尚無地圖位置</span
-                >
+                <span v-if="cinema.distanceText" class="ticket-distance">直線距離 {{ cinema.distanceText }}</span>
+                <span v-else-if="!cinema.canLocate" class="ticket-muted">尚無地圖位置</span>
               </span>
               <strong class="ticket-name">{{
                 cinema.cinemaName || "影城"
@@ -787,9 +726,9 @@ onBeforeUnmount(() => {
                 {{ cinema.cinemaAddress || "地址尚未提供" }}
               </span>
             </span>
-            <span class="ticket-action" aria-hidden="true"
-              ><Icon :icon="compassIcon"
-            /></span>
+            <span class="ticket-action" aria-hidden="true">
+              <Icon :icon="compassIcon" />
+            </span>
           </button>
         </div>
       </aside>
@@ -822,9 +761,11 @@ onBeforeUnmount(() => {
 .benefit-map-page button {
   cursor: pointer;
 }
+
 .benefit-map-page button:disabled {
   cursor: not-allowed;
 }
+
 .benefit-map-page button:focus-visible,
 .benefit-map-page select:focus-visible {
   outline: 2px solid var(--map-brand);
@@ -887,9 +828,11 @@ onBeforeUnmount(() => {
 .toolbar-icon :deep(svg) {
   font-size: 1.55rem;
 }
+
 .toolbar-copy {
   min-width: 0;
 }
+
 .toolbar-copy h2 {
   margin: 0;
   font-size: var(--text-feature-title, 1.25rem);
@@ -897,6 +840,7 @@ onBeforeUnmount(() => {
   font-weight: 900;
   letter-spacing: 0.015em;
 }
+
 .toolbar-copy p {
   margin: 0.12rem 0 0;
   color: var(--map-muted);
@@ -980,9 +924,11 @@ onBeforeUnmount(() => {
   font-weight: 750;
   pointer-events: none;
 }
+
 .map-info-chip :deep(svg) {
   color: var(--map-brand);
 }
+
 .map-empty-tip {
   bottom: 4.3rem;
   border-radius: 12px;
@@ -1031,12 +977,14 @@ onBeforeUnmount(() => {
 .results-heading-main {
   min-width: 0;
 }
+
 .results-title-row {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
   gap: 0.55rem;
 }
+
 .results-title-row h2 {
   margin: 0;
   color: var(--map-navy);
@@ -1059,6 +1007,7 @@ onBeforeUnmount(() => {
   font-weight: 850;
   font-variant-numeric: tabular-nums;
 }
+
 .count small {
   font-size: 1rem;
   font-weight: 700;
@@ -1085,9 +1034,11 @@ onBeforeUnmount(() => {
     color 0.2s,
     transform 0.2s;
 }
+
 .refresh-button :deep(svg) {
   font-size: 1.3rem;
 }
+
 .refresh-button:hover:not(:disabled) {
   color: var(--map-brand);
   background: var(--map-soft);
@@ -1101,10 +1052,12 @@ onBeforeUnmount(() => {
   border-radius: 12px;
   font-weight: 700;
 }
+
 .error-notice {
   color: #a74735;
   background: #fff0ed;
 }
+
 .refresh-notice {
   color: #246960;
   background: #edf9f6;
@@ -1121,9 +1074,11 @@ onBeforeUnmount(() => {
   color: var(--map-muted);
   text-align: center;
 }
+
 .panel-state p {
   margin: 0;
 }
+
 .panel-state :deep(svg) {
   font-size: 2rem;
   color: #d89a80;
@@ -1176,12 +1131,14 @@ onBeforeUnmount(() => {
   background: #fff0e6;
   color: #b75c3e;
 }
+
 .ticket-index {
   font-size: 1.45rem;
   line-height: 1.2;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
 }
+
 .ticket-content {
   display: flex;
   min-width: 0;
@@ -1189,6 +1146,7 @@ onBeforeUnmount(() => {
   gap: 0.17rem;
   padding-block: 0.7rem;
 }
+
 .ticket-topline {
   display: flex;
   flex-wrap: wrap;
@@ -1196,17 +1154,20 @@ onBeforeUnmount(() => {
   gap: 0.3rem 0.6rem;
   min-width: 0;
 }
+
 .ticket-county {
   color: #a4654d;
   font-size: 1rem;
   font-weight: 800;
 }
+
 .ticket-distance,
 .ticket-muted {
   color: #81766f;
   font-size: 1rem;
   font-weight: 600;
 }
+
 .ticket-name {
   display: block;
   color: var(--map-navy);
@@ -1215,6 +1176,7 @@ onBeforeUnmount(() => {
   font-weight: 900;
   overflow-wrap: anywhere;
 }
+
 .ticket-address {
   display: flex;
   align-items: flex-start;
@@ -1224,12 +1186,14 @@ onBeforeUnmount(() => {
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
+
 .ticket-address :deep(svg) {
   flex: none;
   margin-top: 0.15rem;
   font-size: 1.07rem;
   color: #aa8272;
 }
+
 .ticket-action {
   color: #b3aaa2;
   font-size: 1.25rem;
@@ -1244,23 +1208,28 @@ onBeforeUnmount(() => {
   background: #fff5ee;
   box-shadow: 0 5px 15px rgb(46 34 26 / 7%);
 }
+
 .location-ticket:hover:not(:disabled) .ticket-action {
   color: var(--map-brand);
   transform: rotate(20deg);
 }
+
 .location-ticket.is-selected {
   border-color: var(--map-brand);
   background: #fff5ef;
   box-shadow: 0 0 0 1px rgb(243 108 78 / 30%);
 }
+
 .location-ticket.is-selected .ticket-stub {
   background: var(--map-brand);
   color: #fff;
   border-right-color: rgb(255 255 255 / 60%);
 }
+
 .location-ticket.is-selected .ticket-action {
   color: var(--map-brand);
 }
+
 .location-ticket:disabled {
   opacity: 0.63;
 }
@@ -1270,6 +1239,7 @@ onBeforeUnmount(() => {
   border: none;
   background: transparent;
 }
+
 .map-canvas :deep(.benefit-marker) {
   display: block;
   width: 21px;
@@ -1281,17 +1251,20 @@ onBeforeUnmount(() => {
   background: #f36c4e;
   box-shadow: 0 3px 10px #1d354c66;
 }
+
 .map-canvas :deep(.benefit-marker.is-selected) {
   background: var(--map-navy);
   box-shadow:
     0 0 0 4px rgb(255 255 255 / 60%),
     0 4px 13px rgb(29 53 76 / 35%);
 }
+
 .map-canvas :deep(.marker-cluster-small),
 .map-canvas :deep(.marker-cluster-medium),
 .map-canvas :deep(.marker-cluster-large) {
   background: #ffd3bcb8;
 }
+
 .map-canvas :deep(.marker-cluster-small div),
 .map-canvas :deep(.marker-cluster-medium div),
 .map-canvas :deep(.marker-cluster-large div) {
@@ -1300,36 +1273,44 @@ onBeforeUnmount(() => {
   font-size: 1rem;
   font-weight: 900;
 }
+
 .map-canvas :deep(.leaflet-control-attribution) {
   font-size: 1rem;
   line-height: 1.4;
 }
+
 .map-canvas :deep(.benefit-map-popup .leaflet-popup-content-wrapper) {
   border-radius: 14px;
 }
+
 .map-canvas :deep(.benefit-popup) {
   min-width: 190px;
   font-size: 1rem;
   line-height: 1.5;
 }
+
 .map-canvas :deep(.popup-eyebrow) {
   color: #a85f46;
   font-weight: 800;
 }
+
 .map-canvas :deep(.popup-title) {
   display: block;
   margin: 0.3rem 0;
   font-size: 1.25rem;
 }
+
 .map-canvas :deep(.popup-address),
 .map-canvas :deep(.popup-distance) {
   margin: 0;
   color: #516273;
 }
+
 .map-canvas :deep(.popup-distance) {
   margin-top: 0.35rem;
   font-weight: 800;
 }
+
 .map-canvas :deep(.popup-link) {
   display: inline-block;
   margin-top: 0.55rem;
@@ -1347,6 +1328,7 @@ onBeforeUnmount(() => {
   .map-layout {
     grid-template-columns: minmax(0, 1.25fr) minmax(330px, 0.85fr);
   }
+
   .ticket-name {
     font-size: 1.125rem;
   }
@@ -1356,18 +1338,22 @@ onBeforeUnmount(() => {
   .map-layout {
     grid-template-columns: 1fr;
   }
+
   .map-frame {
     height: 56vh;
     min-height: 410px;
   }
+
   .results-panel {
     height: auto;
     min-height: 260px;
   }
+
   .cinema-list {
     flex: initial;
     max-height: 560px;
   }
+
   .toolbar-copy p {
     display: none;
   }
@@ -1377,44 +1363,56 @@ onBeforeUnmount(() => {
   .map-layout {
     gap: 0.85rem;
   }
+
   .map-toolbar {
     padding: 0.8rem;
   }
+
   .toolbar-actions {
     width: 100%;
   }
+
   .toolbar-actions :deep(.app-button) {
     flex: 1;
   }
+
   .radius-control {
     width: 100%;
     justify-content: space-between;
   }
+
   .radius-control select {
     width: 58%;
     max-width: none;
   }
+
   .map-frame {
     height: 58vh;
     min-height: 425px;
   }
+
   .results-panel {
     padding: 1rem 0.8rem;
   }
+
   .results-title-row h2 {
     font-size: 1.625rem;
   }
+
   .location-ticket {
     grid-template-columns: 55px minmax(0, 1fr) 20px;
     gap: 0.55rem;
     padding-right: 0.55rem;
   }
+
   .ticket-index {
     font-size: 1.3rem;
   }
+
   .ticket-name {
     font-size: 1.125rem;
   }
+
   .map-info-chip {
     left: 0.65rem;
     bottom: 0.65rem;
@@ -1425,11 +1423,13 @@ onBeforeUnmount(() => {
   .loading-spinner {
     animation: none;
   }
+
   .location-ticket,
   .ticket-action,
   .refresh-button {
     transition: none;
   }
+
   .location-ticket:hover:not(:disabled),
   .refresh-button:hover:not(:disabled) {
     transform: none;

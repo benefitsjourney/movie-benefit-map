@@ -11,11 +11,11 @@ import popcornIcon from "@iconify-icons/mdi/popcorn";
 import { COUNTY_LABELS, countyLabel, countyTicketColor } from "@/constants/county";
 import { CINEMA_SORT_DEFAULT } from "@/constants/sort";
 import { useApiCollection } from "@/composables/useApiCollection";
-import PageIntro from "@/components/PageIntro.vue";
-import ResultBanner from "@/components/ResultBanner.vue";
-import SearchFilter from "@/components/SearchFilter.vue";
-import StatePanel from "@/components/StatePanel.vue";
-import TicketCard from "@/components/TicketCard.vue";
+import PageIntro from "@/components/layout/PageIntro.vue";
+import ResultBanner from "@/components/layout/ResultBanner.vue";
+import SearchFilter from "@/components/layout/SearchFilter.vue";
+import StatePanel from "@/components/layout/StatePanel.vue";
+import TicketCard from "@/components/ui/TicketCard.vue";
 
 const filters = ref({ keyword: "", county: "" });
 const filterFields = [
@@ -62,63 +62,24 @@ const scopeText = computed(() =>
 
 <template>
   <section class="cinema-page">
-    <PageIntro
-      kicker="✦ CINEMA JOURNEY"
-      lead="下一站，"
-      mark="電影院"
-      tail="！"
-      description="探索城市裡的每間影城，開啟你的特典旅程。"
-      :icon-left="ticketIcon"
-      :icon-right="popcornIcon"
-      :icon-top="pinIcon"
-    />
+    <PageIntro kicker="✦ CINEMA JOURNEY" lead="下一站，" mark="電影院" tail="！" description="探索城市裡的每間影城，開啟你的特典旅程。"
+      :icon-left="ticketIcon" :icon-right="popcornIcon" :icon-top="pinIcon" />
 
-    <SearchFilter
-      v-model="filters"
-      title="尋找下一站"
-      :title-icon="compassIcon"
-      submit-label="探索影城"
-      :fields="filterFields"
-    />
+    <SearchFilter v-model="filters" title="尋找下一站" :title-icon="compassIcon" submit-label="探索影城"
+      :fields="filterFields" />
 
-    <StatePanel
-      v-if="loading"
-      variant="loading"
-      message="正在尋找影城…"
-      :icon="filmIcon"
-    />
-    <StatePanel
-      v-else-if="error"
-      variant="error"
-      title="目前無法取得影城資料"
-      message="請確認連線後再試一次。"
-      @retry="retry"
-    />
+    <StatePanel v-if="loading" variant="loading" message="正在尋找影城…" :icon="filmIcon" />
+    <StatePanel v-else-if="error" variant="error" title="目前無法取得影城資料" message="請確認連線後再試一次。" @retry="retry" />
 
     <template v-else>
-      <ResultBanner
-        :icon="ticketIcon"
-        title="探索中的影城"
-        :count="cinemas.length"
-        :unit-text="filters.keyword?.trim() ? '間符合條件的影城' : '間影城等你探索'"
-        empty-text="這條路線還沒有找到影城，換個條件試試吧！"
-        action-to="/map"
-        :action-icon="pinIcon"
-        :action-label="scopeText"
-      />
+      <ResultBanner :icon="ticketIcon" title="探索中的影城" :count="cinemas.length"
+        :unit-text="filters.keyword?.trim() ? '間符合條件的影城' : '間影城等你探索'" empty-text="這條路線還沒有找到影城，換個條件試試吧！" action-to="/map"
+        :action-icon="pinIcon" :action-label="scopeText" />
 
       <div v-if="cinemas.length" class="ticket-grid">
-        <TicketCard
-          v-for="(cinema, index) in cinemas"
-          :key="cinema.cinemaId"
-          :color="countyTicketColor(cinema.county)"
-          :appear="index < 6"
-          :stamp="countyLabel(cinema.county)"
-          :title="cinema.cinemaName"
-          :href="cinema.officialWebsiteUrl || ''"
-          link-text="影城官網"
-          empty-text="尚未提供官網"
-        >
+        <TicketCard v-for="(cinema, index) in cinemas" :key="cinema.cinemaId" :color="countyTicketColor(cinema.county)"
+          :appear="index < 6" :stamp="countyLabel(cinema.county)" :title="cinema.cinemaName"
+          :href="cinema.officialWebsiteUrl || ''" link-text="影城官網" empty-text="尚未提供官網">
           <template #detail>
             <Icon :icon="pinIcon" aria-hidden="true" />
             <span>{{ cinema.cinemaAddress || "地址未提供" }}</span>

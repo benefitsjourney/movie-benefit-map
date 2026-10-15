@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { Icon } from "@iconify/vue";
 import chevronLeft from "@iconify-icons/mdi/chevron-left";
 import chevronRight from "@iconify-icons/mdi/chevron-right";
-import AppButton from "@/components/AppButton.vue";
+import AppButton from "@/components/ui/Button.vue";
 
 const props = defineProps({
   page: { type: Number, required: true },

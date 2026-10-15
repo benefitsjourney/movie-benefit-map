@@ -16,7 +16,7 @@ import { computed, reactive, useId, watch } from "vue";
 import { Icon } from "@iconify/vue";
 import searchIcon from "@iconify-icons/mdi/magnify";
 import refreshIcon from "@iconify-icons/mdi/refresh";
-import AppButton from "@/components/AppButton.vue";
+import AppButton from "@/components/ui/Button.vue";
 
 const filters = defineModel({
   type: Object,

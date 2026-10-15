@@ -8,7 +8,7 @@ export const ACCENTS = {
 <script setup>
 import { computed } from "vue";
 import { Icon } from "@iconify/vue";
-import AppButton from "@/components/AppButton.vue";
+import AppButton from "@/components/ui/Button.vue";
 
 const props = defineProps({
   variant: {
