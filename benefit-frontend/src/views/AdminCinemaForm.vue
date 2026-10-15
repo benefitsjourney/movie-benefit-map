@@ -10,11 +10,13 @@ import pinIcon from "@iconify-icons/mdi/map-marker-outline";
 import formIcon from "@iconify-icons/mdi/form-textbox";
 import plusIcon from "@iconify-icons/mdi/plus";
 import pencilIcon from "@iconify-icons/mdi/pencil-outline";
+import arrowLeftIcon from "@iconify-icons/mdi/arrow-left";
 import http from "@/plugins/axios";
 import { COUNTY_LABELS } from "@/constants/county";
 import { openAppAlert } from "@/components/ui/Alert.vue";
 import PageIntro from "@/components/layout/PageIntro.vue";
 import Form from "@/components/ui/Form.vue";
+import AppButton from "@/components/ui/Button.vue";
 import Switch from "@/components/ui/Switch.vue";
 
 const CLIENT_ERROR = "請修正標示的欄位。";
@@ -304,6 +306,10 @@ async function save() {
   }
 }
 
+function backToList() {
+  router.push({ name: "admin-cinemas" });
+}
+
 watch(() => [route.name, route.params.id], loadCinema, { immediate: true });
 
 onUnmounted(() => {
@@ -341,6 +347,11 @@ onUnmounted(() => {
       @submit="save"
       @retry="loadCinema"
     >
+      <template #actions>
+        <AppButton type="button" color="purple" :icon="arrowLeftIcon" @click="backToList">
+          返回影城一覽
+        </AppButton>
+      </template>
       <section class="form-section">
         <h3 class="form-section-title">基本資料</h3>
 

@@ -76,10 +76,15 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.coral);
     :aria-busy="submitting"
     @submit.prevent="$emit('submit')"
   >
-    <h2 v-if="title" class="form-title">
-      <Icon v-if="titleIcon" :icon="titleIcon" aria-hidden="true" />
-      {{ title }}
-    </h2>
+    <div v-if="title || $slots.actions" class="form-head">
+      <h2 v-if="title" class="form-title">
+        <Icon v-if="titleIcon" :icon="titleIcon" aria-hidden="true" />
+        {{ title }}
+      </h2>
+      <div v-if="$slots.actions" class="form-head-actions">
+        <slot name="actions" />
+      </div>
+    </div>
 
     <p v-if="formError" class="form-banner" role="alert">
       <Icon :icon="alertIcon" aria-hidden="true" />
@@ -108,14 +113,30 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.coral);
   box-shadow: var(--shadow-soft);
 }
 
+.form-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
 .form-title {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  margin: 0 0 1rem;
+  min-width: 0;
+  margin: 0;
   font-size: var(--text-section-title);
   line-height: 1.3;
   font-weight: 900;
+}
+
+.form-head-actions {
+  display: flex;
+  flex: none;
+  margin-left: auto;
 }
 
 .form-title svg {
@@ -155,8 +176,21 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.coral);
 }
 
 @media (max-width: 519px) {
+  .form-head {
+    align-items: stretch;
+  }
+
   .form-title {
     font-size: var(--text-feature-title);
+  }
+
+  .form-head-actions {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+
+  .form-head-actions :deep(.app-button) {
+    width: 100%;
   }
 
   .form-actions {
