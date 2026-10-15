@@ -27,9 +27,9 @@ const props = defineProps({
   count: { type: Number, default: 0 },
   unitText: { type: String, default: "" },
   emptyText: { type: String, default: "" },
-  actionTo: { type: String, required: true },
-  actionIcon: { type: [Object, String], required: true },
-  actionLabel: { type: String, required: true },
+  actionTo: { type: String, default: "" },
+  actionIcon: { type: [Object, String], default: null },
+  actionLabel: { type: String, default: "" },
   theme: {
     type: String,
     default: "yellow",
@@ -57,7 +57,10 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
       </p>
     </div>
 
-    <RouterLink class="result-scope" :to="actionTo">
+    <div v-if="$slots.action" class="result-action">
+      <slot name="action" />
+    </div>
+    <RouterLink v-else class="result-scope" :to="actionTo">
       <Icon :icon="actionIcon" aria-hidden="true" />
       {{ actionLabel }}
     </RouterLink>
@@ -125,6 +128,10 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
   font-weight: 800;
 }
 
+.result-action {
+  flex: none;
+}
+
 .result-scope {
   display: inline-flex;
   flex: none;
@@ -185,6 +192,7 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
     flex: 1 1 12rem;
   }
 
+  .result-action,
   .result-scope {
     margin-left: auto;
   }

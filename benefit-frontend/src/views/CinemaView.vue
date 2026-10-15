@@ -18,7 +18,7 @@ import SearchFilter from "@/components/layout/SearchFilter.vue";
 import StatePanel from "@/components/layout/StatePanel.vue";
 import TicketCard from "@/components/ui/TicketCard.vue";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 21;
 const filters = ref({ keyword: "", county: "" });
 const page = ref(1);
 const listTop = ref(null);
@@ -93,13 +93,14 @@ function goToPage(next) {
     <PageIntro kicker="✦ CINEMA JOURNEY" lead="下一站，" mark="電影院" tail="！" description="探索城市裡的每間影城，開啟你的特典旅程。"
       :icon-left="ticketIcon" :icon-right="popcornIcon" :icon-top="pinIcon" />
 
-    <ResultBanner v-if="!(loading && !cinemas.length) && !error" :icon="ticketIcon" title="探索中的影城" :count="totalElements"
-      :unit-text="filters.keyword?.trim() ? '間符合條件的影城' : '間影城等你探索'" empty-text="這條路線還沒有找到影城，換個條件試試吧！" action-to="/map"
-      :action-icon="pinIcon" :action-label="scopeText" />
+    <ResultBanner v-if="!(loading && !cinemas.length) && !error" :icon="ticketIcon" title="探索中的影城"
+      :count="totalElements" :unit-text="filters.keyword?.trim() ? '間符合條件的影城' : '間影城等你探索'"
+      empty-text="這條路線還沒有找到影城，換個條件試試吧！" action-to="/map" :action-icon="pinIcon" :action-label="scopeText" />
 
     <SearchFilter v-if="!(loading && !cinemas.length) && !error" v-model="appliedFilters" title="尋找下一站"
       :title-icon="compassIcon" submit-label="探索影城" :fields="filterFields">
-      <div v-if="cinemas.length" ref="listTop" class="ticket-grid" :class="{ 'is-loading': loading }" :aria-busy="loading">
+      <div v-if="cinemas.length" ref="listTop" class="ticket-grid" :class="{ 'is-loading': loading }"
+        :aria-busy="loading">
         <TicketCard v-for="(cinema, index) in cinemas" :key="cinema.cinemaId" :color="countyTicketColor(cinema.county)"
           :appear="index < 6" :stamp="countyLabel(cinema.county)" :title="cinema.cinemaName"
           :href="cinema.officialWebsiteUrl || ''" link-text="影城官網" empty-text="尚未提供官網">

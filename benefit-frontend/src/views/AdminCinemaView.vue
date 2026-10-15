@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
+import { useRouter } from "vue-router";
 import movieIcon from "@iconify-icons/mdi/movie-open-outline";
 import pinIcon from "@iconify-icons/mdi/map-marker-outline";
 import tableIcon from "@iconify-icons/mdi/table-large";
@@ -8,6 +9,8 @@ import filterIcon from "@iconify-icons/mdi/filter-variant";
 import sortIcon from "@iconify-icons/mdi/sort";
 import eyeIcon from "@iconify-icons/mdi/eye-outline";
 import storeIcon from "@iconify-icons/mdi/store-outline";
+import plusIcon from "@iconify-icons/mdi/plus";
+import pencilIcon from "@iconify-icons/mdi/pencil-outline";
 
 import { COUNTY_LABELS, countyLabel } from "@/constants/county";
 import { parseSort } from "@/constants/sort";
@@ -18,7 +21,9 @@ import SearchFilter from "@/components/layout/SearchFilter.vue";
 import StatePanel from "@/components/layout/StatePanel.vue";
 import DataTable from "@/components/ui/DataTable.vue";
 import Pagination from "@/components/ui/Pagination.vue";
+import AppButton from "@/components/ui/Button.vue";
 
+const router = useRouter();
 const PAGE_SIZE = 20;
 const SORT_DEFAULT = { orderBy: "CINEMA_ID", sort: "ASC" };
 const SORT_OPTIONS = [
@@ -106,6 +111,7 @@ const filterFields = [
 ];
 
 const columns = [
+  { key: "actions", label: "操作", minWidth: "7.5rem", nowrap: true, align: "center" },
   { key: "cinemaId", label: "編號", minWidth: "5.5rem", nowrap: true, align: "center" },
   { key: "sourceId", label: "來源編號", minWidth: "8rem", nowrap: true, align: "center" },
   { key: "cinemaName", label: "影城名稱", minWidth: "12rem" },
@@ -206,6 +212,14 @@ const resultUnit = computed(() =>
   hasFilters.value ? "間符合條件的影城" : "間影城",
 );
 
+function openCreate() {
+  router.push({ name: "admin-cinema-create" });
+}
+
+function openEdit(cinemaId) {
+  router.push({ name: "admin-cinema-edit", params: { id: cinemaId } });
+}
+
 function goToPage(next) {
   if (!Number.isInteger(next) || next < 1 || next > totalPages.value || next === page.value) return;
   page.value = next;
@@ -218,18 +232,35 @@ function goToPage(next) {
 
 <template>
   <section>
-    <PageIntro kicker="✦ CINEMA DATA" lead="影城" mark="資料" description="查看目前收錄的影城名稱、地址、座標與顯示狀態。" :icon-left="movieIcon"
+    <PageIntro kicker="✦ CINEMA DATA" lead="影城" mark="資料" description="查看、新增或修改目前收錄的影城名稱、地址、座標與顯示狀態。" :icon-left="movieIcon"
       :icon-right="pinIcon" :icon-top="tableIcon" theme="purple" />
 
     <ResultBanner v-if="!(loading && !cinemas.length) && !error" :icon="movieIcon" title="收錄中的影城" :count="totalElements"
-      :unit-text="resultUnit" empty-text="目前沒有符合條件的影城。" action-to="/cinemas" :action-icon="pinIcon"
-      action-label="前往前台影城" theme="purple" />
+      :unit-text="resultUnit" empty-text="目前沒有符合條件的影城。" theme="purple">
+      <template #action>
+        <AppButton type="button" color="purple" :icon="plusIcon" @click="openCreate">
+          新增影城
+        </AppButton>
+      </template>
+    </ResultBanner>
 
     <SearchFilter v-if="!(loading && !cinemas.length) && !error" v-model="appliedFilters" title="篩選影城"
       :title-icon="filterIcon" submit-label="查詢影城" :fields="filterFields" theme="purple">
       <div ref="listTop" class="cinema-sheet">
         <DataTable caption="影城資料表" :columns="columns" :rows="cinemas" row-key="cinemaId" empty-text="目前沒有符合條件的影城。"
-          :loading="loading" theme="purple" />
+          :loading="loading" theme="purple">
+          <template #cell-actions="{ row }">
+            <AppButton
+              type="button"
+              color="purple"
+              variant="outline"
+              :icon="pencilIcon"
+              @click="openEdit(row.cinemaId)"
+            >
+              修改
+            </AppButton>
+          </template>
+        </DataTable>
       </div>
 
       <Pagination v-if="totalPages > 1" :page="page" :total-pages="totalPages" label="影城列表分頁" color="purple"

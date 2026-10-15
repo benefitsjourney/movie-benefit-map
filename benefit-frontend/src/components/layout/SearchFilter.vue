@@ -101,10 +101,15 @@ function resetQuery() {
 
 <template>
   <div class="search-filter" :style="themeStyle">
-    <h2 v-if="title" class="search-filter-title">
-      <Icon v-if="titleIcon" :icon="titleIcon" aria-hidden="true" />
-      {{ title }}
-    </h2>
+    <div v-if="title || $slots.actions" class="search-filter-head">
+      <h2 v-if="title" class="search-filter-title">
+        <Icon v-if="titleIcon" :icon="titleIcon" aria-hidden="true" />
+        {{ title }}
+      </h2>
+      <div v-if="$slots.actions" class="search-filter-head-actions">
+        <slot name="actions" />
+      </div>
+    </div>
 
     <form class="search-filter-grid" @submit.prevent="search">
       <div v-for="field in fields" :key="field.key" class="field">
@@ -159,14 +164,30 @@ function resetQuery() {
   box-shadow: var(--shadow-soft);
 }
 
+.search-filter-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.8rem;
+}
+
 .search-filter-title {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  margin: 0 0 0.8rem;
+  min-width: 0;
+  margin: 0;
   font-size: var(--text-section-title);
   line-height: 1.3;
   font-weight: 900;
+}
+
+.search-filter-head-actions {
+  display: flex;
+  flex: none;
+  margin-left: auto;
 }
 
 .search-filter-title svg,
@@ -260,8 +281,21 @@ function resetQuery() {
 }
 
 @media (max-width: 519px) {
+  .search-filter-head {
+    align-items: stretch;
+  }
+
   .search-filter-title {
     font-size: var(--text-feature-title);
+  }
+
+  .search-filter-head-actions {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+
+  .search-filter-head-actions :deep(.app-button) {
+    width: 100%;
   }
 
   .field,
