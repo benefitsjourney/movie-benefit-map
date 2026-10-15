@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 import jakarta.servlet.FilterChain;
 
@@ -48,8 +49,10 @@ import com.collection.benefitsjourney.dto.CinemaRequest;
 import com.collection.benefitsjourney.enums.CinemaSort;
 import com.collection.benefitsjourney.enums.County;
 import com.collection.benefitsjourney.enums.SortOrder;
+import com.collection.benefitsjourney.domain.UsersBean;
 import com.collection.benefitsjourney.jwt.JsonWebTokenFilter;
 import com.collection.benefitsjourney.jwt.JsonWebTokenUtility;
+import com.collection.benefitsjourney.repository.UsersRepository;
 import com.collection.benefitsjourney.service.CinemaMapService;
 import com.collection.benefitsjourney.service.CinemaService;
 
@@ -651,13 +654,15 @@ class CinemaControllerTest {
     class JwtTests {
         private JsonWebTokenFilter filter;
         private JsonWebTokenUtility utility;
+        private UsersRepository usersRepository;
         private FilterChain chain;
 
         @BeforeEach
         void setUp() {
             utility = mock(JsonWebTokenUtility.class);
+            usersRepository = mock(UsersRepository.class);
             chain = mock(FilterChain.class);
-            filter = new JsonWebTokenFilter(utility);
+            filter = new JsonWebTokenFilter(utility, usersRepository);
         }
 
         @Test
@@ -684,31 +689,31 @@ class CinemaControllerTest {
         }
 
         @Test
-        @DisplayName("POST /cinemas 沒有 Token 應回傳 403")
+        @DisplayName("POST /cinemas 沒有 Token 應回傳 401")
         void postCinemaWithoutToken() throws Exception {
             var request = new MockHttpServletRequest("POST", "/cinemas");
             var response = new MockHttpServletResponse();
 
             filter.doFilter(request, response, chain);
 
-            assertEquals(403, response.getStatus());
+            assertEquals(401, response.getStatus());
             verifyNoInteractions(chain, utility);
         }
 
         @Test
-        @DisplayName("PATCH /cinemas/{id} 沒有 Token 應回傳 403")
+        @DisplayName("PATCH /cinemas/{id} 沒有 Token 應回傳 401")
         void patchCinemaWithoutToken() throws Exception {
             var request = new MockHttpServletRequest("PATCH", "/cinemas/1");
             var response = new MockHttpServletResponse();
 
             filter.doFilter(request, response, chain);
 
-            assertEquals(403, response.getStatus());
+            assertEquals(401, response.getStatus());
             verifyNoInteractions(chain, utility);
         }
 
         @Test
-        @DisplayName("POST /cinemas 使用錯誤 Token 應回傳 403")
+        @DisplayName("POST /cinemas 使用錯誤 Token 應回傳 401")
         void postCinemaInvalidToken() throws Exception {
             var request = new MockHttpServletRequest("POST", "/cinemas");
             var response = new MockHttpServletResponse();
@@ -717,7 +722,7 @@ class CinemaControllerTest {
 
             filter.doFilter(request, response, chain);
 
-            assertEquals(403, response.getStatus());
+            assertEquals(401, response.getStatus());
             verify(chain, never()).doFilter(request, response);
         }
 
@@ -728,6 +733,10 @@ class CinemaControllerTest {
             var response = new MockHttpServletResponse();
             request.addHeader("Authorization", "Bearer valid-token");
             when(utility.validateToken("valid-token")).thenReturn("123");
+            UsersBean user = new UsersBean();
+            user.setRole("USER");
+            user.setStatus("ACTIVE");
+            when(usersRepository.findById(123)).thenReturn(Optional.of(user));
 
             filter.doFilter(request, response, chain);
 
