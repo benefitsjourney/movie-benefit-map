@@ -10,6 +10,7 @@ import eyeIcon from "@iconify-icons/mdi/eye-outline";
 import storeIcon from "@iconify-icons/mdi/store-outline";
 
 import { COUNTY_LABELS, countyLabel } from "@/constants/county";
+import { parseSort } from "@/constants/sort";
 import { useApiCollection } from "@/composables/useApiCollection";
 import PageIntro from "@/components/layout/PageIntro.vue";
 import ResultBanner from "@/components/layout/ResultBanner.vue";
@@ -29,7 +30,6 @@ const SORT_OPTIONS = [
   { value: "CREATED_AT:DESC", label: "建立時間（新 → 舊）" },
   { value: "CREATED_AT:ASC", label: "建立時間（舊 → 新）" },
 ];
-const SORT_KEYS = new Set(["CINEMA_ID:ASC", ...SORT_OPTIONS.map((option) => option.value)]);
 const ACTIVE_OPTIONS = [
   { value: "true", label: "營業中" },
   { value: "false", label: "已歇業" },
@@ -155,13 +155,6 @@ const columns = [
   { key: "updatedAt", label: "更新時間", minWidth: "12rem", nowrap: true, align: "center" },
 ];
 
-function parseSort(sortKey) {
-  const key = String(sortKey ?? "");
-  if (!SORT_KEYS.has(key)) return SORT_DEFAULT;
-  const [orderBy, sort] = key.split(":");
-  return { orderBy, sort };
-}
-
 function coordText(value) {
   if (value == null || value === "") return "";
   const number = Number(value);
@@ -175,7 +168,7 @@ function flagParam(value) {
 }
 
 const requestParams = computed(() => {
-  const { orderBy, sort } = parseSort(filters.value.sortKey);
+  const { orderBy, sort } = parseSort(filters.value.sortKey, SORT_DEFAULT, SORT_OPTIONS);
   const params = {
     page: page.value,
     size: PAGE_SIZE,

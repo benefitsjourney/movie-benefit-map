@@ -42,7 +42,7 @@ const TICKET_COLOR_BY_REGION = {
   ],
 };
 
-export const COUNTY_TICKET_COLORS = Object.fromEntries(
+const COUNTY_TICKET_COLORS = Object.fromEntries(
   Object.entries(TICKET_COLOR_BY_REGION).flatMap(([color, counties]) =>
     counties.map((county) => [county, color]),
   ),

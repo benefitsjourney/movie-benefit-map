@@ -1,7 +1,4 @@
-@import "./front.css";
-@import "./admin.css";
-
-/* 前後台共用：字級、字體、版面骨架 */
+/* 前後台共用：字級、字體、版面骨架。前台色票寫在 :root，後台由 .theme-admin 覆寫。 */
 :root {
   --shadow-soft: 0 10px 24px rgb(41 43 53 / 7%);
   --ease: 0.25s ease;
@@ -32,6 +29,26 @@
 
   --leading-body: 1.7;
   --leading-title: 1.35;
+
+  --c-bg: #fff9f1;
+  --c-card: #fffdf8;
+  --c-ink: #292b35;
+  --c-muted: #5c564e;
+  --c-border: #f3e0c4;
+  --c-glow-start: rgb(255 200 87 / 25%);
+  --c-glow-end: rgb(126 167 232 / 18%);
+  --c-selection: #ffe08a;
+}
+
+.theme-admin {
+  --c-bg: #f8f6ff;
+  --c-card: #ffffff;
+  --c-ink: #292b35;
+  --c-muted: #666078;
+  --c-border: #e5dcf5;
+  --c-glow-start: rgb(183 122 255 / 16%);
+  --c-glow-end: rgb(147 184 240 / 20%);
+  --c-selection: #dcc5ff;
 }
 
 html {
@@ -46,125 +63,28 @@ body {
   font-size: var(--text-body);
   line-height: var(--leading-body);
   color: var(--c-ink);
+  background-color: var(--c-bg);
 }
 
-h1,
-.h1 {
+h1 {
   font-size: var(--text-page-title);
   line-height: 1.3;
   font-weight: 900;
 }
 
-h2,
-.h2 {
+h2 {
   font-size: var(--text-section-title);
   line-height: var(--leading-title);
   font-weight: 900;
 }
 
-h3,
-.h3 {
-  font-size: var(--text-card-title);
-  line-height: 1.4;
-  font-weight: 800;
-}
-
-/* Bootstrap 的 small、sm、tooltip、toast 預設低於 16px，這裡拉回共用字級。 */
-small,
-.small,
-.initialism,
-code,
-kbd,
-pre,
-.form-text,
-.valid-feedback,
-.invalid-feedback,
-.figure-caption,
-.blockquote-footer,
-.form-control-sm,
-.form-select-sm,
-.col-form-label-sm,
-.input-group-sm>.form-control,
-.input-group-sm>.form-select,
-.input-group-sm>.input-group-text,
-.input-group-sm>.btn,
-.valid-tooltip,
-.invalid-tooltip,
-.dropdown-header {
-  font-size: var(--text-min);
-}
-
-.btn,
-.page-link,
-.form-control,
-.form-select,
-.input-group-text,
-.dropdown-item,
-.dropdown-item-text,
-.list-group-item,
-.toast-body,
-.modal-body,
-.table,
-.table th,
-.table td {
-  font-size: var(--text-control);
-  line-height: 1.5;
-}
-
-.modal-body,
-.toast-body,
-.table,
-.table td {
-  font-size: var(--text-body);
-  line-height: var(--leading-body);
-}
-
-.modal-title {
-  font-size: var(--text-card-title);
-  line-height: 1.4;
-}
-
-.btn-sm,
-.btn-group-sm>.btn {
-  --bs-btn-font-size: var(--text-min);
-  font-size: var(--text-min);
-}
-
-.badge {
-  --bs-badge-font-size: var(--text-min);
-  font-size: var(--text-min);
-  line-height: 1.4;
-}
-
-.pagination {
-  --bs-pagination-font-size: var(--text-control);
-}
-
-.pagination-sm {
-  --bs-pagination-font-size: var(--text-control);
-}
-
-.tooltip {
-  --bs-tooltip-font-size: var(--text-min);
-  --bs-tooltip-max-width: 18rem;
-  --bs-tooltip-padding-y: 0.4rem;
-  --bs-tooltip-padding-x: 0.7rem;
-}
-
-.popover {
-  --bs-popover-font-size: var(--text-body);
-  --bs-popover-max-width: 22rem;
-}
-
-.toast {
-  --bs-toast-font-size: var(--text-body);
-  --bs-toast-max-width: 24rem;
-  --bs-toast-padding-x: 1rem;
-  --bs-toast-padding-y: 0.75rem;
-}
-
 .app-shell {
   min-height: 100vh;
+  color: var(--c-ink);
+  background-color: var(--c-bg);
+  background-image:
+    radial-gradient(circle at 0% 0%, var(--c-glow-start), transparent 32%),
+    radial-gradient(circle at 100% 10%, var(--c-glow-end), transparent 28%);
 }
 
 .page-main {
@@ -181,7 +101,7 @@ pre,
 
 ::selection {
   color: var(--c-ink);
-  background: #ffe08a;
+  background: var(--c-selection);
 }
 
 @media (prefers-reduced-motion: reduce) {
