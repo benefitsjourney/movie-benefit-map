@@ -1,0 +1,532 @@
+<script setup>
+/**
+ * 影城新增與修改共用頁。
+ * 依路由決定呼叫新增或修改 API；欄位與驗證只寫在這裡。
+ */
+import { computed, onUnmounted, reactive, ref, useId, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import movieIcon from "@iconify-icons/mdi/movie-open-outline";
+import pinIcon from "@iconify-icons/mdi/map-marker-outline";
+import formIcon from "@iconify-icons/mdi/form-textbox";
+import plusIcon from "@iconify-icons/mdi/plus";
+import pencilIcon from "@iconify-icons/mdi/pencil-outline";
+import arrowLeftIcon from "@iconify-icons/mdi/arrow-left";
+import http from "@/plugins/axios";
+import { COUNTY_LABELS } from "@/constants/county";
+import { openAppAlert } from "@/components/ui/Alert.vue";
+import PageIntro from "@/components/layout/PageIntro.vue";
+import Form from "@/components/ui/Form.vue";
+import AppButton from "@/components/ui/Button.vue";
+import Switch from "@/components/ui/Switch.vue";
+
+const CLIENT_ERROR = "請修正標示的欄位。";
+const fieldId = useId();
+
+const route = useRoute();
+const router = useRouter();
+
+const isEdit = computed(() => route.name === "admin-cinema-edit");
+const cinemaId = computed(() => {
+  const id = Number(route.params.id);
+  return Number.isInteger(id) && id > 0 ? id : null;
+});
+
+const loading = ref(false);
+const loadFailed = ref(false);
+const loadErrorMessage = ref("請確認連線後再試一次。");
+const submitting = ref(false);
+const formError = ref("");
+const fieldErrors = ref({});
+
+const form = reactive(emptyForm());
+let requestSerial = 0;
+
+const pageCopy = computed(() =>
+  isEdit.value
+    ? {
+        kicker: "✦ EDIT CINEMA",
+        lead: "修改",
+        description: "更新這間影城的名稱、地址、座標與顯示狀態。",
+        iconTop: pencilIcon,
+        title: "修改影城資料",
+        submitLabel: "儲存修改",
+        submitIcon: pencilIcon,
+      }
+    : {
+        kicker: "✦ NEW CINEMA",
+        lead: "新增",
+        description: "建立一間新的影城，名稱與縣市為必填。",
+        iconTop: plusIcon,
+        title: "新增影城資料",
+        submitLabel: "新增影城",
+        submitIcon: plusIcon,
+      },
+);
+
+const countyOptions = computed(() =>
+  Object.entries(COUNTY_LABELS).map(([value, label]) => ({ value, label })),
+);
+
+function emptyForm() {
+  return {
+    sourceId: "",
+    cinemaName: "",
+    county: "",
+    cinemaAddress: "",
+    latitude: "",
+    longitude: "",
+    officialWebsiteUrl: "",
+    isActive: true,
+    isVisible: true,
+  };
+}
+
+function resetForm(next = emptyForm()) {
+  form.sourceId = next.sourceId;
+  form.cinemaName = next.cinemaName;
+  form.county = next.county;
+  form.cinemaAddress = next.cinemaAddress;
+  form.latitude = next.latitude;
+  form.longitude = next.longitude;
+  form.officialWebsiteUrl = next.officialWebsiteUrl;
+  form.isActive = next.isActive;
+  form.isVisible = next.isVisible;
+}
+
+function textOf(value) {
+  return value == null ? "" : String(value);
+}
+
+function apiMessage(error, fallback) {
+  const message = error?.response?.data?.message;
+  return typeof message === "string" && message.trim() ? message.trim() : fallback;
+}
+
+function applyCinema(cinema) {
+  resetForm({
+    sourceId: textOf(cinema?.sourceId),
+    cinemaName: textOf(cinema?.cinemaName),
+    county: textOf(cinema?.county),
+    cinemaAddress: textOf(cinema?.cinemaAddress),
+    latitude: textOf(cinema?.latitude),
+    longitude: textOf(cinema?.longitude),
+    officialWebsiteUrl: textOf(cinema?.officialWebsiteUrl),
+    isActive: cinema?.isActive !== false,
+    isVisible: cinema?.isVisible !== false,
+  });
+}
+
+async function loadCinema() {
+  const serial = ++requestSerial;
+  fieldErrors.value = {};
+  formError.value = "";
+
+  if (!isEdit.value) {
+    resetForm();
+    loading.value = false;
+    loadFailed.value = false;
+    return;
+  }
+
+  if (cinemaId.value == null) {
+    resetForm();
+    loading.value = false;
+    loadFailed.value = true;
+    loadErrorMessage.value = "網址中的影城編號不正確。";
+    return;
+  }
+
+  loading.value = true;
+  loadFailed.value = false;
+
+  try {
+    const { data } = await http.get(`/cinemas/${cinemaId.value}`);
+    if (serial !== requestSerial) return;
+    applyCinema(data);
+  } catch (error) {
+    if (serial !== requestSerial) return;
+    resetForm();
+    loadFailed.value = true;
+    loadErrorMessage.value = apiMessage(error, "請確認連線後再試一次。");
+  } finally {
+    if (serial === requestSerial) loading.value = false;
+  }
+}
+
+function coordError(value, label, min, max) {
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  if (!/^-?\d{1,3}(\.\d{1,7})?$/.test(text)) {
+    return `${label}須為小數點前最多3位、小數點後最多7位`;
+  }
+  const number = Number(text);
+  if (number < min) return `${label}不可小於${min}`;
+  if (number > max) return `${label}不可大於${max}`;
+  return "";
+}
+
+function validate() {
+  const errors = {};
+  const cinemaName = form.cinemaName.trim();
+  const sourceId = form.sourceId.trim();
+  const cinemaAddress = form.cinemaAddress.trim();
+  const officialWebsiteUrl = form.officialWebsiteUrl.trim();
+
+  if (!cinemaName) errors.cinemaName = "影城名稱不能為空";
+  else if ([...cinemaName].length > 256) errors.cinemaName = "影城名稱長度不可超過256字元";
+
+  if (!form.county) errors.county = "縣市不能為空";
+  else if (!Object.hasOwn(COUNTY_LABELS, form.county)) errors.county = "縣市不能為空";
+
+  if ([...sourceId].length > 64) errors.sourceId = "來源ID長度不可超過64字元";
+  if ([...cinemaAddress].length > 256) errors.cinemaAddress = "地址長度不可超過256字元";
+  if ([...officialWebsiteUrl].length > 512) {
+    errors.officialWebsiteUrl = "官方網站長度不可超過512字元";
+  }
+
+  const latitude = coordError(form.latitude, "緯度", -90, 90);
+  const longitude = coordError(form.longitude, "經度", -180, 180);
+  if (latitude) errors.latitude = latitude;
+  if (longitude) errors.longitude = longitude;
+
+  return errors;
+}
+
+function inputId(key) {
+  return `${fieldId}-${key}`;
+}
+
+function errorId(key) {
+  return `${fieldId}-${key}-error`;
+}
+
+function hintId(key) {
+  return `${fieldId}-${key}-hint`;
+}
+
+function describedBy(key, hint = false) {
+  const ids = [];
+  if (hint) ids.push(hintId(key));
+  if (fieldErrors.value[key]) ids.push(errorId(key));
+  return ids.join(" ") || undefined;
+}
+
+function clearFieldError(key) {
+  formError.value = "";
+  if (!fieldErrors.value[key]) return;
+  const next = { ...fieldErrors.value };
+  delete next[key];
+  fieldErrors.value = next;
+}
+
+function decimalOrNull(value) {
+  const text = String(value ?? "").trim();
+  return text ? Number(text) : null;
+}
+
+function payload() {
+  return {
+    sourceId: form.sourceId.trim() || null,
+    cinemaName: form.cinemaName.trim(),
+    county: form.county,
+    cinemaAddress: form.cinemaAddress.trim(),
+    latitude: decimalOrNull(form.latitude),
+    longitude: decimalOrNull(form.longitude),
+    officialWebsiteUrl: form.officialWebsiteUrl.trim(),
+    isActive: Boolean(form.isActive),
+    isVisible: Boolean(form.isVisible),
+  };
+}
+
+async function save() {
+  if (submitting.value || loading.value) return;
+  if (isEdit.value && cinemaId.value == null) return;
+
+  const errors = validate();
+  fieldErrors.value = errors;
+  const firstInvalid = Object.keys(errors)[0];
+  if (firstInvalid) {
+    formError.value = CLIENT_ERROR;
+    await openAppAlert({
+      variant: "error",
+      title: "無法儲存",
+      text: Object.values(errors).join("、"),
+      confirmText: "知道了",
+      cancelText: "",
+    });
+    document.getElementById(inputId(firstInvalid))?.focus();
+    return;
+  }
+
+  formError.value = "";
+  submitting.value = true;
+  const editing = isEdit.value;
+
+  try {
+    if (editing) {
+      await http.patch(`/cinemas/${cinemaId.value}`, payload());
+    } else {
+      await http.post("/cinemas", payload());
+    }
+
+    await openAppAlert({
+      variant: "success",
+      title: editing ? "已更新影城" : "已新增影城",
+      text: editing ? "影城資料已儲存。" : "新的影城已建立。",
+      confirmText: "返回列表",
+    });
+    await router.push({ name: "admin-cinemas" });
+  } catch (error) {
+    if (error?.response?.status === 401) {
+      formError.value = "";
+      await openAppAlert({
+        variant: "error",
+        title: "無法儲存",
+        text: "請登入管理員帳號",
+        confirmText: "知道了",
+        cancelText: "",
+      });
+      return;
+    }
+
+    const message = apiMessage(
+      error,
+      editing ? "修改影城失敗，請稍後再試。" : "新增影城失敗，請稍後再試。",
+    );
+    formError.value = message;
+    await openAppAlert({
+      variant: "error",
+      title: editing ? "修改影城失敗" : "新增影城失敗",
+      text: message,
+      confirmText: "知道了",
+      cancelText: "",
+    });
+  } finally {
+    submitting.value = false;
+  }
+}
+
+function backToList() {
+  router.push({ name: "admin-cinemas" });
+}
+
+watch(() => [route.name, route.params.id], loadCinema, { immediate: true });
+
+onUnmounted(() => {
+  requestSerial += 1;
+});
+</script>
+
+<template>
+  <section>
+    <PageIntro
+      :kicker="pageCopy.kicker"
+      :lead="pageCopy.lead"
+      mark="影城"
+      :description="pageCopy.description"
+      :icon-left="movieIcon"
+      :icon-right="pinIcon"
+      :icon-top="pageCopy.iconTop"
+      theme="purple"
+    />
+
+    <Form
+      :title="pageCopy.title"
+      :title-icon="formIcon"
+      :loading="loading"
+      loading-message="正在載入影城資料…"
+      :loading-icon="movieIcon"
+      :load-failed="loadFailed"
+      load-error-title="目前無法取得影城資料"
+      :load-error-message="loadErrorMessage"
+      :submitting="submitting"
+      :form-error="formError"
+      :submit-label="pageCopy.submitLabel"
+      :submit-icon="pageCopy.submitIcon"
+      theme="purple"
+      @submit="save"
+      @retry="loadCinema"
+    >
+      <template #actions>
+        <AppButton type="button" color="purple" :icon="arrowLeftIcon" @click="backToList">
+          返回影城一覽
+        </AppButton>
+      </template>
+      <section class="form-section">
+        <h3 class="form-section-title">基本資料</h3>
+
+        <div class="form-field is-wide">
+          <label class="field-label" :for="inputId('cinemaName')">
+            影城名稱 <span class="field-required" aria-hidden="true">*</span>
+          </label>
+          <input
+            :id="inputId('cinemaName')"
+            v-model="form.cinemaName"
+            class="form-control"
+            :class="{ 'is-invalid': fieldErrors.cinemaName }"
+            type="text"
+            maxlength="256"
+            autocomplete="off"
+            required
+            :aria-invalid="fieldErrors.cinemaName ? 'true' : 'false'"
+            :aria-describedby="describedBy('cinemaName')"
+            @input="clearFieldError('cinemaName')"
+          />
+          <p v-if="fieldErrors.cinemaName" :id="errorId('cinemaName')" class="field-error">
+            {{ fieldErrors.cinemaName }}
+          </p>
+        </div>
+
+        <div class="form-field">
+          <label class="field-label" :for="inputId('county')">
+            所在縣市 <span class="field-required" aria-hidden="true">*</span>
+          </label>
+          <select
+            :id="inputId('county')"
+            v-model="form.county"
+            class="form-select"
+            :class="{ 'is-invalid': fieldErrors.county }"
+            required
+            :aria-invalid="fieldErrors.county ? 'true' : 'false'"
+            :aria-describedby="describedBy('county')"
+            @change="clearFieldError('county')"
+          >
+            <option value="">請選擇縣市</option>
+            <option v-for="option in countyOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+          <p v-if="fieldErrors.county" :id="errorId('county')" class="field-error">
+            {{ fieldErrors.county }}
+          </p>
+        </div>
+
+        <div class="form-field">
+          <label class="field-label" :for="inputId('sourceId')">來源編號</label>
+          <input
+            :id="inputId('sourceId')"
+            v-model="form.sourceId"
+            class="form-control"
+            :class="{ 'is-invalid': fieldErrors.sourceId }"
+            type="text"
+            maxlength="64"
+            autocomplete="off"
+            :aria-invalid="fieldErrors.sourceId ? 'true' : 'false'"
+            :aria-describedby="describedBy('sourceId', true)"
+            @input="clearFieldError('sourceId')"
+          />
+          <p :id="hintId('sourceId')" class="field-hint">爬蟲來源的識別碼，不是影城在系統內的編號。</p>
+          <p v-if="fieldErrors.sourceId" :id="errorId('sourceId')" class="field-error">
+            {{ fieldErrors.sourceId }}
+          </p>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <h3 class="form-section-title">位置與聯絡資訊</h3>
+
+        <div class="form-field is-wide">
+          <label class="field-label" :for="inputId('cinemaAddress')">影城地址</label>
+          <input
+            :id="inputId('cinemaAddress')"
+            v-model="form.cinemaAddress"
+            class="form-control"
+            :class="{ 'is-invalid': fieldErrors.cinemaAddress }"
+            type="text"
+            maxlength="256"
+            autocomplete="street-address"
+            :aria-invalid="fieldErrors.cinemaAddress ? 'true' : 'false'"
+            :aria-describedby="describedBy('cinemaAddress')"
+            @input="clearFieldError('cinemaAddress')"
+          />
+          <p v-if="fieldErrors.cinemaAddress" :id="errorId('cinemaAddress')" class="field-error">
+            {{ fieldErrors.cinemaAddress }}
+          </p>
+        </div>
+
+        <div class="form-field">
+          <label class="field-label" :for="inputId('latitude')">緯度</label>
+          <input
+            :id="inputId('latitude')"
+            v-model="form.latitude"
+            class="form-control"
+            :class="{ 'is-invalid': fieldErrors.latitude }"
+            type="text"
+            inputmode="decimal"
+            autocomplete="off"
+            placeholder="例如 25.033964"
+            :aria-invalid="fieldErrors.latitude ? 'true' : 'false'"
+            :aria-describedby="describedBy('latitude')"
+            @input="clearFieldError('latitude')"
+          />
+          <p v-if="fieldErrors.latitude" :id="errorId('latitude')" class="field-error">
+            {{ fieldErrors.latitude }}
+          </p>
+        </div>
+
+        <div class="form-field">
+          <label class="field-label" :for="inputId('longitude')">經度</label>
+          <input
+            :id="inputId('longitude')"
+            v-model="form.longitude"
+            class="form-control"
+            :class="{ 'is-invalid': fieldErrors.longitude }"
+            type="text"
+            inputmode="decimal"
+            autocomplete="off"
+            placeholder="例如 121.564468"
+            :aria-invalid="fieldErrors.longitude ? 'true' : 'false'"
+            :aria-describedby="describedBy('longitude')"
+            @input="clearFieldError('longitude')"
+          />
+          <p v-if="fieldErrors.longitude" :id="errorId('longitude')" class="field-error">
+            {{ fieldErrors.longitude }}
+          </p>
+        </div>
+
+        <div class="form-field is-wide">
+          <label class="field-label" :for="inputId('officialWebsiteUrl')">官方網站</label>
+          <input
+            :id="inputId('officialWebsiteUrl')"
+            v-model="form.officialWebsiteUrl"
+            class="form-control"
+            :class="{ 'is-invalid': fieldErrors.officialWebsiteUrl }"
+            type="text"
+            maxlength="512"
+            inputmode="url"
+            autocomplete="url"
+            placeholder="https://"
+            :aria-invalid="fieldErrors.officialWebsiteUrl ? 'true' : 'false'"
+            :aria-describedby="describedBy('officialWebsiteUrl')"
+            @input="clearFieldError('officialWebsiteUrl')"
+          />
+          <p
+            v-if="fieldErrors.officialWebsiteUrl"
+            :id="errorId('officialWebsiteUrl')"
+            class="field-error"
+          >
+            {{ fieldErrors.officialWebsiteUrl }}
+          </p>
+        </div>
+      </section>
+
+      <section class="form-section">
+        <h3 class="form-section-title">狀態設定</h3>
+
+        <div class="form-field">
+          <span :id="inputId('isActive-label')" class="field-label">營業狀態</span>
+          <Switch v-model="form.isActive" :aria-labelledby="inputId('isActive-label')">
+            {{ form.isActive ? "營業中" : "已歇業" }}
+          </Switch>
+        </div>
+
+        <div class="form-field">
+          <span :id="inputId('isVisible-label')" class="field-label">前台顯示</span>
+          <Switch v-model="form.isVisible" :aria-labelledby="inputId('isVisible-label')">
+            {{ form.isVisible ? "顯示" : "隱藏" }}
+          </Switch>
+        </div>
+      </section>
+    </Form>
+  </section>
+</template>

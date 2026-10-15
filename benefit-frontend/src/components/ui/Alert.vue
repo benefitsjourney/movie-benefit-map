@@ -289,12 +289,17 @@ export default {
 
 .alert-dialog :deep(.ticket),
 .alert-dialog :deep(.ticket:hover) {
-  --stub-size: 3.85rem;
+  --alert-stub-pad: 0.85rem;
+  --alert-action-size: 2.75rem;
+  --stub-size: calc(
+    var(--alert-stub-pad) * 2 + var(--alert-action-size) + var(--dash)
+  );
   min-height: 0;
 }
 
 .alert-dialog.is-loading :deep(.ticket) {
-  --stub-size: 0px;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 .alert-hero {
@@ -340,9 +345,8 @@ export default {
 
 .alert-dialog :deep(.ticket-stub) {
   justify-content: flex-end;
-  min-height: 0;
   gap: 0.6rem;
-  padding: 0.85rem 1.15rem;
+  padding: var(--alert-stub-pad) 1.15rem;
 }
 
 .alert-dialog.is-loading :deep(.ticket-stub) {
@@ -352,7 +356,7 @@ export default {
 .alert-dialog .ticket-link {
   justify-content: center;
   min-width: 6rem;
-  min-height: 2.75rem;
+  min-height: var(--alert-action-size);
   padding: 0.5rem 1.05rem;
   font-size: var(--text-control);
 }
