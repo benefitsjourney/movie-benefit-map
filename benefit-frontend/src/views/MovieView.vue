@@ -116,16 +116,12 @@ function goToPage(next) {
     <PageIntro kicker="✦ MOVIE JOURNEY" lead="下一場，" mark="電影" tail="！" description="從喜歡的電影出發，開啟特典收藏旅程。"
       :icon-left="clapperIcon" :icon-right="reelIcon" :icon-top="cameraIcon" />
 
-    <SearchFilter v-model="appliedFilters" title="尋找想看的電影" :title-icon="compassIcon" submit-label="探索電影"
-      :fields="filterFields" />
+    <ResultBanner v-if="!(loading && !movies.length) && !error" :icon="clapperIcon" title="探索中的電影" :count="totalElements"
+      :unit-text="resultUnit" empty-text="這條路線還沒有找到電影，換個條件試試吧！" action-to="/cinemas" :action-icon="cinemaIcon"
+      action-label="探索影城" />
 
-    <StatePanel v-if="loading && !movies.length" variant="loading" message="正在尋找電影…" :icon="filmIcon" />
-    <StatePanel v-else-if="error" variant="error" title="目前無法取得電影資料" message="請確認連線後再試一次。" @retry="retry" />
-
-    <template v-else>
-      <ResultBanner :icon="clapperIcon" title="探索中的電影" :count="totalElements" :unit-text="resultUnit"
-        empty-text="這條路線還沒有找到電影，換個條件試試吧！" action-to="/cinemas" :action-icon="cinemaIcon" action-label="探索影城" />
-
+    <SearchFilter v-if="!(loading && !movies.length) && !error" v-model="appliedFilters" title="尋找想看的電影"
+      :title-icon="compassIcon" submit-label="探索電影" :fields="filterFields">
       <div v-if="movies.length" ref="listTop" class="ticket-grid" :class="{ 'is-loading': loading }"
         :aria-busy="loading">
         <TicketCard v-for="(movie, index) in movies" :key="movie.movieId" color="yellow" :appear="index < 6"
@@ -145,7 +141,10 @@ function goToPage(next) {
       </div>
 
       <Pagination v-if="totalPages > 1" :page="page" :total-pages="totalPages" label="電影列表分頁" @update:page="goToPage" />
-    </template>
+    </SearchFilter>
+
+    <StatePanel v-if="loading && !movies.length" variant="loading" message="正在尋找電影…" :icon="filmIcon" />
+    <StatePanel v-else-if="error" variant="error" title="目前無法取得電影資料" message="請確認連線後再試一次。" @retry="retry" />
   </section>
 </template>
 

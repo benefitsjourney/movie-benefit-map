@@ -221,18 +221,12 @@ function goToPage(next) {
     <PageIntro kicker="✦ CINEMA DATA" lead="影城" mark="資料" description="查看目前收錄的影城名稱、地址、座標與顯示狀態。" :icon-left="movieIcon"
       :icon-right="pinIcon" :icon-top="tableIcon" theme="purple" />
 
-    <SearchFilter v-model="appliedFilters" title="篩選影城" :title-icon="filterIcon" submit-label="查詢影城"
-      :fields="filterFields" theme="purple" />
+    <ResultBanner v-if="!(loading && !cinemas.length) && !error" :icon="movieIcon" title="收錄中的影城" :count="totalElements"
+      :unit-text="resultUnit" empty-text="目前沒有符合條件的影城。" action-to="/cinemas" :action-icon="pinIcon"
+      action-label="前往前台影城" theme="purple" />
 
-    <StatePanel v-if="loading && !cinemas.length" variant="loading" message="正在載入影城資料…" :icon="movieIcon"
-      color="purple" />
-    <StatePanel v-else-if="error" variant="error" title="目前無法取得影城資料" message="請確認連線後再試一次。" color="purple"
-      @retry="retry" />
-
-    <template v-else>
-      <ResultBanner :icon="movieIcon" title="收錄中的影城" :count="totalElements" :unit-text="resultUnit"
-        empty-text="目前沒有符合條件的影城。" action-to="/cinemas" :action-icon="pinIcon" action-label="前往前台影城" theme="purple" />
-
+    <SearchFilter v-if="!(loading && !cinemas.length) && !error" v-model="appliedFilters" title="篩選影城"
+      :title-icon="filterIcon" submit-label="查詢影城" :fields="filterFields" theme="purple">
       <div ref="listTop" class="cinema-sheet">
         <DataTable caption="影城資料表" :columns="columns" :rows="cinemas" row-key="cinemaId" empty-text="目前沒有符合條件的影城。"
           :loading="loading" theme="purple" />
@@ -240,7 +234,12 @@ function goToPage(next) {
 
       <Pagination v-if="totalPages > 1" :page="page" :total-pages="totalPages" label="影城列表分頁" color="purple"
         @update:page="goToPage" />
-    </template>
+    </SearchFilter>
+
+    <StatePanel v-if="loading && !cinemas.length" variant="loading" message="正在載入影城資料…" :icon="movieIcon"
+      color="purple" />
+    <StatePanel v-else-if="error" variant="error" title="目前無法取得影城資料" message="請確認連線後再試一次。" color="purple"
+      @retry="retry" />
   </section>
 </template>
 
