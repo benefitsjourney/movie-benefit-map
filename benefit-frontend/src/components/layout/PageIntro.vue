@@ -74,9 +74,9 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
   position: relative;
   display: grid;
   align-items: center;
-  min-height: 180px;
-  margin-bottom: 1rem;
-  padding: 1.5rem;
+  min-height: 196px;
+  margin-bottom: 1.15rem;
+  padding: 1.65rem 1.75rem;
   overflow: hidden;
   border: 1.5px solid var(--c-border);
   border-radius: 22px;
@@ -113,14 +113,14 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
   background: var(--hero-kicker, #fff1cc);
   color: var(--hero-kicker-text, #865500);
   font-family: var(--font-latin);
-  font-size: var(--text-control, 1rem);
+  font-size: var(--text-control);
   font-weight: 700;
   letter-spacing: 0.08em;
 }
 
 .hero h1 {
-  margin: 0.25rem 0 0.25rem;
-  font-size: var(--text-page-title, 2.1875rem);
+  margin: 0.25rem 0 0.5rem;
+  font-size: var(--text-page-title);
   line-height: 1.3;
   font-weight: 900;
 }
@@ -128,7 +128,8 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
 .hero-description {
   margin: 0;
   color: var(--c-muted);
-  font-size: var(--text-body, 1.0625rem);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
 }
 
 .title-mark {
@@ -156,7 +157,7 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
 @media (min-width: 768px) {
   .hero {
     grid-template-columns: 1.2fr 0.8fr;
-    min-height: 215px;
+    min-height: 232px;
   }
 
   .hero-art {
@@ -204,7 +205,7 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
     top: 0;
     left: 35%;
     color: var(--hero-left);
-    font-size: 1.8rem;
+    font-size: var(--text-page-title);
     animation: twinkle 3s ease-in-out infinite;
   }
 }
@@ -212,7 +213,7 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
 /* 小螢幕保留標題層級，同時避免破版 */
 @media (max-width: 519px) {
   .hero h1 {
-    font-size: 2rem;
+    font-size: var(--text-section-title);
   }
 }
 

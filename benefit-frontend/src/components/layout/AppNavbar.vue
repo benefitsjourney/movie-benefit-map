@@ -193,7 +193,7 @@ function closeMenu() {
   background: var(--nav-chip-bg, var(--nav-accent));
   color: var(--nav-chip-ink, var(--nav-ink));
   box-shadow: 0 5px 0 color-mix(in srgb, var(--nav-brand) 45%, transparent);
-  font-size: 1.5rem;
+  font-size: var(--text-section-title);
   transition:
     transform var(--ease),
     background-color var(--ease);
@@ -206,20 +206,22 @@ function closeMenu() {
 
 .brand-star {
   position: absolute;
-  top: -0.35rem;
-  right: -0.4rem;
+  top: -0.42rem;
+  right: -0.48rem;
   display: grid;
   place-items: center;
-  width: 1.15rem;
-  height: 1.15rem;
+  width: 1.35rem;
+  height: 1.35rem;
   border-radius: 50%;
   background: var(--nav-brand);
   color: #fff;
-  font-size: 0.7rem;
+  font-size: var(--text-min);
+  line-height: 1;
 }
 
 .brand-name {
-  font-size: var(--text-card-title, 1.375rem);
+  font-size: var(--text-feature-title);
+  line-height: 1.3;
   font-weight: 900;
 }
 
@@ -237,7 +239,7 @@ function closeMenu() {
   gap: 0.45rem;
   padding: 0.5rem 1rem 0.65rem;
   color: #fff9f1;
-  font-size: var(--text-control, 1rem);
+  font-size: var(--text-control);
   font-weight: 700;
   white-space: nowrap;
   text-decoration: none;
@@ -288,7 +290,7 @@ function closeMenu() {
   border-radius: 999px;
   background: var(--nav-chip-bg, var(--nav-accent));
   color: var(--nav-chip-ink, var(--nav-ink));
-  font-size: var(--text-control, 1rem);
+  font-size: var(--text-control);
   font-weight: 800;
   white-space: nowrap;
   text-decoration: none;
@@ -317,7 +319,7 @@ function closeMenu() {
   border-radius: 10px;
   background: transparent;
   color: #fff;
-  font-size: 1.5rem;
+  font-size: var(--text-section-title);
 }
 
 .brand:focus-visible,
@@ -348,11 +350,11 @@ function closeMenu() {
   .brand-mark {
     width: 2.25rem;
     height: 2.25rem;
-    font-size: 1.2rem;
+    font-size: var(--text-card-title);
   }
 
   .brand-name {
-    font-size: 1.15rem;
+    font-size: var(--text-card-title);
   }
 
   .nav-actions {
@@ -361,8 +363,8 @@ function closeMenu() {
   }
 
   .nav-switch {
-    padding: 0.32rem 0.7rem;
-    font-size: 0.92rem;
+    padding: 0.4rem 0.75rem;
+    font-size: var(--text-control);
   }
 
   .nav-toggle {

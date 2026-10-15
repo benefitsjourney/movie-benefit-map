@@ -43,13 +43,6 @@ const crawlers = [
   },
 ];
 
-const STATUS_LABEL = {
-  idle: "尚未執行",
-  running: "同步中",
-  success: "已完成",
-  error: "執行失敗",
-};
-
 const anyRunning = () =>
   crawlers.some((crawler) => jobs[crawler.key].status === "running");
 
@@ -171,9 +164,6 @@ async function syncCrawler(crawler) {
             <Icon :icon="databaseIcon" aria-hidden="true" />
             {{ jobs[crawler.key].status === "running" ? "同步中…" : "立即同步" }}
           </button>
-          <span class="ticket-empty">
-            {{ STATUS_LABEL[jobs[crawler.key].status] }}
-          </span>
         </template>
       </TicketCard>
     </div>
@@ -181,6 +171,10 @@ async function syncCrawler(crawler) {
 </template>
 
 <style scoped>
+.ticket-grid :deep(.ticket-body h2) {
+  font-size: var(--text-feature-title);
+}
+
 @media (min-width: 768px) {
   .ticket-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

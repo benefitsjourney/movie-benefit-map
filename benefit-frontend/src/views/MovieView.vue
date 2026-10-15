@@ -185,6 +185,6 @@ function goToPage(next) {
 }
 
 .poster-fallback :deep(svg) {
-  font-size: 2.4rem;
+  font-size: var(--text-page-title);
 }
 </style>

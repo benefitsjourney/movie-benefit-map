@@ -8,24 +8,30 @@
   --font-latin: "Fredoka", "Trebuchet MS", sans-serif;
   --font-sans: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
 
-  /* rem 依瀏覽器根字級縮放 */
-  /* 正文 */
-  --text-body: 1.0625rem;
+  /* rem 依瀏覽器根字級縮放。可見文字不得低於 16px。 */
+  /* 16px：次要標註、圖示旁的最小文字 */
+  --text-min: 1rem;
 
-  /* 輸入欄位、標籤、按鈕 */
-  --text-control: 1rem;
+  /* 18px：一般內文 */
+  --text-body: 1.125rem;
 
-  /* 結果摘要／工具列標題 */
-  --text-feature-title: 1.25rem;
+  /* 17px：按鈕、表單、導覽、標籤 */
+  --text-control: 1.0625rem;
 
-  /* 卡片影城名稱 */
-  --text-card-title: 1.375rem;
+  /* 20px：卡片標題 */
+  --text-card-title: 1.25rem;
 
-  /* 區塊副標題 */
-  --text-section-title: 1.875rem;
+  /* 22px：工具列、結果摘要 */
+  --text-feature-title: 1.375rem;
 
-  /* 頁面主標題 */
-  --text-page-title: 2.1875rem;
+  /* 24px：區塊標題 */
+  --text-section-title: 1.5rem;
+
+  /* 32px：頁面主標題 */
+  --text-page-title: 2rem;
+
+  --leading-body: 1.7;
+  --leading-title: 1.35;
 }
 
 html {
@@ -38,8 +44,123 @@ body {
   min-height: 100vh;
   font-family: var(--font-sans);
   font-size: var(--text-body);
-  line-height: 1.6;
+  line-height: var(--leading-body);
   color: var(--c-ink);
+}
+
+h1,
+.h1 {
+  font-size: var(--text-page-title);
+  line-height: 1.3;
+  font-weight: 900;
+}
+
+h2,
+.h2 {
+  font-size: var(--text-section-title);
+  line-height: var(--leading-title);
+  font-weight: 900;
+}
+
+h3,
+.h3 {
+  font-size: var(--text-card-title);
+  line-height: 1.4;
+  font-weight: 800;
+}
+
+/* Bootstrap 的 small、sm、tooltip、toast 預設低於 16px，這裡拉回共用字級。 */
+small,
+.small,
+.initialism,
+code,
+kbd,
+pre,
+.form-text,
+.valid-feedback,
+.invalid-feedback,
+.figure-caption,
+.blockquote-footer,
+.form-control-sm,
+.form-select-sm,
+.col-form-label-sm,
+.input-group-sm>.form-control,
+.input-group-sm>.form-select,
+.input-group-sm>.input-group-text,
+.input-group-sm>.btn,
+.valid-tooltip,
+.invalid-tooltip,
+.dropdown-header {
+  font-size: var(--text-min);
+}
+
+.btn,
+.page-link,
+.form-control,
+.form-select,
+.input-group-text,
+.dropdown-item,
+.dropdown-item-text,
+.list-group-item,
+.toast-body,
+.modal-body,
+.table,
+.table th,
+.table td {
+  font-size: var(--text-control);
+  line-height: 1.5;
+}
+
+.modal-body,
+.toast-body,
+.table,
+.table td {
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+.modal-title {
+  font-size: var(--text-card-title);
+  line-height: 1.4;
+}
+
+.btn-sm,
+.btn-group-sm>.btn {
+  --bs-btn-font-size: var(--text-min);
+  font-size: var(--text-min);
+}
+
+.badge {
+  --bs-badge-font-size: var(--text-min);
+  font-size: var(--text-min);
+  line-height: 1.4;
+}
+
+.pagination {
+  --bs-pagination-font-size: var(--text-control);
+}
+
+.pagination-sm {
+  --bs-pagination-font-size: var(--text-control);
+}
+
+.tooltip {
+  --bs-tooltip-font-size: var(--text-min);
+  --bs-tooltip-max-width: 18rem;
+  --bs-tooltip-padding-y: 0.4rem;
+  --bs-tooltip-padding-x: 0.7rem;
+}
+
+.popover {
+  --bs-popover-font-size: var(--text-body);
+  --bs-popover-max-width: 22rem;
+}
+
+.toast {
+  --bs-toast-font-size: var(--text-body);
+  --bs-toast-max-width: 24rem;
+  --bs-toast-padding-x: 1rem;
+  --bs-toast-padding-y: 0.75rem;
 }
 
 .app-shell {
@@ -47,9 +168,15 @@ body {
 }
 
 .page-main {
-  padding-top: 1.35rem;
+  padding-top: 1.5rem;
   padding-bottom: 3rem;
   padding-inline: 4rem;
+}
+
+@media (max-width: 991.98px) {
+  .page-main {
+    padding-inline: 1.25rem;
+  }
 }
 
 ::selection {

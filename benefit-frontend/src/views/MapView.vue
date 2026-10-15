@@ -361,7 +361,7 @@ function syncMarkers() {
     });
     marker.bindPopup(makePopup(cinema), {
       className: "benefit-map-popup",
-      maxWidth: 290,
+      maxWidth: 320,
     });
     marker.on("click", () => {
       selectedId.value = cinema.cinemaId;
@@ -748,13 +748,14 @@ onBeforeUnmount(() => {
   --map-soft: #fff1e8;
   --map-navy: #202c45;
   color: var(--map-ink);
-  font-size: var(--text-body, 1.0625rem);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
 }
 
 .benefit-map-page button,
 .benefit-map-page select {
   font-family: inherit;
-  font-size: var(--text-control, 1rem);
+  font-size: var(--text-control);
   line-height: 1.5;
 }
 
@@ -802,8 +803,8 @@ onBeforeUnmount(() => {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 0.75rem;
-  min-height: 86px;
-  padding: 1rem 1.25rem;
+  min-height: 6rem;
+  padding: 1.05rem 1.25rem;
   background: #fffdf9;
 }
 
@@ -826,7 +827,7 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-icon :deep(svg) {
-  font-size: 1.55rem;
+  font-size: var(--text-section-title);
 }
 
 .toolbar-copy {
@@ -835,7 +836,7 @@ onBeforeUnmount(() => {
 
 .toolbar-copy h2 {
   margin: 0;
-  font-size: var(--text-feature-title, 1.25rem);
+  font-size: var(--text-feature-title);
   line-height: 1.35;
   font-weight: 900;
   letter-spacing: 0.015em;
@@ -844,7 +845,8 @@ onBeforeUnmount(() => {
 .toolbar-copy p {
   margin: 0.12rem 0 0;
   color: var(--map-muted);
-  font-size: var(--text-control, 1rem);
+  font-size: var(--text-control);
+  line-height: 1.5;
 }
 
 .toolbar-actions {
@@ -855,8 +857,8 @@ onBeforeUnmount(() => {
 }
 
 .toolbar-actions :deep(.app-button) {
-  min-height: 42px;
-  padding: 0.48rem 0.9rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.95rem;
   border-radius: 14px;
   box-shadow: none;
 }
@@ -867,12 +869,12 @@ onBeforeUnmount(() => {
   gap: 0.4rem;
   color: var(--map-muted);
   font-weight: 700;
-  font-size: 1rem;
+  font-size: var(--text-control);
 }
 
 .radius-control select {
-  max-width: 135px;
-  min-height: 42px;
+  max-width: 9rem;
+  min-height: 2.75rem;
   padding: 0.4rem 0.65rem;
   border: 1px solid var(--map-border);
   border-radius: 12px;
@@ -920,7 +922,8 @@ onBeforeUnmount(() => {
   background: rgb(255 253 249 / 96%);
   color: var(--map-navy);
   box-shadow: 0 5px 17px rgb(19 40 64 / 12%);
-  font-size: 1rem;
+  font-size: var(--text-control);
+  line-height: 1.4;
   font-weight: 750;
   pointer-events: none;
 }
@@ -988,7 +991,7 @@ onBeforeUnmount(() => {
 .results-title-row h2 {
   margin: 0;
   color: var(--map-navy);
-  font-size: var(--text-section-title, 1.875rem);
+  font-size: var(--text-section-title);
   line-height: 1.25;
   font-weight: 900;
   letter-spacing: -0.03em;
@@ -1002,21 +1005,22 @@ onBeforeUnmount(() => {
   border-radius: 11px;
   background: var(--map-soft);
   color: #b85539;
-  font-size: 1.2rem;
+  font-size: var(--text-card-title);
   line-height: 1.4;
   font-weight: 850;
   font-variant-numeric: tabular-nums;
 }
 
 .count small {
-  font-size: 1rem;
+  font-size: var(--text-min);
   font-weight: 700;
 }
 
 .results-hint {
-  margin: 0.4rem 0 0;
+  margin: 0.45rem 0 0;
   color: var(--map-muted);
-  font-size: 1rem;
+  font-size: var(--text-body);
+  line-height: 1.55;
 }
 
 .refresh-button {
@@ -1036,7 +1040,7 @@ onBeforeUnmount(() => {
 }
 
 .refresh-button :deep(svg) {
-  font-size: 1.3rem;
+  font-size: var(--text-card-title);
 }
 
 .refresh-button:hover:not(:disabled) {
@@ -1080,7 +1084,7 @@ onBeforeUnmount(() => {
 }
 
 .panel-state :deep(svg) {
-  font-size: 2rem;
+  font-size: var(--text-page-title);
   color: #d89a80;
 }
 
@@ -1099,12 +1103,12 @@ onBeforeUnmount(() => {
 /* 車票卡片：左側是站點編號，右側名稱與地址；不使用厚重外框。 */
 .location-ticket {
   display: grid;
-  grid-template-columns: 63px minmax(0, 1fr) 24px;
+  grid-template-columns: 4.25rem minmax(0, 1fr) 1.6rem;
   align-items: center;
   gap: 0.85rem;
   flex-shrink: 0;
   width: 100%;
-  min-height: 112px;
+  min-height: 7.75rem;
   padding: 0 0.85rem 0 0;
   border: 1px solid #f1e8df;
   border-radius: 17px;
@@ -1133,7 +1137,7 @@ onBeforeUnmount(() => {
 }
 
 .ticket-index {
-  font-size: 1.45rem;
+  font-size: var(--text-section-title);
   line-height: 1.2;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
@@ -1143,8 +1147,8 @@ onBeforeUnmount(() => {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 0.17rem;
-  padding-block: 0.7rem;
+  gap: 0.28rem;
+  padding-block: 0.8rem;
 }
 
 .ticket-topline {
@@ -1157,22 +1161,23 @@ onBeforeUnmount(() => {
 
 .ticket-county {
   color: #a4654d;
-  font-size: 1rem;
+  font-size: var(--text-control);
   font-weight: 800;
 }
 
 .ticket-distance,
 .ticket-muted {
   color: #81766f;
-  font-size: 1rem;
+  font-size: var(--text-control);
+  line-height: 1.45;
   font-weight: 600;
 }
 
 .ticket-name {
   display: block;
   color: var(--map-navy);
-  font-size: 1.2rem;
-  line-height: 1.35;
+  font-size: var(--text-card-title);
+  line-height: 1.4;
   font-weight: 900;
   overflow-wrap: anywhere;
 }
@@ -1180,23 +1185,27 @@ onBeforeUnmount(() => {
 .ticket-address {
   display: flex;
   align-items: flex-start;
-  gap: 0.27rem;
+  gap: 0.35rem;
   color: #726e6b;
-  font-size: 1rem;
-  line-height: 1.4;
+  font-size: var(--text-body);
+  line-height: 1.5;
   overflow-wrap: anywhere;
 }
 
 .ticket-address :deep(svg) {
+  display: block;
   flex: none;
-  margin-top: 0.15rem;
-  font-size: 1.07rem;
+  width: 1.15em;
+  height: 1.15em;
+  margin-top: calc((1lh - 1.15em) / 2);
+  font-size: inherit;
+  line-height: inherit;
   color: #aa8272;
 }
 
 .ticket-action {
   color: #b3aaa2;
-  font-size: 1.25rem;
+  font-size: var(--text-card-title);
   transition:
     transform 0.18s ease,
     color 0.18s ease;
@@ -1265,18 +1274,38 @@ onBeforeUnmount(() => {
   background: #ffd3bcb8;
 }
 
+.map-canvas.leaflet-container {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: 1.55;
+}
+
 .map-canvas :deep(.marker-cluster-small div),
 .map-canvas :deep(.marker-cluster-medium div),
 .map-canvas :deep(.marker-cluster-large div) {
   background: var(--map-brand);
   color: #fff;
-  font-size: 1rem;
+  font-size: var(--text-control);
   font-weight: 900;
 }
 
-.map-canvas :deep(.leaflet-control-attribution) {
-  font-size: 1rem;
-  line-height: 1.4;
+.map-canvas :deep(.leaflet-control-attribution),
+.map-canvas :deep(.leaflet-tooltip) {
+  font-size: var(--text-min);
+  line-height: 1.45;
+}
+
+.map-canvas :deep(.leaflet-popup-content) {
+  margin: 0.9rem 1.15rem 1rem 1rem;
+  font-size: var(--text-body);
+  line-height: 1.55;
+}
+
+.map-canvas :deep(.leaflet-popup-close-button) {
+  width: 1.75rem;
+  height: 1.75rem;
+  font-size: var(--text-min);
+  line-height: 1.75rem;
 }
 
 .map-canvas :deep(.benefit-map-popup .leaflet-popup-content-wrapper) {
@@ -1284,9 +1313,9 @@ onBeforeUnmount(() => {
 }
 
 .map-canvas :deep(.benefit-popup) {
-  min-width: 190px;
-  font-size: 1rem;
-  line-height: 1.5;
+  min-width: 13rem;
+  font-size: var(--text-body);
+  line-height: 1.55;
 }
 
 .map-canvas :deep(.popup-eyebrow) {
@@ -1296,8 +1325,9 @@ onBeforeUnmount(() => {
 
 .map-canvas :deep(.popup-title) {
   display: block;
-  margin: 0.3rem 0;
-  font-size: 1.25rem;
+  margin: 0.35rem 0;
+  font-size: var(--text-card-title);
+  line-height: 1.4;
 }
 
 .map-canvas :deep(.popup-address),
@@ -1327,10 +1357,6 @@ onBeforeUnmount(() => {
 @media (max-width: 1100px) {
   .map-layout {
     grid-template-columns: minmax(0, 1.25fr) minmax(330px, 0.85fr);
-  }
-
-  .ticket-name {
-    font-size: 1.125rem;
   }
 }
 
@@ -1396,21 +1422,18 @@ onBeforeUnmount(() => {
   }
 
   .results-title-row h2 {
-    font-size: 1.625rem;
+    font-size: var(--text-feature-title);
   }
 
   .location-ticket {
-    grid-template-columns: 55px minmax(0, 1fr) 20px;
-    gap: 0.55rem;
-    padding-right: 0.55rem;
+    grid-template-columns: 3.6rem minmax(0, 1fr) 1.35rem;
+    gap: 0.6rem;
+    min-height: 7.25rem;
+    padding-right: 0.6rem;
   }
 
   .ticket-index {
-    font-size: 1.3rem;
-  }
-
-  .ticket-name {
-    font-size: 1.125rem;
+    font-size: var(--text-card-title);
   }
 
   .map-info-chip {

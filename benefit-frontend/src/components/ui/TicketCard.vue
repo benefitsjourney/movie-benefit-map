@@ -321,14 +321,15 @@ const hasAction = computed(
   display: flex;
   flex: 1;
   flex-direction: column;
-  padding: 1rem 1.1rem;
-  font-size: var(--text-body, 1.0625rem);
+  padding: 1.05rem 1.15rem 1.1rem;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
 }
 
 .ticket-film {
   margin-left: auto;
   color: var(--ticket-ink);
-  font-size: 1.4rem;
+  font-size: var(--text-feature-title);
   line-height: 1;
 }
 
@@ -347,14 +348,14 @@ const hasAction = computed(
   border: 2px solid var(--ticket-ink);
   border-radius: 7px;
   color: var(--ticket-ink);
-  font-size: var(--text-control, 1rem);
+  font-size: var(--text-control);
   font-weight: 800;
   transform: rotate(-5deg);
 }
 
 .ticket-body h2 {
   margin: 0;
-  font-size: var(--text-card-title, 1.375rem);
+  font-size: var(--text-card-title);
   font-weight: 900;
   line-height: 1.4;
   overflow-wrap: anywhere;
@@ -366,18 +367,24 @@ const hasAction = computed(
 
 .ticket-detail {
   display: flex;
+  align-items: flex-start;
   gap: 0.4rem;
-  margin: 0.7rem 0 0;
+  margin: 0.3rem 0 0;
   color: #3e4450;
-  font-size: var(--text-body, 1.0625rem);
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
   overflow-wrap: anywhere;
 }
 
 .ticket-detail :slotted(svg) {
+  display: block;
   flex-shrink: 0;
-  margin-top: 0.2rem;
+  width: 1.15em;
+  height: 1.15em;
+  margin-top: calc((1lh - 1.15em) / 2);
   color: var(--ticket-ink);
-  font-size: 1.2rem;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .ticket-stub {
@@ -413,8 +420,9 @@ const hasAction = computed(
   background: #fff;
   color: var(--ticket-ink);
   font: inherit;
-  font-size: var(--text-control, 1rem);
+  font-size: var(--text-control);
   font-weight: 700;
+  line-height: 1.4;
   text-decoration: none;
   cursor: pointer;
 }
@@ -461,23 +469,23 @@ const hasAction = computed(
 .ticket-empty,
 :slotted(.ticket-empty) {
   color: var(--c-muted);
-  font-size: var(--text-control, 1rem);
+  font-size: var(--text-control);
   font-weight: 700;
 }
 
 .ticket-poster-card {
-  --stub-size: 2.625rem;
+  --stub-size: 3.25rem;
   min-height: 0;
   border-radius: 16px;
 }
 
 .ticket-poster-card .ticket-body {
-  padding: 0.7rem 0.75rem 0.35rem;
+  padding: 0.85rem 0.85rem 0.45rem;
 }
 
 .ticket-poster-card .ticket-body h2 {
-  font-size: 1rem;
-  line-height: 1.35;
+  font-size: var(--text-card-title);
+  line-height: 1.4;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -486,24 +494,25 @@ const hasAction = computed(
 }
 
 .ticket-poster-card .ticket-detail {
-  gap: 0.3rem;
-  margin-top: 0.3rem;
-  font-size: 0.875rem;
-  line-height: 1.35;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  font-size: var(--text-control);
+  line-height: 1.45;
 }
 
 .ticket-poster-card .ticket-detail :slotted(svg) {
-  margin-top: 0.05rem;
-  font-size: 1rem;
+  width: 1.05em;
+  height: 1.05em;
+  margin-top: calc((1lh - 1.05em) / 2);
 }
 
 .ticket-poster-card .ticket-stub {
-  gap: 0.45rem;
-  padding: 0.35rem 0.75rem;
+  gap: 0.5rem;
+  padding: 0.5rem 0.8rem;
 }
 
 .ticket-poster-card .ticket-film {
-  font-size: 1.05rem;
+  font-size: var(--text-control);
 }
 
 @keyframes rise {

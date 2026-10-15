@@ -279,7 +279,7 @@ export default {
 }
 
 .alert-dialog {
-  width: min(460px, 100%);
+  width: min(32rem, 100%);
   outline: none;
 }
 
@@ -311,7 +311,7 @@ export default {
   border-radius: 12px;
   background: var(--ticket-pale);
   color: var(--ticket-ink);
-  font-size: 1.5rem;
+  font-size: var(--text-section-title);
 }
 
 .alert-badge :deep(svg) {
@@ -322,20 +322,20 @@ export default {
 
 .alert-dialog :deep(.ticket-body) {
   align-items: flex-start;
-  padding: 1.15rem 1.25rem 1.05rem;
+  padding: 1.25rem 1.35rem 1.15rem;
   text-align: left;
 }
 
 .alert-dialog :deep(.ticket-body h2) {
   margin-top: 0.85rem;
-  font-size: 1.25rem;
+  font-size: var(--text-feature-title);
   line-height: 1.4;
 }
 
 .alert-dialog :deep(.ticket-detail) {
-  margin-top: 0.45rem;
-  font-size: 0.9375rem;
-  line-height: 1.65;
+  margin-top: 0.55rem;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
 }
 
 .alert-dialog :deep(.ticket-stub) {
@@ -351,9 +351,10 @@ export default {
 
 .alert-dialog .ticket-link {
   justify-content: center;
-  min-width: 5.5rem;
-  padding: 0.5rem 1rem;
-  font-size: 0.9375rem;
+  min-width: 6rem;
+  min-height: 2.75rem;
+  padding: 0.5rem 1.05rem;
+  font-size: var(--text-control);
 }
 
 .alert-dialog :deep(.ticket-film) {

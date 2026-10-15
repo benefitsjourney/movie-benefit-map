@@ -148,7 +148,7 @@ function resetQuery() {
 <style scoped>
 .search-filter {
   margin-bottom: 1rem;
-  padding: 1rem 1.25rem 1.25rem;
+  padding: 1.15rem 1.35rem 1.35rem;
   border: 1.5px solid var(--c-border);
   border-radius: 22px;
   background: var(--c-card);
@@ -160,7 +160,7 @@ function resetQuery() {
   align-items: center;
   gap: 0.45rem;
   margin: 0 0 0.8rem;
-  font-size: var(--text-section-title, 1.875rem);
+  font-size: var(--text-section-title);
   line-height: 1.3;
   font-weight: 900;
 }
@@ -171,7 +171,7 @@ function resetQuery() {
 }
 
 .search-filter-title svg {
-  font-size: 1.3rem;
+  font-size: var(--text-card-title);
 }
 
 .search-filter-grid {
@@ -190,7 +190,7 @@ function resetQuery() {
   display: block;
   margin-bottom: 0.3rem;
   color: var(--c-muted);
-  font-size: var(--text-control, 1rem);
+  font-size: var(--text-control);
   font-weight: 700;
 }
 
@@ -203,7 +203,7 @@ function resetQuery() {
   top: 50%;
   left: 0.8rem;
   z-index: 1;
-  font-size: 1.2rem;
+  font-size: var(--text-card-title);
   pointer-events: none;
   transform: translateY(-50%);
 }
@@ -211,12 +211,15 @@ function resetQuery() {
 .form-select,
 .form-control {
   width: 100%;
-  min-height: 46px;
+  min-height: 3rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
   border: 1.5px solid #eadfce;
   border-radius: 14px;
   background-color: #fff;
   color: var(--c-ink);
-  font-size: var(--text-control, 1rem);
+  font-size: var(--text-control);
+  line-height: 1.5;
 }
 
 .form-select:focus,
@@ -233,7 +236,7 @@ function resetQuery() {
 
 .field-control.has-icon .form-select,
 .field-control.has-icon .form-control {
-  padding-left: 2.5rem;
+  padding-left: 2.7rem;
 }
 
 .search-filter-actions {
@@ -246,7 +249,7 @@ function resetQuery() {
 
 @media (max-width: 519px) {
   .search-filter-title {
-    font-size: 1.625rem;
+    font-size: var(--text-feature-title);
   }
 
   .field,
