@@ -8,7 +8,7 @@ export const ACCENTS = {
 <script setup>
 import { computed } from "vue";
 import { Icon } from "@iconify/vue";
-import AppButton from "@/components/AppButton.vue";
+import AppButton from "@/components/ui/Button.vue";
 
 const props = defineProps({
   variant: {
@@ -47,8 +47,8 @@ const accent = computed(() => ACCENTS[props.color] ?? ACCENTS.coral);
 .state-panel {
   display: grid;
   justify-items: center;
-  gap: 0.5rem;
-  padding: 2rem 1rem;
+  gap: 0.7rem;
+  padding: 2.15rem 1.25rem;
   border: 1.5px solid var(--c-border);
   border-radius: 22px;
   background: var(--c-card);
@@ -62,14 +62,14 @@ const accent = computed(() => ACCENTS[props.color] ?? ACCENTS.coral);
 }
 
 .state-panel h2 {
-  font-size: var(--text-section-title, 1.875rem);
+  font-size: var(--text-section-title);
   line-height: 1.3;
   font-weight: 900;
 }
 
 .loading-icon {
   color: var(--panel-accent);
-  font-size: 2.4rem;
+  font-size: var(--text-page-title);
   animation: float 1s ease-in-out infinite;
 }
 

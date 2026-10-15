@@ -1,5 +1,5 @@
 <script setup>
-import AppNavbar from "@/components/AppNavbar.vue";
+import AppNavbar from "@/components/layout/AppNavbar.vue";
 import syncIcon from "@iconify-icons/mdi/database-sync-outline";
 import arrowLeftIcon from "@iconify-icons/mdi/arrow-left";
 

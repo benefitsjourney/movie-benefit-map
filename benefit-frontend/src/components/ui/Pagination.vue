@@ -3,7 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { Icon } from "@iconify/vue";
 import chevronLeft from "@iconify-icons/mdi/chevron-left";
 import chevronRight from "@iconify-icons/mdi/chevron-right";
-import AppButton from "@/components/AppButton.vue";
+import AppButton from "@/components/ui/Button.vue";
 
 const props = defineProps({
   page: { type: Number, required: true },
@@ -110,15 +110,15 @@ onBeforeUnmount(() => {
 }
 
 .pager-page {
-  min-width: 2.6rem;
-  min-height: 2.6rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
   padding: 0.2rem 0.55rem;
   border: 1.5px solid var(--c-border);
   border-radius: 999px;
   background: var(--c-card);
   color: var(--c-ink);
   font: inherit;
-  font-size: var(--text-control, 1rem);
+  font-size: var(--text-control);
   font-weight: 800;
   cursor: pointer;
   box-shadow: var(--shadow-soft);
@@ -177,8 +177,8 @@ onBeforeUnmount(() => {
   }
 
   .pager-page {
-    min-width: 2.25rem;
-    min-height: 2.25rem;
+    min-width: 2.5rem;
+    min-height: 2.5rem;
     padding-inline: 0.4rem;
   }
 }

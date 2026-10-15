@@ -1,5 +1,5 @@
 <script setup>
-import AppNavbar from "@/components/AppNavbar.vue";
+import AppNavbar from "@/components/layout/AppNavbar.vue";
 import mapIcon from "@iconify-icons/mdi/map-outline";
 import movieIcon from "@iconify-icons/mdi/movie-open-outline";
 import clapperboardIcon from "@iconify-icons/mdi/clapperboard-outline";

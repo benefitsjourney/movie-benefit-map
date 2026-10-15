@@ -68,9 +68,9 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
 .result-banner {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  margin: 0.2rem 0 1rem;
-  padding: 0.7rem 0.85rem;
+  gap: 0.9rem;
+  margin: 0.2rem 0 1.15rem;
+  padding: 0.9rem 1rem;
   border: 1.5px solid var(--c-border);
   border-radius: 22px;
   background: var(--c-card);
@@ -82,15 +82,15 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
   display: grid;
   flex: none;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 46px;
+  height: 46px;
   border-radius: 12px;
   background: var(--result-mark, #f3b23c);
   color: #fff;
 }
 
 .result-mark svg {
-  font-size: 1.35rem;
+  font-size: var(--text-feature-title);
 }
 
 .result-copy {
@@ -106,20 +106,22 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
 
 .result-title {
   color: var(--result-title);
-  font-size: var(--text-feature-title, 1.25rem);
+  font-size: var(--text-feature-title);
   font-weight: 800;
 }
 
 .result-meta {
+  margin-top: 0.15rem;
   color: var(--result-meta, #8d877e);
-  font-size: var(--text-body, 1.0625rem);
+  font-size: var(--text-body);
+  line-height: 1.5;
   font-weight: 600;
 }
 
 .result-count {
   margin-right: 0.2rem;
   color: var(--result-count);
-  font-size: var(--text-feature-title, 1.25rem);
+  font-size: var(--text-feature-title);
   font-weight: 800;
 }
 
@@ -132,7 +134,7 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
   border-radius: 999px;
   background: var(--result-mark, #f3b23c);
   color: #fff;
-  font-size: var(--text-control, 1rem);
+  font-size: var(--text-control);
   font-weight: 800;
   white-space: nowrap;
   text-decoration: none;
@@ -155,7 +157,7 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
 }
 
 .result-scope svg {
-  font-size: 1.05rem;
+  font-size: var(--text-control);
 }
 
 .result-scope:focus-visible {

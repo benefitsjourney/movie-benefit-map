@@ -57,15 +57,15 @@ const buttonStyle = computed(() => COLORS[props.color] ?? COLORS.coral);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  min-height: 46px;
-  padding: 0.55rem 1.4rem;
+  gap: 0.45rem;
+  min-height: 3rem;
+  padding: 0.6rem 1.45rem;
   border: none;
   border-radius: 999px;
   background: var(--btn-bg);
   color: #fff;
   font: inherit;
-  font-size: var(--text-control, 1rem);
+  font-size: var(--text-control);
   line-height: 1.5;
   font-weight: 800;
   white-space: nowrap;
@@ -97,7 +97,7 @@ const buttonStyle = computed(() => COLORS[props.color] ?? COLORS.coral);
 }
 
 .app-button :deep(svg) {
-  font-size: 1.2rem;
+  font-size: var(--text-card-title);
 }
 
 .app-button.reset {
@@ -111,7 +111,7 @@ const buttonStyle = computed(() => COLORS[props.color] ?? COLORS.coral);
 }
 
 .app-button.reset :deep(svg) {
-  font-size: 1rem;
+  font-size: var(--text-min);
   transition: transform var(--ease);
 }
 
