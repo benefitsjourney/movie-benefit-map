@@ -35,4 +35,17 @@ public interface InventoryReportRepository extends JpaRepository<InventoryReport
             WHERE r.user.usersId = :userId
             """)
     Page<InventoryReportBean> findMyReports(@Param("userId") Integer userId, Pageable pageable);
+    
+    /** 管理員查詢全部庫存回報（新到舊），避免N+1 */
+    @Query(value = """
+            SELECT r FROM InventoryReportBean r
+            JOIN FETCH r.cinemaMovieBenefit c
+            JOIN FETCH c.cinema
+            JOIN FETCH c.movie
+            JOIN FETCH c.benefit
+            ORDER BY r.reportedAt DESC, r.reportId DESC
+            """, countQuery = """
+            SELECT COUNT(r) FROM InventoryReportBean r
+            """)
+    Page<InventoryReportBean> findAllReports(Pageable pageable);
 }
