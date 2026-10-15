@@ -14,9 +14,9 @@ export const THEMES = {
     "--hero-kicker": "#F2E5FF",
     "--hero-kicker-text": "#7545A3",
     "--hero-title": "#E7C9FF",
-    "--hero-left": "#F5BFD3",
-    "--hero-right": "#E7C9FF",
-    "--hero-top": "#93B8F0",
+    "--hero-left": "#FF709E",
+    "--hero-right": "#C99BFF",
+    "--hero-top": "#7ea7e8"
   },
 };
 </script>

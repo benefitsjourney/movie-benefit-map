@@ -8,7 +8,7 @@ export const THEMES = {
   },
   purple: {
     "--nav-bg": "#1E2B45",
-    "--nav-brand": "#F5BFD3",
+    "--nav-brand": "#FF709E",
     "--nav-accent": "#C99BFF",
     "--nav-ink": "#292B35",
   },
