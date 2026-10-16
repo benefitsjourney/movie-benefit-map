@@ -12,11 +12,19 @@ import com.collection.benefitsjourney.dto.ChangePasswordRequest;
 import com.collection.benefitsjourney.dto.RegisterRequest;
 import com.collection.benefitsjourney.repository.UsersRepository;
 
+<<<<<<< HEAD
         @Service
         public class AuthService {
         private final UsersRepository usersRepository;
         private final PasswordEncoder passwordEncoder;
         private final LoginLogService loginLogService;
+=======
+@Service
+public class AuthService {
+    private final UsersRepository usersRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final LoginLogService loginLogService;
+>>>>>>> c52e5de (﻿feat: add Google ID token verification (有修改application.properties及加入 Google API 依賴))
 
         public AuthService(
                 UsersRepository usersRepository,
@@ -177,6 +185,7 @@ import com.collection.benefitsjourney.repository.UsersRepository;
         usersRepository.save(usersBean);
         }
 
+<<<<<<< HEAD
         /**
          * Google OAuth 登入
          *
@@ -187,6 +196,18 @@ import com.collection.benefitsjourney.repository.UsersRepository;
                 String googleId,
                 String email,
                 String name) {
+=======
+    /**
+     * Google OAuth 登入
+     *
+     * @param googleId googleId、email、name 必須來自後端已驗證的 Google ID Token，
+     * 不能直接使用前端自行傳來、尚未驗證的資料。
+     */
+    public UsersBean googleLogin(
+            String googleId,
+            String email,
+            String name) {
+>>>>>>> c52e5de (﻿feat: add Google ID token verification (有修改application.properties及加入 Google API 依賴))
 
         /*
          * ① 先確認 Google 帳號是否註冊
@@ -229,9 +250,15 @@ import com.collection.benefitsjourney.repository.UsersRepository;
         String account;
 
         do {
+<<<<<<< HEAD
         account = "G_" + UUID.randomUUID()
                 .toString()
                 .replace("-", "");
+=======
+            account = "G_" + UUID.randomUUID()
+                    .toString()
+                    .replace("-", "");
+>>>>>>> c52e5de (﻿feat: add Google ID token verification (有修改application.properties及加入 Google API 依賴))
         } while (usersRepository.existsByAccount(account));
 
         newUser.setAccount(account);
