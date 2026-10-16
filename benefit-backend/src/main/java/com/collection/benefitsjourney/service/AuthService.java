@@ -2,6 +2,7 @@ package com.collection.benefitsjourney.service;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -11,7 +12,7 @@ import com.collection.benefitsjourney.dto.ChangePasswordRequest;
 import com.collection.benefitsjourney.dto.RegisterRequest;
 import com.collection.benefitsjourney.repository.UsersRepository;
 
-@Service 
+@Service
 public class AuthService {
     private final UsersRepository usersRepository;
     private final PasswordEncoder passwordEncoder;
@@ -49,8 +50,7 @@ public class AuthService {
 
         // 使用 BCrypt 加密密碼
         usersBean.setPassword(
-                passwordEncoder.encode(request.getPassword())
-        );
+                passwordEncoder.encode(request.getPassword()));
 
         usersBean.setName(request.getName());
         usersBean.setEmail(request.getEmail());
@@ -70,66 +70,63 @@ public class AuthService {
         return usersRepository.save(usersBean);
     }
 
-        /**
+    /**
      * 一般帳號密碼登入
      */
-    public UsersBean login(String account, String password,String ipAddress,String userAgent) {
+    public UsersBean login(String account, String password, String ipAddress, String userAgent) {
 
-    // 根據帳號尋找會員
-    Optional<UsersBean> optionalUser =
-            usersRepository.findByAccount(account);
+        // 根據帳號尋找會員
+        Optional<UsersBean> optionalUser = usersRepository.findByAccount(account);
 
-    // 找不到帳號 記錄失敗，user_id 為 NULL
-    if (optionalUser.isEmpty()) {
-        loginLogService.saveLoginLog(
-                null,
-                "FAILED",
-                ipAddress,
-                userAgent
-        );
-        throw new IllegalArgumentException("帳號或密碼錯誤");
-    }
+        // 找不到帳號 記錄失敗，user_id 為 NULL
+        if (optionalUser.isEmpty()) {
+            loginLogService.saveLoginLog(
+                    null,
+                    "FAILED",
+                    ipAddress,
+                    userAgent);
+            throw new IllegalArgumentException("帳號或密碼錯誤");
+        }
 
-    UsersBean usersBean = optionalUser.get();
+        UsersBean usersBean = optionalUser.get();
 
-    // 被管理員停權、註銷的帳號不能登入：記錄失敗
-    if ("BANNED".equals(usersBean.getStatus()) || "DELETED".equals(usersBean.getStatus())) {
+        // 被管理員停權、註銷的帳號不能登入：記錄失敗
+        if ("BANNED".equals(usersBean.getStatus()) || "DELETED".equals(usersBean.getStatus())) {
+            loginLogService.saveLoginLog(
+                    usersBean,
+                    "FAILED",
+                    ipAddress,
+                    userAgent);
+            throw new IllegalArgumentException("此帳號目前無法登入");
+        }
+
+        // Google 會員可能沒有本地密碼
+        // 使用 BCrypt 驗證密碼 密碼錯誤：記錄失敗
+        if (usersBean.getPassword() == null
+                || !passwordEncoder.matches(
+                        password,
+                        usersBean.getPassword())) {
+            loginLogService.saveLoginLog(
+                    usersBean,
+                    "FAILED",
+                    ipAddress,
+                    userAgent);
+            throw new IllegalArgumentException("帳號或密碼錯誤");
+        }
+
+        // 登入成功：記錄登入紀錄
+        // 不更新 updatedAt，因為會員資料沒有被修改
         loginLogService.saveLoginLog(
                 usersBean,
-                "FAILED",
+                "SUCCESS",
                 ipAddress,
-                userAgent
-        );
-        throw new IllegalArgumentException("此帳號目前無法登入");
+                userAgent);
+
+        return usersBean;
+
     }
 
-    // 使用 BCrypt 驗證密碼 密碼錯誤：記錄失敗
-    if (!passwordEncoder.matches(password, usersBean.getPassword())) {
-        loginLogService.saveLoginLog(
-            usersBean,
-            "FAILED",
-            ipAddress,
-            userAgent
-        );
-        throw new IllegalArgumentException("帳號或密碼錯誤");
-    }
-
-    // 登入成功：更新會員修改時間
-    usersBean.setUpdatedAt(LocalDateTime.now());
-    UsersBean savedUser = usersRepository.save(usersBean);
-    // 記錄登入成功
-        loginLogService.saveLoginLog(
-        savedUser,
-        "SUCCESS",
-        ipAddress,
-        userAgent
-        );
-
-    return savedUser;
-
-}
-
-        /**
+    /**
      * 修改目前登入會員密碼
      *
      * 需要：
@@ -142,11 +139,14 @@ public class AuthService {
             ChangePasswordRequest request) {
 
         // 根據 JWT 中的 usersId 找會員
-        UsersBean usersBean =
-                usersRepository.findById(usersId)
-                        .orElseThrow(() ->
-                                new IllegalArgumentException("找不到會員")
-                        );
+        UsersBean usersBean = usersRepository.findById(usersId)
+                .orElseThrow(() -> new IllegalArgumentException("找不到會員"));
+
+        // Google 會員沒有本地密碼時，不能用目前密碼驗證
+        if (usersBean.getPassword() == null) {
+            throw new IllegalArgumentException(
+                    "未設定本地密碼");
+        }
 
         // 確認目前密碼是否正確
         if (!passwordEncoder.matches(
@@ -162,16 +162,13 @@ public class AuthService {
                 usersBean.getPassword())) {
 
             throw new IllegalArgumentException(
-                    "新密碼不能與目前密碼相同"
-            );
+                    "新密碼不能與目前密碼相同");
         }
 
         // 使用 BCrypt 加密新密碼
         usersBean.setPassword(
                 passwordEncoder.encode(
-                        request.getNewPassword()
-                )
-        );
+                        request.getNewPassword()));
 
         // 更新修改時間
         usersBean.setUpdatedAt(LocalDateTime.now());
@@ -183,9 +180,8 @@ public class AuthService {
     /**
      * Google OAuth 登入
      *
-     * @param googleId Google 提供的唯一使用者 ID
-     * @param email    Google 帳號 Email
-     * @param name     Google 帳號名稱
+     * @param googleId googleId、email、name 必須來自後端已驗證的 Google ID Token，
+     * 不能直接使用前端自行傳來、尚未驗證的資料。
      */
     public UsersBean googleLogin(
             String googleId,
@@ -193,7 +189,7 @@ public class AuthService {
             String name) {
 
         /*
-         * ① 先確認 Google 帳號是否已經綁定會員
+         * ① 先確認 Google 帳號是否註冊
          */
         Optional<UsersBean> googleUser =
                 usersRepository.findByGoogleId(googleId);
@@ -202,69 +198,64 @@ public class AuthService {
 
             UsersBean usersBean = googleUser.get();
 
-            // 確認帳號目前仍是啟用狀態
-            // 只有被管理員停權的帳號不能登入
-            if ("BANNED".equals(usersBean.getStatus())) {
-                throw new IllegalArgumentException("此帳號目前無法登入");
+            // 停權或已註銷的帳號不能登入
+            if ("BANNED".equals(usersBean.getStatus())
+                    || "DELETED".equals(usersBean.getStatus())) {
+
+                throw new IllegalArgumentException(
+                        "此帳號目前無法登入"
+                );
             }
 
+            // 已存在的 Google 會員直接回傳
+            // 不更新 updatedAt，因為沒有修改會員資料
             return usersBean;
         }
     
-        /*
-         * ② Google 帳號第一次登入
-         *
-         *    Google ID 找不到時，
-         *    再確認 Email 是否已經有會員
-         */
-        Optional<UsersBean> emailUser =
-                usersRepository.findByEmail(email);
 
-        if (emailUser.isPresent()) {
+        // 2. Google ID 不存在，檢查 Email 是否已被使用
+        // 不自動將 Google 帳號綁定到一般會員
+        if (usersRepository.existsByEmail(email)) {
 
-        /*
-         * Email 已經存在
-         *
-         * → 表示這個人原本已經有一般會員帳號
-         * → 將 Google 帳號綁定到原本會員
-         */
-        UsersBean usersBean = emailUser.get();
-
-        // 如果原本已經有其他 Google 帳號
-        if (usersBean.getGoogleId() != null) {
             throw new IllegalArgumentException(
-                    "已經綁定其他 Google 帳號"
+                    "此 Email 已註冊，請使用一般帳號登入"
             );
         }
 
-        // 確認帳號目前仍是啟用狀態
-        // 只有被管理員停權的帳號不能登入
-        if ("BANNED".equals(usersBean.getStatus())) {
-            throw new IllegalArgumentException("此帳號目前無法登入");
-        }
-
-        usersBean.setGoogleId(googleId);
-        usersBean.setUpdatedAt(LocalDateTime.now());
-        return usersRepository.save(usersBean);
-    }
-
-        /*
-         * ③ 第一次登入且 Email 也尚未註冊
-         *
-         * → 建立新的會員帳號，並綁定 Google ID
-         */
+        // 3. Email 尚未使用，建立新的 Google 會員
         UsersBean newUser = new UsersBean();
-        newUser.setAccount(email);
-        newUser.setPassword(passwordEncoder.encode("google-oauth"));
+
+        // 系統自動產生唯一帳號
+        String account;
+
+        do {
+            account = "G_" + UUID.randomUUID()
+                    .toString()
+                    .replace("-", "");
+        } while (usersRepository.existsByAccount(account));
+
+        newUser.setAccount(account);
+
+        // Google 會員不需要本地密碼
+        newUser.setPassword(null);
+
         newUser.setName(name);
         newUser.setEmail(email);
         newUser.setGoogleId(googleId);
+        // Google 會員生日可以先不填
+        newUser.setBirthDate(null);
+
+        // 預設一般會員
         newUser.setRole("USER");
+
+        // 預設啟用
         newUser.setStatus("ACTIVE");
+
+        // 建立時間與資料修改時間
         LocalDateTime now = LocalDateTime.now();
         newUser.setCreatedAt(now);
         newUser.setUpdatedAt(now);
 
         return usersRepository.save(newUser);
-    }
+        }
 }
