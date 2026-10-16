@@ -57,9 +57,7 @@ class CrawlerReviewsServiceTest {
     @InjectMocks
     private CrawlerReviewsService crawlerReviewsService;
 
-    private static final LocalDateTime CRAWLED_AT = LocalDateTime.of(2026, 10, 8, 10, 33);
     private static final LocalDateTime REVIEWED_AT = LocalDateTime.of(2026, 10, 9, 11, 0);
-    private static final LocalDateTime UNLOCKED_AT = LocalDateTime.of(2026, 10, 10, 12, 15, 30);
 
     private CrawlerReviewBean review(Integer id, ReviewStatus status) {
         CrawlerReviewBean review = new CrawlerReviewBean();
@@ -70,9 +68,7 @@ class CrawlerReviewsServiceTest {
         review.setCrawlerValue("新片名");
         review.setPreviousValue("舊片名");
         review.setReviewStatus(status);
-        review.setCrawledAt(CRAWLED_AT);
         review.setReviewedAt(REVIEWED_AT);
-        review.setUnlockedAt(UNLOCKED_AT);
         review.setCreatedAt(LocalDateTime.of(2026, 10, 1, 8, 0));
         review.setUpdatedAt(LocalDateTime.of(2026, 10, 2, 9, 0));
         return review;
@@ -85,9 +81,7 @@ class CrawlerReviewsServiceTest {
             String crawlerValue,
             String previousValue,
             ReviewStatus reviewStatus,
-            LocalDateTime crawledAt,
-            LocalDateTime reviewedAt,
-            LocalDateTime unlockedAt) {
+            LocalDateTime reviewedAt) {
         return new CrawlerReviewRequest(
                 crawlerType,
                 entityId,
@@ -95,9 +89,7 @@ class CrawlerReviewsServiceTest {
                 crawlerValue,
                 previousValue,
                 reviewStatus,
-                crawledAt,
-                reviewedAt,
-                unlockedAt);
+                reviewedAt);
     }
 
     @Nested
@@ -152,9 +144,7 @@ class CrawlerReviewsServiceTest {
             assertEquals("新片名", response.crawlerValue());
             assertEquals("舊片名", response.previousValue());
             assertEquals(ReviewStatus.PENDING, response.reviewStatus());
-            assertEquals(CRAWLED_AT, response.crawledAt());
             assertEquals(REVIEWED_AT, response.reviewedAt());
-            assertEquals(UNLOCKED_AT, response.unlockedAt());
             assertEquals(bean.getCreatedAt(), response.createdAt());
             assertEquals(bean.getUpdatedAt(), response.updatedAt());
         }
@@ -243,7 +233,7 @@ class CrawlerReviewsServiceTest {
         @DisplayName("爬蟲類型未填應回傳 400")
         void nullCrawlerType() {
             CrawlerReviewRequest request = request(
-                    null, 12, "movieName", null, null, null, null, null, null);
+                    null, 12, "movieName", null, null, null, null);
 
             ResponseStatusException exception = assertThrows(
                     ResponseStatusException.class,
@@ -258,7 +248,7 @@ class CrawlerReviewsServiceTest {
         @DisplayName("對應資料 ID 未填應回傳 400")
         void nullEntityId() {
             CrawlerReviewRequest request = request(
-                    CinemaResourceType.MOVIE, null, "movieName", null, null, null, null, null, null);
+                    CinemaResourceType.MOVIE, null, "movieName", null, null, null, null);
 
             ResponseStatusException exception = assertThrows(
                     ResponseStatusException.class,
@@ -273,9 +263,9 @@ class CrawlerReviewsServiceTest {
         @DisplayName("欄位名稱未填或只有空白應回傳 400")
         void blankFieldName() {
             CrawlerReviewRequest nullName = request(
-                    CinemaResourceType.MOVIE, 12, null, null, null, null, null, null, null);
+                    CinemaResourceType.MOVIE, 12, null, null, null, null, null);
             CrawlerReviewRequest blankName = request(
-                    CinemaResourceType.MOVIE, 12, "   ", null, null, null, null, null, null);
+                    CinemaResourceType.MOVIE, 12, "   ", null, null, null, null);
 
             ResponseStatusException nullNameException = assertThrows(
                     ResponseStatusException.class,
@@ -295,7 +285,7 @@ class CrawlerReviewsServiceTest {
         void duplicateSameDifference() {
             CrawlerReviewBean pending = review(2, ReviewStatus.PENDING);
             CrawlerReviewRequest request = request(
-                    CinemaResourceType.MOVIE, 12, "movieName", "新片名", "舊片名", null, null, null, null);
+                    CinemaResourceType.MOVIE, 12, "movieName", "新片名", "舊片名", null, null);
             when(crawlerReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
                     CinemaResourceType.MOVIE, 12, "movieName"))
                     .thenReturn(List.of(review(1, ReviewStatus.APPROVED), pending));
@@ -313,7 +303,7 @@ class CrawlerReviewsServiceTest {
         @DisplayName("爬蟲值與原值相同時應回傳 400")
         void sameValue() {
             CrawlerReviewRequest request = request(
-                    CinemaResourceType.MOVIE, 12, "movieName", "同一片名", "同一片名", null, null, null, null);
+                    CinemaResourceType.MOVIE, 12, "movieName", "同一片名", "同一片名", null, null);
 
             ResponseStatusException exception = assertThrows(
                     ResponseStatusException.class,
@@ -334,9 +324,7 @@ class CrawlerReviewsServiceTest {
                     "新特典",
                     "舊特典",
                     ReviewStatus.REJECTED,
-                    CRAWLED_AT,
-                    REVIEWED_AT,
-                    UNLOCKED_AT);
+                    REVIEWED_AT);
 
             ResponseStatusException exception = assertThrows(
                     ResponseStatusException.class,
@@ -356,8 +344,6 @@ class CrawlerReviewsServiceTest {
                     "cinema_address",
                     "新地址",
                     "舊地址",
-                    null,
-                    CRAWLED_AT,
                     null,
                     null);
             when(crawlerReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
@@ -381,7 +367,6 @@ class CrawlerReviewsServiceTest {
             assertEquals("新地址", saved.getCrawlerValue());
             assertEquals("舊地址", saved.getPreviousValue());
             assertEquals(ReviewStatus.PENDING, saved.getReviewStatus());
-            assertEquals(CRAWLED_AT, saved.getCrawledAt());
             assertEquals(15, result.crawlerReviewId());
         }
 
@@ -390,7 +375,7 @@ class CrawlerReviewsServiceTest {
         void shouldUpdateExistingPending() {
             CrawlerReviewBean pending = review(2, ReviewStatus.PENDING);
             CrawlerReviewRequest request = request(
-                    CinemaResourceType.MOVIE, 12, "movieName", "更新後片名", "舊片名", null, CRAWLED_AT, null, null);
+                    CinemaResourceType.MOVIE, 12, "movieName", "更新後片名", "舊片名", null, null);
             when(crawlerReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
                     CinemaResourceType.MOVIE, 12, "movieName"))
                     .thenReturn(List.of(pending));
@@ -403,7 +388,6 @@ class CrawlerReviewsServiceTest {
             assertEquals("更新後片名", pending.getCrawlerValue());
             assertEquals("舊片名", pending.getPreviousValue());
             assertEquals(ReviewStatus.PENDING, pending.getReviewStatus());
-            assertEquals(CRAWLED_AT, pending.getCrawledAt());
             assertEquals("更新後片名", result.crawlerValue());
             verify(crawlerReviewsRepository).save(pending);
         }
@@ -449,7 +433,7 @@ class CrawlerReviewsServiceTest {
         @DisplayName("未帶審查狀態應回傳 400")
         void missingStatus() {
             CrawlerReviewRequest request = request(
-                    null, null, " ", null, null, null, null, null, null);
+                    null, null, " ", null, null, null, null);
 
             ResponseStatusException exception = assertThrows(
                     ResponseStatusException.class,
@@ -464,7 +448,7 @@ class CrawlerReviewsServiceTest {
         @DisplayName("修改不存在的審核應回傳 404")
         void notFound() {
             CrawlerReviewRequest request = request(
-                    null, null, null, null, null, ReviewStatus.REJECTED, null, null, null);
+                    null, null, null, null, null, ReviewStatus.REJECTED, null);
             when(crawlerReviewsRepository.findById(999)).thenReturn(Optional.empty());
 
             ResponseStatusException exception = assertThrows(
@@ -483,7 +467,7 @@ class CrawlerReviewsServiceTest {
             CrawlerReviewBean existing = review(7, ReviewStatus.PENDING);
             existing.setFieldName(CrawlerReviewsService.MOVIE_NAME);
             CrawlerReviewRequest request = request(
-                    null, null, null, null, null, ReviewStatus.APPROVED, null, null, null);
+                    null, null, null, null, null, ReviewStatus.APPROVED, null);
             when(crawlerReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
             when(movieService.updateMovie(eq(12), any(MovieRequest.class)))
                     .thenReturn(new MovieResponse(
@@ -509,7 +493,7 @@ class CrawlerReviewsServiceTest {
         void rejectPending() {
             CrawlerReviewBean existing = review(7, ReviewStatus.PENDING);
             CrawlerReviewRequest request = request(
-                    null, null, null, null, null, ReviewStatus.REJECTED, null, null, null);
+                    null, null, null, null, null, ReviewStatus.REJECTED, null);
             when(crawlerReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
             when(crawlerReviewsRepository.save(any(CrawlerReviewBean.class)))
                     .thenAnswer(invocation -> invocation.getArgument(0));
@@ -531,7 +515,7 @@ class CrawlerReviewsServiceTest {
             CrawlerReviewBean existing = review(7, ReviewStatus.APPROVED);
             when(crawlerReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
             CrawlerReviewRequest request = request(
-                    null, null, null, null, null, ReviewStatus.REJECTED, null, null, null);
+                    null, null, null, null, null, ReviewStatus.REJECTED, null);
 
             ResponseStatusException exception = assertThrows(
                     ResponseStatusException.class,
@@ -563,7 +547,7 @@ class CrawlerReviewsServiceTest {
 
             CrawlerReviewResponse result = crawlerReviewsService.updateCrawlerReview(
                     7,
-                    request(null, null, null, null, null, ReviewStatus.PENDING, null, null, null));
+                    request(null, null, null, null, null, ReviewStatus.PENDING, null));
 
             assertEquals(ReviewStatus.REJECTED, existing.getReviewStatus());
             assertEquals(21, result.crawlerReviewId());

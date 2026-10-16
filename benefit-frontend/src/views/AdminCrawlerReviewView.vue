@@ -1,14 +1,15 @@
 <script setup>
 import { computed, ref } from "vue";
-import { useRouter } from "vue-router";
 import clipboardIcon from "@iconify-icons/mdi/clipboard-check-outline";
 import sourceBranchIcon from "@iconify-icons/mdi/source-branch";
 import tableIcon from "@iconify-icons/mdi/table-large";
 import filterIcon from "@iconify-icons/mdi/filter-variant";
 import sortIcon from "@iconify-icons/mdi/sort";
 import shapeIcon from "@iconify-icons/mdi/shape-outline";
-import eyeIcon from "@iconify-icons/mdi/eye-outline";
+import checkIcon from "@iconify-icons/mdi/check";
+import closeIcon from "@iconify-icons/mdi/close";
 
+import http from "@/plugins/axios";
 import { countyLabel } from "@/constants/county";
 import {
   ADMIN_CRAWLER_REVIEW_SORT_DEFAULT,
@@ -16,6 +17,7 @@ import {
   parseSort,
 } from "@/constants/sort";
 import { useApiCollection } from "@/composables/useApiCollection";
+import { openAppAlert } from "@/components/ui/Alert.vue";
 import PageIntro from "@/components/layout/PageIntro.vue";
 import ResultBanner from "@/components/layout/ResultBanner.vue";
 import SearchFilter from "@/components/layout/SearchFilter.vue";
@@ -24,7 +26,6 @@ import DataTable, { dateTimeText } from "@/components/ui/DataTable.vue";
 import Pagination from "@/components/ui/Pagination.vue";
 import AppButton from "@/components/ui/Button.vue";
 
-const router = useRouter();
 const PAGE_SIZE = 20;
 const CRAWLER_TYPE_OPTIONS = [
   { value: "CINEMA", label: "影城" },
@@ -87,6 +88,15 @@ function reviewEntityRoute(row) {
   return { name, params: { id } };
 }
 
+function isReviewed(row) {
+  return row?.reviewStatus != null && row.reviewStatus !== "PENDING";
+}
+
+function apiMessage(error, fallback) {
+  const message = error?.response?.data?.message;
+  return typeof message === "string" && message.trim() ? message.trim() : fallback;
+}
+
 const filters = ref({
   crawlerType: "",
   reviewStatus: "PENDING",
@@ -94,6 +104,7 @@ const filters = ref({
 });
 const page = ref(1);
 const listTop = ref(null);
+const actingId = ref(null);
 
 const appliedFilters = computed({
   get: () => filters.value,
@@ -164,14 +175,14 @@ const columns = [
     format: reviewStatusLabel,
   },
   {
-    key: "crawledAt",
-    label: "爬取時間",
+    key: "createdAt",
+    label: "建立時間",
     minWidth: "12rem",
     nowrap: true,
     align: "center",
     format: dateTimeText,
   },
-  { key: "actions", label: "操作", minWidth: "8rem", align: "center" },
+  { key: "actions", label: "操作", minWidth: "12rem", align: "center" },
 ];
 
 const requestParams = computed(() => {
@@ -208,8 +219,8 @@ const resultUnit = computed(() =>
   hasFilters.value ? "筆符合條件的審核" : "筆審核",
 );
 
-function openDetail(reviewId) {
-  router.push({ name: "admin-crawler-review-detail", params: { id: reviewId } });
+function choiceDisabled(row) {
+  return isReviewed(row) || actingId.value === row.crawlerReviewId;
 }
 
 function goToPage(next) {
@@ -220,11 +231,67 @@ function goToPage(next) {
     block: "start",
   });
 }
+
+async function changeStatus(row, reviewStatus) {
+  if (!row || choiceDisabled(row)) return;
+
+  const prompts = {
+    APPROVED: {
+      title: "確定同意這筆差異？",
+      text: "同意後會把爬蟲值寫入正式資料。",
+      confirmText: "同意",
+      successTitle: "已同意",
+      successText: "爬蟲值已寫入正式資料。",
+      errorTitle: "同意失敗",
+    },
+    REJECTED: {
+      title: "確定不同意這筆差異？",
+      text: "不同意後正式資料會維持原值。",
+      confirmText: "不同意",
+      successTitle: "已不同意",
+      successText: "正式資料維持原值。",
+      errorTitle: "不同意失敗",
+    },
+  };
+  const prompt = prompts[reviewStatus];
+  const confirmed = await openAppAlert({
+    variant: "confirm",
+    title: prompt.title,
+    text: `${reviewFieldLabel(row.fieldName)}：${reviewValueText(row.previousValue, row) || "（空）"} → ${reviewValueText(row.crawlerValue, row) || "（空）"}。${prompt.text}`,
+    confirmText: prompt.confirmText,
+    cancelText: "取消",
+  });
+  if (!confirmed.isConfirmed || choiceDisabled(row)) return;
+
+  actingId.value = row.crawlerReviewId;
+  try {
+    await http.patch(`/crawler-reviews/${row.crawlerReviewId}`, { reviewStatus });
+    row.reviewStatus = reviewStatus;
+    await openAppAlert({
+      variant: "success",
+      title: prompt.successTitle,
+      text: prompt.successText,
+      confirmText: "關閉",
+      cancelText: "",
+    });
+    retry();
+  } catch (requestError) {
+    await openAppAlert({
+      variant: "error",
+      title: prompt.errorTitle,
+      text: apiMessage(requestError, "請確認連線後再試一次。"),
+      confirmText: "關閉",
+      cancelText: "",
+    });
+  } finally {
+    actingId.value = null;
+  }
+}
 </script>
 
 <template>
   <section>
-    <PageIntro kicker="✦ CRAWLER REVIEW" lead="爬蟲" mark="審核" description="核對爬蟲與正式資料的差異。接受會寫入正式資料，拒絕則保留原值。"
+    <PageIntro kicker="✦ CRAWLER REVIEW" lead="爬蟲" mark="審核" description="核對爬蟲與正式資料的差異。同意會寫入正式資料，不同意則保留原值。"
       :icon-left="clipboardIcon" :icon-right="sourceBranchIcon" :icon-top="tableIcon" theme="purple" />
 
     <ResultBanner v-if="!(loading && !reviews.length) && !error" :icon="clipboardIcon" title="爬蟲審核紀錄"
@@ -243,9 +310,14 @@ function goToPage(next) {
           </template>
           <template #cell-actions="{ row }">
             <div class="review-actions">
-              <AppButton type="button" color="purple" variant="outline" :icon="eyeIcon"
-                @click="openDetail(row.crawlerReviewId)">
-                詳細
+              <AppButton type="button" color="purple" :icon="checkIcon" :disabled="choiceDisabled(row)"
+                :class="{ 'is-settled': isReviewed(row) }" @click="changeStatus(row, 'APPROVED')">
+                同意
+              </AppButton>
+              <AppButton type="button" color="purple" variant="outline" :icon="closeIcon"
+                :disabled="choiceDisabled(row)" :class="{ 'is-settled': isReviewed(row) }"
+                @click="changeStatus(row, 'REJECTED')">
+                不同意
               </AppButton>
             </div>
           </template>
@@ -279,6 +351,13 @@ function goToPage(next) {
   min-height: 2.25rem;
   padding: 0.3rem 0.8rem;
   box-shadow: none;
+}
+
+.review-actions :deep(.app-button.is-settled) {
+  background: transparent;
+  box-shadow: none;
+  opacity: 0.28;
+  cursor: not-allowed;
 }
 
 .entity-link {

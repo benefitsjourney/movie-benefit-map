@@ -112,7 +112,7 @@ public class CrawlerReviewsService {
             String fieldName,
             String crawlerValue,
             String previousValue) {
-        return saveCrawlerChange(crawlerType, entityId, fieldName, crawlerValue, previousValue, null)
+        return saveCrawlerChange(crawlerType, entityId, fieldName, crawlerValue, previousValue)
                 .isPresent();
     }
 
@@ -150,8 +150,7 @@ public class CrawlerReviewsService {
                 request.entityId(),
                 request.fieldName().trim(),
                 request.crawlerValue(),
-                request.previousValue(),
-                request.crawledAt())
+                request.previousValue())
                 .map(CrawlerReviewResponse::from)
                 .orElseThrow(() -> badRequest("已有相同差異的審核紀錄，不重複新增"));
     }
@@ -221,8 +220,7 @@ public class CrawlerReviewsService {
             Integer entityId,
             String fieldName,
             String crawlerValue,
-            String previousValue,
-            LocalDateTime crawledAt) {
+            String previousValue) {
         if (Objects.equals(crawlerValue, previousValue)) {
             return Optional.empty();
         }
@@ -242,7 +240,6 @@ public class CrawlerReviewsService {
 
             pending.setCrawlerValue(crawlerValue);
             pending.setPreviousValue(previousValue);
-            pending.setCrawledAt(crawledAt != null ? crawledAt : now());
             return Optional.of(crawlerReviewsRepository.save(pending));
         }
 
@@ -261,7 +258,6 @@ public class CrawlerReviewsService {
         review.setCrawlerValue(crawlerValue);
         review.setPreviousValue(previousValue);
         review.setReviewStatus(ReviewStatus.PENDING);
-        review.setCrawledAt(crawledAt != null ? crawledAt : now());
 
         return Optional.of(crawlerReviewsRepository.save(review));
     }
@@ -317,7 +313,6 @@ public class CrawlerReviewsService {
         pending.setCrawlerValue(review.getCrawlerValue());
         pending.setPreviousValue(currentValue);
         pending.setReviewStatus(ReviewStatus.PENDING);
-        pending.setCrawledAt(now());
         return crawlerReviewsRepository.save(pending);
     }
 

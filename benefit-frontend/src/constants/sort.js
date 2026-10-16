@@ -30,11 +30,6 @@ const UPDATED_AT_OPTIONS = [
   { value: "UPDATED_AT:DESC", label: "更新時間（新 → 舊）" },
   { value: "UPDATED_AT:ASC", label: "更新時間（舊 → 新）" },
 ];
-const CREATED_AT_OPTIONS = [
-  { value: "CREATED_AT:DESC", label: "建立時間（新 → 舊）" },
-  { value: "CREATED_AT:ASC", label: "建立時間（舊 → 新）" },
-];
-
 export const MOVIE_SORT_OPTIONS = [RELEASE_DATE_ASC];
 
 export const ADMIN_MOVIE_SORT_DEFAULT = {
@@ -64,13 +59,13 @@ export const ADMIN_CINEMA_SORT_OPTIONS = [
 ];
 
 export const ADMIN_CRAWLER_REVIEW_SORT_DEFAULT = {
-  orderBy: "CRAWLED_AT",
+  orderBy: "CREATED_AT",
   sort: "DESC",
-  label: "爬取時間（新 → 舊）",
+  label: "建立時間（新 → 舊）",
 };
 
 export const ADMIN_CRAWLER_REVIEW_SORT_OPTIONS = [
-  { value: "CRAWLED_AT:ASC", label: "爬取時間（舊 → 新）" },
+  { value: "CREATED_AT:ASC", label: "建立時間（舊 → 新）" },
   { value: "REVIEWED_AT:DESC", label: "審核時間（新 → 舊）" },
   { value: "REVIEWED_AT:ASC", label: "審核時間（舊 → 新）" },
   { value: "REVIEW_STATUS:ASC", label: "審查狀態" },
@@ -78,9 +73,6 @@ export const ADMIN_CRAWLER_REVIEW_SORT_OPTIONS = [
   { value: "ENTITY_ID:ASC", label: "資料編號（小 → 大）" },
   { value: "ENTITY_ID:DESC", label: "資料編號（大 → 小）" },
   ...UPDATED_AT_OPTIONS,
-  ...CREATED_AT_OPTIONS,
-  { value: "UNLOCKED_AT:DESC", label: "解鎖時間（新 → 舊）" },
-  { value: "UNLOCKED_AT:ASC", label: "解鎖時間（舊 → 新）" },
   { value: "CRAWLER_REVIEW_ID:ASC", label: "編號（小 → 大）" },
   { value: "CRAWLER_REVIEW_ID:DESC", label: "編號（大 → 小）" },
 ];

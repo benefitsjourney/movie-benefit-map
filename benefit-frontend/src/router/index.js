@@ -9,7 +9,6 @@ import AdminMovieDetail from '@/views/AdminMovieDetail.vue'
 import AdminMovieForm from '@/views/AdminMovieForm.vue'
 import AdminCrawlerView from '@/views/AdminCrawlerView.vue'
 import AdminCrawlerReviewView from '@/views/AdminCrawlerReviewView.vue'
-import AdminCrawlerReviewDetail from '@/views/AdminCrawlerReviewDetail.vue'
 import CinemaView from '@/views/CinemaView.vue'
 import MapView from '@/views/MapView.vue'
 import MovieView from '@/views/MovieView.vue'
@@ -58,13 +57,8 @@ const router = createRouter({
           component: AdminCrawlerReviewView,
         },
         {
-          path: 'crawler-reviews/new',
-          redirect: { name: 'admin-crawler-reviews' },
-        },
-        {
           path: 'crawler-reviews/:id',
-          name: 'admin-crawler-review-detail',
-          component: AdminCrawlerReviewDetail,
+          redirect: { name: 'admin-crawler-reviews' },
         },
         {
           path: 'cinemas',
