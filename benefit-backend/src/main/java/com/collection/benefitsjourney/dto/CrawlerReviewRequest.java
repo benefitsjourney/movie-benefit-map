@@ -24,11 +24,7 @@ public record CrawlerReviewRequest(
 
         ReviewStatus reviewStatus,
 
-        @Schema(type = "string", example = "2026-10-08 10:33:00") LocalDateTime crawledAt,
-
-        @Schema(type = "string", example = "2026-10-08 10:33:00") LocalDateTime reviewedAt,
-
-        @Schema(type = "string", example = "2026-10-08 10:33:00") LocalDateTime unlockedAt) {
+        @Schema(type = "string", example = "2026-10-08 10:33:00") LocalDateTime reviewedAt) {
 
     /** 新增時才檢查必填欄位；修改時允許省略未變更欄位 */
     public interface OnCreate {

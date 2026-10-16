@@ -34,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
-public class CinemaCrawlerService {
+public class CrawlerCinemaService {
 
     /** HTTP 請求最大等待時間 */
     private static final int REQUEST_TIMEOUT_MS = 10_000;
@@ -95,7 +95,7 @@ public class CinemaCrawlerService {
     /** 比對既有影城欄位差異並建立審核紀錄。 */
     private final CrawlerReviewsService crawlerReviewsService;
 
-    public CinemaCrawlerService(
+    public CrawlerCinemaService(
             CinemaService cinemaService,
             CrawlerReviewsService crawlerReviewsService) {
         this.cinemaService = cinemaService;

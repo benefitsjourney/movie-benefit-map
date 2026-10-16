@@ -103,7 +103,7 @@ class CrawlerReviewsControllerTest {
             mockMvc.perform(get("/crawler-reviews")
                     .param("crawlerType", "CINEMA")
                     .param("reviewStatus", "APPROVED")
-                    .param("orderBy", "CRAWLED_AT")
+                    .param("orderBy", "UPDATED_AT")
                     .param("sort", "DESC")
                     .param("page", "3")
                     .param("size", "20"))
@@ -114,7 +114,7 @@ class CrawlerReviewsControllerTest {
                     ReviewStatus.APPROVED,
                     3,
                     20,
-                    CrawlerReviewSort.SortBy.CRAWLED_AT,
+                    CrawlerReviewSort.SortBy.UPDATED_AT,
                     SortOrder.DESC);
         }
 
@@ -210,9 +210,7 @@ class CrawlerReviewsControllerTest {
                       "crawlerValue": "新片名",
                       "previousValue": "舊片名",
                       "reviewStatus": "REJECTED",
-                      "crawledAt": "2026-10-08T10:33:00",
-                      "reviewedAt": "2026-10-09T11:00:00",
-                      "unlockedAt": "2026-10-10T12:15:30"
+                      "reviewedAt": "2026-10-09T11:00:00"
                     }
                     """;
 
@@ -231,9 +229,7 @@ class CrawlerReviewsControllerTest {
             assertEquals("新片名", request.crawlerValue());
             assertEquals("舊片名", request.previousValue());
             assertEquals(ReviewStatus.REJECTED, request.reviewStatus());
-            assertEquals(LocalDateTime.of(2026, 10, 8, 10, 33), request.crawledAt());
             assertEquals(LocalDateTime.of(2026, 10, 9, 11, 0), request.reviewedAt());
-            assertEquals(LocalDateTime.of(2026, 10, 10, 12, 15, 30), request.unlockedAt());
         }
 
         @Test
@@ -262,9 +258,7 @@ class CrawlerReviewsControllerTest {
             assertNull(request.crawlerValue());
             assertNull(request.previousValue());
             assertNull(request.reviewStatus());
-            assertNull(request.crawledAt());
             assertNull(request.reviewedAt());
-            assertNull(request.unlockedAt());
         }
 
         @Test
@@ -324,7 +318,7 @@ class CrawlerReviewsControllerTest {
         @DisplayName("日期時間格式無效應回傳 400")
         void invalidDateTime() throws Exception {
             String json = """
-                    {"crawlerType":"MOVIE","entityId":1,"fieldName":"movieName","crawledAt":"ABC"}
+                    {"crawlerType":"MOVIE","entityId":1,"fieldName":"movieName","reviewedAt":"ABC"}
                     """;
 
             mockMvc.perform(post("/crawler-reviews")
@@ -465,9 +459,7 @@ class CrawlerReviewsControllerTest {
                       "crawlerValue": "新特典",
                       "previousValue": "舊特典",
                       "reviewStatus": "REJECTED",
-                      "crawledAt": "2026-11-01T01:02:03",
-                      "reviewedAt": "2026-11-02T04:05:06",
-                      "unlockedAt": "2026-11-03T07:08:09"
+                      "reviewedAt": "2026-11-02T04:05:06"
                     }
                     """;
 
@@ -486,9 +478,7 @@ class CrawlerReviewsControllerTest {
             assertEquals("新特典", request.crawlerValue());
             assertEquals("舊特典", request.previousValue());
             assertEquals(ReviewStatus.REJECTED, request.reviewStatus());
-            assertEquals(LocalDateTime.of(2026, 11, 1, 1, 2, 3), request.crawledAt());
             assertEquals(LocalDateTime.of(2026, 11, 2, 4, 5, 6), request.reviewedAt());
-            assertEquals(LocalDateTime.of(2026, 11, 3, 7, 8, 9), request.unlockedAt());
         }
 
         @Test
@@ -509,9 +499,7 @@ class CrawlerReviewsControllerTest {
             assertNull(request.fieldName());
             assertNull(request.previousValue());
             assertNull(request.reviewStatus());
-            assertNull(request.crawledAt());
             assertNull(request.reviewedAt());
-            assertNull(request.unlockedAt());
         }
 
         @Test
@@ -838,8 +826,6 @@ class CrawlerReviewsControllerTest {
                 "新片名",
                 "舊片名",
                 ReviewStatus.PENDING,
-                LocalDateTime.of(2026, 10, 8, 10, 33),
-                null,
                 null,
                 null,
                 null);
