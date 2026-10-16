@@ -57,11 +57,14 @@ class CinemaCrawlerServiceTest {
     @Mock
     private CinemaService cinemaService;
 
+    @Mock
+    private CrawlerReviewsService crawlerReviewsService;
+
     private CinemaCrawlerService crawler;
 
     @BeforeEach
     void setUp() {
-        crawler = spy(new CinemaCrawlerService(cinemaService));
+        crawler = spy(new CinemaCrawlerService(cinemaService, crawlerReviewsService));
     }
 
     private Document page(String url, String html) {
@@ -138,24 +141,25 @@ class CinemaCrawlerServiceTest {
         }
 
         @Test
-        @DisplayName("已存在的影城應呼叫 updateCinema，不可新增")
-        void updateCinema() throws Exception {
+        @DisplayName("已存在且名稱不同時只送審，不改正式資料")
+        void queueNameChange() throws Exception {
             oneArea();
             area(AREA_01, cinemaHtml("t02a01", "信義威秀新名稱", "台北市信義區松壽路20號"));
             map(MAP_01, "<p>沒有座標</p>");
 
-            when(cinemaService.findBySourceId("t02a01"))
-                    .thenReturn(Optional.of(saved(100, "t02a01", "舊名稱")));
-            CinemaResponse updated = saved(100, "t02a01", "信義威秀新名稱");
-            when(cinemaService.updateCinema(anyInt(), any(CinemaRequest.class)))
-                    .thenReturn(updated);
+            CinemaResponse existing = saved(100, "t02a01", "舊名稱");
+            when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(existing));
 
             List<CinemaResponse> result = crawler.syncCinemas();
 
-            assertEquals(List.of(updated), result);
-            ArgumentCaptor<CinemaRequest> captor = ArgumentCaptor.forClass(CinemaRequest.class);
-            verify(cinemaService).updateCinema(org.mockito.ArgumentMatchers.eq(100), captor.capture());
-            assertEquals("信義威秀新名稱", captor.getValue().cinemaName());
+            assertEquals(List.of(existing), result);
+            verify(crawlerReviewsService).submitCrawlerChange(
+                    com.collection.benefitsjourney.enums.CinemaResourceType.CINEMA,
+                    100,
+                    CrawlerReviewsService.CINEMA_NAME,
+                    "信義威秀新名稱",
+                    "舊名稱");
+            verify(cinemaService, never()).updateCinema(anyInt(), any());
             verify(cinemaService, never()).createCinema(any());
         }
 

@@ -1,7 +1,6 @@
 package com.collection.benefitsjourney.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -58,11 +57,14 @@ class MovieCrawlerServiceTest {
     @Mock
     private MovieService movieService;
 
+    @Mock
+    private CrawlerReviewsService crawlerReviewsService;
+
     private MovieCrawlerService crawler;
 
     @BeforeEach
     void setUp() {
-        crawler = spy(new MovieCrawlerService(movieService));
+        crawler = spy(new MovieCrawlerService(movieService, crawlerReviewsService));
     }
 
     private Document page(String url, String html) {
@@ -228,25 +230,25 @@ class MovieCrawlerServiceTest {
         }
 
         @Test
-        @DisplayName("修改電影名稱時保留既有圖片、日期與隱藏狀態")
-        void updateAndPreserveExistingFields() throws Exception {
+        @DisplayName("名稱不同時只送審，正式資料與未抓到的欄位都保持原樣")
+        void queueNameChangeWithoutUpdatingMovie() throws Exception {
             onlyNewPage("<a href='/movie/fA001/'>更新後名稱</a>");
             MovieResponse existing = saved(1, "fA001", "舊名稱",
                     BASE + "/poster/old.jpg", false, DATE_A);
             when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
-            MovieResponse updated = saved(1, "fA001", "更新後名稱",
-                    BASE + "/poster/old.jpg", false, DATE_A);
-            when(movieService.updateMovie(anyInt(), any(MovieRequest.class))).thenReturn(updated);
+            when(crawlerReviewsService.submitCrawlerChange(
+                    any(), any(), any(), any(), any())).thenReturn(true);
 
             List<MovieResponse> result = crawler.syncMovies();
 
-            assertEquals(List.of(updated), result);
-            ArgumentCaptor<MovieRequest> captor = ArgumentCaptor.forClass(MovieRequest.class);
-            verify(movieService).updateMovie(org.mockito.ArgumentMatchers.eq(1), captor.capture());
-            assertEquals("更新後名稱", captor.getValue().movieName());
-            assertEquals(BASE + "/poster/old.jpg", captor.getValue().imageUrl());
-            assertEquals(DATE_A, captor.getValue().releaseDate());
-            assertFalse(captor.getValue().isVisible());
+            assertEquals(List.of(existing), result);
+            verify(crawlerReviewsService).submitCrawlerChange(
+                    com.collection.benefitsjourney.enums.CinemaResourceType.MOVIE,
+                    1,
+                    CrawlerReviewsService.MOVIE_NAME,
+                    "更新後名稱",
+                    "舊名稱");
+            verify(movieService, never()).updateMovie(anyInt(), any());
             verify(movieService, never()).createMovie(any());
             verify(crawler, never()).connect(DETAIL_A);
         }

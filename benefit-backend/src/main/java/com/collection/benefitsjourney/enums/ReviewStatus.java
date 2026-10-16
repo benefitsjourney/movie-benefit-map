@@ -2,12 +2,12 @@ package com.collection.benefitsjourney.enums;
 
 /** 審查狀態 */
 public enum ReviewStatus {
-    /** 未審查 */
+    /** 待審核 */
     PENDING,
 
-    /** 鎖定同步 */
-    LOCKED,
+    /** 已接受 */
+    APPROVED,
 
-    /** 恢復同步 */
-    RESUMED
+    /** 已拒絕 */
+    REJECTED
 }

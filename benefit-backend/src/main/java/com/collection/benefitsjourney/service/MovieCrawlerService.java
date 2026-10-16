@@ -26,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.collection.benefitsjourney.dto.MovieRequest;
 import com.collection.benefitsjourney.dto.MovieResponse;
+import com.collection.benefitsjourney.enums.CinemaResourceType;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -75,9 +76,13 @@ public class MovieCrawlerService {
     }
 
     private final MovieService movieService;
+    private final CrawlerReviewsService crawlerReviewsService;
 
-    public MovieCrawlerService(MovieService movieService) {
+    public MovieCrawlerService(
+            MovieService movieService,
+            CrawlerReviewsService crawlerReviewsService) {
         this.movieService = movieService;
+        this.crawlerReviewsService = crawlerReviewsService;
     }
 
     /** 同步最新電影資料（列表與必要的詳細頁平行抓取，資料庫依序寫入）。 */
@@ -111,10 +116,10 @@ public class MovieCrawlerService {
             }
 
             int created = 0;
-            int updated = 0;
+            int pending = 0;
             int unchanged = 0;
 
-            // 詳細頁同時進行下載；資料庫只在這裡依序新增／修改。
+            // 詳細頁同時進行下載；資料庫只在這裡依序新增，既有電影只送差異去審核。
             for (MovieJob job : jobs) {
                 try {
                     MovieInfo info = job.detail() == null
@@ -122,7 +127,6 @@ public class MovieCrawlerService {
                             : job.detail().get();
 
                     MovieResponse existing = job.existing();
-                    boolean same = isUnchanged(info, existing);
                     MovieResponse saved = saveMovie(info, existing);
 
                     if (saved == null) {
@@ -130,13 +134,14 @@ public class MovieCrawlerService {
                         continue;
                     }
 
+                    int queued = existing == null ? 0 : reviewExistingMovie(info, existing);
                     results.add(saved);
                     if (existing == null) {
                         created++;
-                    } else if (same) {
-                        unchanged++;
+                    } else if (queued > 0) {
+                        pending++;
                     } else {
-                        updated++;
+                        unchanged++;
                     }
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
@@ -157,9 +162,9 @@ public class MovieCrawlerService {
                         HttpStatus.BAD_GATEWAY, "電影爬蟲未成功同步任何資料");
             }
 
-            log.info("電影爬蟲完成：列表 {} 頁、電影 {} 部、詳細頁 {} 頁、新增 {} 部、更新 {} 部、未變 {} 部、失敗 {} 部、耗時 {} 秒",
+            log.info("電影爬蟲完成：列表 {} 頁、電影 {} 部、詳細頁 {} 頁、新增 {} 部、待審 {} 部、未變 {} 部、失敗 {} 部、耗時 {} 秒",
                     MOVIE_URLS.size(), movies.size(), details,
-                    created, updated, unchanged, failed,
+                    created, pending, unchanged, failed,
                     String.format("%.2f", (System.nanoTime() - start) / 1_000_000_000.0));
 
             return results;
@@ -265,51 +270,53 @@ public class MovieCrawlerService {
     }
 
     private MovieResponse saveMovie(MovieInfo info, MovieResponse existing) {
-        String movieName = info.movieName() != null
-                ? info.movieName()
-                : existing == null ? null : existing.movieName();
+        if (existing != null) {
+            return existing;
+        }
 
-        if (movieName == null) {
+        if (info.movieName() == null) {
             log.warn("缺少電影名稱，略過：{}", info.url());
             return null;
         }
 
-        // 未取得的新值，不覆蓋原本資料庫的內容。
-        String imageUrl = info.imageUrl() != null
-                ? info.imageUrl()
-                : existing == null ? null : existing.imageUrl();
-        LocalDateTime releaseDate = info.releaseDate() != null
-                ? info.releaseDate()
-                : existing == null ? null : existing.releaseDate();
-
-        if (existing != null
-                && movieName.equals(existing.movieName())
-                && Objects.equals(imageUrl, existing.imageUrl())
-                && Objects.equals(releaseDate, existing.releaseDate())) {
-            return existing;
-        }
-
-        boolean isVisible = existing == null || Boolean.TRUE.equals(existing.isVisible());
-        MovieRequest request = new MovieRequest(
-                info.sourceId(), movieName, imageUrl, isVisible, releaseDate);
-
-        return existing == null
-                ? movieService.createMovie(request)
-                : movieService.updateMovie(existing.movieId(), request);
+        return movieService.createMovie(new MovieRequest(
+                info.sourceId(),
+                info.movieName(),
+                info.imageUrl(),
+                true,
+                info.releaseDate()));
     }
 
-    private boolean isUnchanged(MovieInfo info, MovieResponse existing) {
-        if (existing == null) {
-            return false;
+    /** 只把實際抓到、且與正式資料不同的欄位送審。回傳有寫入待審核的欄位數。 */
+    private int reviewExistingMovie(MovieInfo info, MovieResponse existing) {
+        int queued = 0;
+        queued += reviewField(existing.movieId(), CrawlerReviewsService.MOVIE_NAME,
+                info.movieName(), existing.movieName());
+        queued += reviewField(existing.movieId(), CrawlerReviewsService.IMAGE_URL,
+                info.imageUrl(), existing.imageUrl());
+        queued += reviewField(existing.movieId(), CrawlerReviewsService.RELEASE_DATE,
+                info.releaseDate(), existing.releaseDate());
+        return queued;
+    }
+
+    private int reviewField(Integer entityId, String fieldName, Object crawled, Object current) {
+        if (crawled == null) {
+            return 0;
         }
 
-        String name = info.movieName() != null ? info.movieName() : existing.movieName();
-        String image = info.imageUrl() != null ? info.imageUrl() : existing.imageUrl();
-        LocalDateTime date = info.releaseDate() != null ? info.releaseDate() : existing.releaseDate();
+        String crawlerValue = CrawlerReviewsService.formatValue(crawled);
+        String previousValue = CrawlerReviewsService.formatValue(current);
 
-        return Objects.equals(name, existing.movieName())
-                && Objects.equals(image, existing.imageUrl())
-                && Objects.equals(date, existing.releaseDate());
+        if (Objects.equals(crawlerValue, previousValue)) {
+            return 0;
+        }
+
+        return crawlerReviewsService.submitCrawlerChange(
+                CinemaResourceType.MOVIE,
+                entityId,
+                fieldName,
+                crawlerValue,
+                previousValue) ? 1 : 0;
     }
 
     Document connect(String url) throws IOException {

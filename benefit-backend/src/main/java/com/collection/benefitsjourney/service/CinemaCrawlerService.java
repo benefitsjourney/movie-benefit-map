@@ -20,6 +20,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.collection.benefitsjourney.dto.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaResponse;
+import com.collection.benefitsjourney.enums.CinemaResourceType;
 import com.collection.benefitsjourney.enums.County;
 
 import lombok.extern.slf4j.Slf4j;
@@ -50,9 +51,13 @@ public class CinemaCrawlerService {
     }
 
     private final CinemaService cinemaService;
+    private final CrawlerReviewsService crawlerReviewsService;
 
-    public CinemaCrawlerService(CinemaService cinemaService) {
+    public CinemaCrawlerService(
+            CinemaService cinemaService,
+            CrawlerReviewsService crawlerReviewsService) {
         this.cinemaService = cinemaService;
+        this.crawlerReviewsService = crawlerReviewsService;
     }
 
     /** 同步爬取所有影城資料 */
@@ -121,7 +126,7 @@ public class CinemaCrawlerService {
             double seconds = (System.nanoTime() - startTime) / 1_000_000_000.0;
 
             log.info(
-                    "影城爬蟲完成，共抓取 {} 間影城，成功存入 {} 間，耗時 {} 秒",
+                    "影城爬蟲完成，共抓取 {} 間影城，成功處理 {} 間，耗時 {} 秒",
                     cinemas.size(),
                     savedCinemas.size(),
                     String.format("%.2f", seconds));
@@ -255,25 +260,15 @@ public class CinemaCrawlerService {
                 null);
     }
 
-    /** 將取得的單筆影城資料同步到資料庫 */
+    /** 將取得的單筆影城資料同步到資料庫。沒有資料才直接新增，已有資料只送差異去審核。 */
     private CinemaResponse syncCinemaToDatabase(CinemaResponse response) {
-        CinemaRequest request = new CinemaRequest(
-                response.sourceId(),
-                response.cinemaName(),
-                response.county(),
-                response.cinemaAddress(),
-                response.latitude(),
-                response.longitude(),
-                response.officialWebsiteUrl(),
-                response.isActive(),
-                response.isVisible());
-
         try {
             return cinemaService.findBySourceId(response.sourceId())
-                    .map(cinema -> cinemaService.updateCinema(
-                            cinema.cinemaId(),
-                            request))
-                    .orElseGet(() -> cinemaService.createCinema(request));
+                    .map(cinema -> {
+                        reviewChangedFields(cinema, response);
+                        return cinema;
+                    })
+                    .orElseGet(() -> cinemaService.createCinema(toCinemaRequest(response)));
 
         } catch (DataIntegrityViolationException e) {
             log.warn(
@@ -284,6 +279,63 @@ public class CinemaCrawlerService {
 
             return null;
         }
+    }
+
+    private CinemaRequest toCinemaRequest(CinemaResponse response) {
+        return new CinemaRequest(
+                response.sourceId(),
+                response.cinemaName(),
+                response.county(),
+                response.cinemaAddress(),
+                response.latitude(),
+                response.longitude(),
+                response.officialWebsiteUrl(),
+                response.isActive(),
+                response.isVisible());
+    }
+
+    /** 只把實際抓到、且與正式資料不同的欄位送審。 */
+    private void reviewChangedFields(CinemaResponse current, CinemaResponse crawled) {
+        reviewField(current.cinemaId(), CrawlerReviewsService.CINEMA_NAME,
+                crawled.cinemaName(), current.cinemaName());
+
+        if (crawled.cinemaAddress() != null) {
+            reviewField(current.cinemaId(), CrawlerReviewsService.CINEMA_ADDRESS,
+                    crawled.cinemaAddress(), current.cinemaAddress());
+            reviewField(current.cinemaId(), CrawlerReviewsService.COUNTY,
+                    crawled.county(), current.county());
+        }
+
+        if (crawled.latitude() != null) {
+            reviewField(current.cinemaId(), CrawlerReviewsService.LATITUDE,
+                    crawled.latitude(), current.latitude());
+        }
+
+        if (crawled.longitude() != null) {
+            reviewField(current.cinemaId(), CrawlerReviewsService.LONGITUDE,
+                    crawled.longitude(), current.longitude());
+        }
+
+        if (crawled.officialWebsiteUrl() != null) {
+            reviewField(current.cinemaId(), CrawlerReviewsService.OFFICIAL_WEBSITE_URL,
+                    crawled.officialWebsiteUrl(), current.officialWebsiteUrl());
+        }
+    }
+
+    private void reviewField(Integer entityId, String fieldName, Object crawled, Object current) {
+        String crawlerValue = CrawlerReviewsService.formatValue(crawled);
+        String previousValue = CrawlerReviewsService.formatValue(current);
+
+        if (Objects.equals(crawlerValue, previousValue)) {
+            return;
+        }
+
+        crawlerReviewsService.submitCrawlerChange(
+                CinemaResourceType.CINEMA,
+                entityId,
+                fieldName,
+                crawlerValue,
+                previousValue);
     }
 
     /** 取得影城來源 ID */
