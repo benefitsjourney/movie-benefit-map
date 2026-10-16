@@ -1,5 +1,6 @@
 package com.collection.benefitsjourney.controller;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.collection.benefitsjourney.domain.UsersBean;
@@ -113,8 +114,8 @@ public class AuthController {
 
     // 登出
     @PostMapping("/logout")
-    public void logout() {
-
+    public ResponseEntity<String> logout() {
+        return ResponseEntity.ok("登出成功");
     }
 
 
