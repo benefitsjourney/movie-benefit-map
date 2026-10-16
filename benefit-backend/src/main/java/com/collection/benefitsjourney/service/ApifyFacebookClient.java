@@ -17,7 +17,16 @@ import org.springframework.stereotype.Component;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
-/** 呼叫Apify Facebook貼文Actor */
+/**
+ * 呼叫Apify Facebook貼文Actor。
+ *
+ * 【實際 HTTP 請求預設停用】會消耗 Apify 免費額度。
+ * 要啟用，必須「同時」滿足（缺一不可）：
+ *   1. benefit.crawler.apify.enabled=true   （環境變數 BENEFIT_CRAWLER_APIFY_ENABLED=true）
+ *   2. 設定 APIFY_TOKEN 與 APIFY_FACEBOOK_ACTOR
+ *   3. BenefitPostSource 的 benefit.crawler.source=http （見 BenefitPostSource）
+ * 沒開啟時 fetchPosts 會直接丟 IllegalStateException，不會送出任何請求。
+ */
 @Component
 public class ApifyFacebookClient {
 
@@ -29,20 +38,29 @@ public class ApifyFacebookClient {
     private final String actor;
     private final String token;
     private final int timeoutSeconds;
+    private final boolean enabled;
 
     public ApifyFacebookClient(
             JsonMapper objectMapper,
             @Value("${benefit.crawler.apify.actor:}") String actor,
             @Value("${benefit.crawler.apify.token:}") String token,
-            @Value("${benefit.crawler.apify.timeout-seconds:300}") int timeoutSeconds) {
+            @Value("${benefit.crawler.apify.timeout-seconds:300}") int timeoutSeconds,
+            @Value("${benefit.crawler.apify.enabled:false}") boolean enabled) {
         this.objectMapper = objectMapper;
         this.actor = actor == null ? "" : actor.trim();
         this.token = token == null ? "" : token.trim();
         this.timeoutSeconds = Math.max(30, Math.min(timeoutSeconds, 300));
+        this.enabled = enabled;
     }
 
     public List<JsonNode> fetchPosts(List<String> facebookUrls, int maxPosts)
             throws IOException, InterruptedException {
+        // 總開關：預設 false，確保測試與日常開發不會意外消耗額度
+        if (!enabled) {
+            throw new IllegalStateException(
+                    "Apify 實際 HTTP 請求目前停用。若確定要消耗額度，請設定 "
+                            + "benefit.crawler.apify.enabled=true（環境變數 BENEFIT_CRAWLER_APIFY_ENABLED=true）");
+        }
         if (token.isBlank()) {
             throw new IllegalStateException(
                     "尚未設定 benefit.crawler.apify.token（環境變數APIFY_TOKEN）");
@@ -69,15 +87,15 @@ public class ApifyFacebookClient {
         // 專題只需要特典圖片，不下載或解析影片字幕。
         input.put("includeVideoTranscript", false);
 
-        String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8);
         String encodedActor = URLEncoder.encode(actor, StandardCharsets.UTF_8).replace("%7E", "~");
+        // token 改放 Authorization header（Apify 支援 Bearer），不再放網址，避免出現在 log／例外訊息
         URI uri = URI.create("https://api.apify.com/v2/acts/" + encodedActor
-                + "/run-sync-get-dataset-items?token=" + encodedToken
-                + "&timeout=" + timeoutSeconds + "&format=json&clean=true");
+                + "/run-sync-get-dataset-items?timeout=" + timeoutSeconds + "&format=json&clean=true");
 
         HttpRequest request = HttpRequest.newBuilder(uri)
                 .timeout(Duration.ofSeconds(timeoutSeconds + 30L))
                 .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + token)
                 .POST(HttpRequest.BodyPublishers.ofString(
                         objectMapper.writeValueAsString(input), StandardCharsets.UTF_8))
                 .build();
