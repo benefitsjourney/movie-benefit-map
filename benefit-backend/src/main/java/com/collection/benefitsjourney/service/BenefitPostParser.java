@@ -324,9 +324,9 @@ public class BenefitPostParser {
     }
 
     /**
-     * 移除不應參與特典判斷的罐頭文。
-     * 影城專屬罐頭文由BenefitPostRules判斷；
-     * 通用注意事項則沿用原本的停止規則
+     * 1. 移除不應參與特典判斷的罐頭文
+     * 2. 影城專屬罐頭文由BenefitPostRules判斷
+     * 3. 通用注意事項則沿用原本的停止規則
      */
     private static String removeBoilerplate(
             String text,
@@ -378,29 +378,29 @@ public class BenefitPostParser {
             return new ArrayList<>();
         }
 
-        // 1. 明確標示「特典名稱：」
-        Matcher explicit = EXPLICIT_BENEFIT_NAME.matcher(text);
-
-        while (explicit.find()) {
-            String candidate = cleanName(explicit.group(1));
-
-            if (candidate == null) {
-                continue;
-            }
-
-            candidate = candidate
-                    .replaceAll("[「『《【」』》】].*$", "")
-                    .trim();
-
-            candidate = candidate
-                    .replaceAll("(數量有限|送完為止|售完為止).*$", "")
-                    .trim();
-
-            if (usableName(candidate)) {
-                names.add(candidate);
-                break;
-            }
-        }
+//        // 1. 明確標示「特典名稱：」
+//        Matcher explicit = EXPLICIT_BENEFIT_NAME.matcher(text);
+//
+//        while (explicit.find()) {
+//            String candidate = cleanName(explicit.group(1));
+//
+//            if (candidate == null) {
+//                continue;
+//            }
+//
+//            candidate = candidate
+//                    .replaceAll("[「『《【」』》】].*$", "")
+//                    .trim();
+//
+//            candidate = candidate
+//                    .replaceAll("(數量有限|送完為止|售完為止).*$", "")
+//                    .trim();
+//
+//            if (usableName(candidate)) {
+//                names.add(candidate);
+//                break;
+//            }
+//        }
 
         // 2. 「兌換領取【A】1張 +【B】1組」：擷取同一句所有括號項目
         if (names.isEmpty()) {
