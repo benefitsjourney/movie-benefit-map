@@ -6,6 +6,7 @@ import com.collection.benefitsjourney.dto.ChangePasswordRequest;
 import com.collection.benefitsjourney.dto.UpdateProfileRequest;
 import com.collection.benefitsjourney.dto.UpdateUserStatusRequest;
 import com.collection.benefitsjourney.dto.UserResponse;
+import com.collection.benefitsjourney.dto.PublicUserResponse;
 import com.collection.benefitsjourney.service.UsersService;
 import com.collection.benefitsjourney.service.AuthService;
 
@@ -93,7 +94,7 @@ public class UserController {
 
     // 查看指定會員資料
     @GetMapping("/{id}")
-    public UserResponse getUserById(@PathVariable Integer id) {
+    public PublicUserResponse getUserById(@PathVariable Integer id) {
         UsersBean usersBean = usersService.getUserById(id);
 
         // INACTIVE / BANNED 的會員不公開個人頁面
@@ -103,8 +104,9 @@ public class UserController {
                 );
         }
 
-        UserResponse response = new UserResponse();
+        PublicUserResponse response = new PublicUserResponse();
         
+        response.setUsersId(usersBean.getUsersId());
         response.setAccount(usersBean.getAccount());
         response.setName(usersBean.getName());
         response.setStatus(usersBean.getStatus());

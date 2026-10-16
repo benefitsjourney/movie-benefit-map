@@ -21,6 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import jakarta.servlet.FilterChain;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,9 +40,11 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
+import com.collection.benefitsjourney.domain.UsersBean;
 import com.collection.benefitsjourney.dto.MovieRequest;
 import com.collection.benefitsjourney.jwt.JsonWebTokenFilter;
 import com.collection.benefitsjourney.jwt.JsonWebTokenUtility;
+import com.collection.benefitsjourney.repository.UsersRepository;
 import com.collection.benefitsjourney.enums.MovieSort;
 import com.collection.benefitsjourney.enums.SortOrder;
 import com.collection.benefitsjourney.service.MovieService;
@@ -847,12 +850,14 @@ class MovieControllerTest {
     class JwtTests {
         private JsonWebTokenFilter filter;
         private JsonWebTokenUtility utility;
+        private UsersRepository usersRepository;
         private FilterChain chain;
         @BeforeEach
         void setUp() {
             utility = mock(JsonWebTokenUtility.class);
+            usersRepository = mock(UsersRepository.class);
             chain = mock(FilterChain.class);
-            filter = new JsonWebTokenFilter(utility);
+            filter = new JsonWebTokenFilter(utility, usersRepository);
         }
 
         @Test
@@ -878,46 +883,46 @@ class MovieControllerTest {
         }
 
         @Test
-        @DisplayName("POST /movies 無 Token 應回傳 403")
-        void postMovie_WithoutToken_ShouldReturn403() throws Exception {
+        @DisplayName("POST /movies 無 Token 應回傳 401")
+        void postMovie_WithoutToken_ShouldReturn401() throws Exception {
             var request = new MockHttpServletRequest("POST", "/movies");
             var response = new MockHttpServletResponse();
             filter.doFilter(request, response, chain);
-            assertEquals(403, response.getStatus());
+            assertEquals(401, response.getStatus());
             verifyNoInteractions(chain);
         }
 
         @Test
-        @DisplayName("PATCH /movies/{id} 無 Token 應回傳 403")
-        void patchMovie_WithoutToken_ShouldReturn403() throws Exception {
+        @DisplayName("PATCH /movies/{id} 無 Token 應回傳 401")
+        void patchMovie_WithoutToken_ShouldReturn401() throws Exception {
             var request = new MockHttpServletRequest("PATCH", "/movies/1");
             var response = new MockHttpServletResponse();
             filter.doFilter(request, response, chain);
-            assertEquals(403, response.getStatus());
+            assertEquals(401, response.getStatus());
             verifyNoInteractions(chain);
         }
 
         @Test
-        @DisplayName("POST /movies Token 格式錯誤應回傳 403")
-        void postMovie_InvalidHeader_ShouldReturn403() throws Exception {
+        @DisplayName("POST /movies Token 格式錯誤應回傳 401")
+        void postMovie_InvalidHeader_ShouldReturn401() throws Exception {
             var request = new MockHttpServletRequest("POST", "/movies");
             var response = new MockHttpServletResponse();
             request.addHeader("Authorization", "invalid-token");
             filter.doFilter(request, response, chain);
-            assertEquals(403, response.getStatus());
+            assertEquals(401, response.getStatus());
             verifyNoInteractions(chain);
             verifyNoInteractions(utility);
         }
 
         @Test
-        @DisplayName("POST /movies 無效 Token 應回傳 403")
-        void postMovie_InvalidToken_ShouldReturn403() throws Exception {
+        @DisplayName("POST /movies 無效 Token 應回傳 401")
+        void postMovie_InvalidToken_ShouldReturn401() throws Exception {
             var request = new MockHttpServletRequest("POST", "/movies");
             var response = new MockHttpServletResponse();
             request.addHeader("Authorization", "Bearer invalid-token");
             when(utility.validateToken("invalid-token")).thenReturn(null);
             filter.doFilter(request, response, chain);
-            assertEquals(403, response.getStatus());
+            assertEquals(401, response.getStatus());
             verify(utility).validateToken("invalid-token");
             verifyNoInteractions(chain);
         }
@@ -929,6 +934,10 @@ class MovieControllerTest {
             var response = new MockHttpServletResponse();
             request.addHeader("Authorization", "Bearer valid-token");
             when(utility.validateToken("valid-token")).thenReturn("123");
+            UsersBean user = new UsersBean();
+            user.setRole("USER");
+            user.setStatus("ACTIVE");
+            when(usersRepository.findById(123)).thenReturn(Optional.of(user));
             filter.doFilter(request, response, chain);
             assertEquals(200, response.getStatus());
             assertEquals(123, request.getAttribute("usersId"));

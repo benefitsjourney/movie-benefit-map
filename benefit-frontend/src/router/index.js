@@ -1,7 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import FrontLayout from '@/layouts/FrontLayout.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
-import CrawlerView from '@/views/CrawlerView.vue'
+import AdminCinemaView from '@/views/AdminCinemaView.vue'
+import AdminCinemaForm from '@/views/AdminCinemaForm.vue'
+import AdminCrawlerView from '@/views/AdminCrawlerView.vue'
 import CinemaView from '@/views/CinemaView.vue'
 import MapView from '@/views/MapView.vue'
 import MovieView from '@/views/MovieView.vue'
@@ -42,7 +44,22 @@ const router = createRouter({
         {
           path: 'crawler',
           name: 'admin-crawler',
-          component: CrawlerView,
+          component: AdminCrawlerView,
+        },
+        {
+          path: 'cinemas',
+          name: 'admin-cinemas',
+          component: AdminCinemaView,
+        },
+        {
+          path: 'cinemas/new',
+          name: 'admin-cinema-create',
+          component: AdminCinemaForm,
+        },
+        {
+          path: 'cinemas/:id/edit',
+          name: 'admin-cinema-edit',
+          component: AdminCinemaForm,
         },
       ],
     },

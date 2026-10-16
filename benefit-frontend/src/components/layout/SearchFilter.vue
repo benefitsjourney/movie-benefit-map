@@ -16,7 +16,7 @@ import { computed, reactive, useId, watch } from "vue";
 import { Icon } from "@iconify/vue";
 import searchIcon from "@iconify-icons/mdi/magnify";
 import refreshIcon from "@iconify-icons/mdi/refresh";
-import AppButton from "@/components/AppButton.vue";
+import AppButton from "@/components/ui/Button.vue";
 
 const filters = defineModel({
   type: Object,
@@ -101,10 +101,15 @@ function resetQuery() {
 
 <template>
   <div class="search-filter" :style="themeStyle">
-    <h2 v-if="title" class="search-filter-title">
-      <Icon v-if="titleIcon" :icon="titleIcon" aria-hidden="true" />
-      {{ title }}
-    </h2>
+    <div v-if="title || $slots.actions" class="search-filter-head">
+      <h2 v-if="title" class="search-filter-title">
+        <Icon v-if="titleIcon" :icon="titleIcon" aria-hidden="true" />
+        {{ title }}
+      </h2>
+      <div v-if="$slots.actions" class="search-filter-head-actions">
+        <slot name="actions" />
+      </div>
+    </div>
 
     <form class="search-filter-grid" @submit.prevent="search">
       <div v-for="field in fields" :key="field.key" class="field">
@@ -142,27 +147,47 @@ function resetQuery() {
         </AppButton>
       </div>
     </form>
+
+    <div v-if="$slots.default" class="search-filter-results">
+      <slot />
+    </div>
   </div>
 </template>
 
 <style scoped>
 .search-filter {
   margin-bottom: 1rem;
-  padding: 1rem 1.25rem 1.25rem;
+  padding: 1.15rem 1.35rem 1.35rem;
   border: 1.5px solid var(--c-border);
   border-radius: 22px;
   background: var(--c-card);
   box-shadow: var(--shadow-soft);
 }
 
+.search-filter-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 0.8rem;
+}
+
 .search-filter-title {
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  margin: 0 0 0.8rem;
-  font-size: var(--text-section-title, 1.875rem);
+  min-width: 0;
+  margin: 0;
+  font-size: var(--text-section-title);
   line-height: 1.3;
   font-weight: 900;
+}
+
+.search-filter-head-actions {
+  display: flex;
+  flex: none;
+  margin-left: auto;
 }
 
 .search-filter-title svg,
@@ -171,7 +196,7 @@ function resetQuery() {
 }
 
 .search-filter-title svg {
-  font-size: 1.3rem;
+  font-size: var(--text-card-title);
 }
 
 .search-filter-grid {
@@ -190,7 +215,7 @@ function resetQuery() {
   display: block;
   margin-bottom: 0.3rem;
   color: var(--c-muted);
-  font-size: var(--text-control, 1rem);
+  font-size: var(--text-control);
   font-weight: 700;
 }
 
@@ -203,7 +228,7 @@ function resetQuery() {
   top: 50%;
   left: 0.8rem;
   z-index: 1;
-  font-size: 1.2rem;
+  font-size: var(--text-card-title);
   pointer-events: none;
   transform: translateY(-50%);
 }
@@ -211,12 +236,15 @@ function resetQuery() {
 .form-select,
 .form-control {
   width: 100%;
-  min-height: 46px;
+  min-height: 3rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
   border: 1.5px solid #eadfce;
   border-radius: 14px;
   background-color: #fff;
   color: var(--c-ink);
-  font-size: var(--text-control, 1rem);
+  font-size: var(--text-control);
+  line-height: 1.5;
 }
 
 .form-select:focus,
@@ -233,7 +261,7 @@ function resetQuery() {
 
 .field-control.has-icon .form-select,
 .field-control.has-icon .form-control {
-  padding-left: 2.5rem;
+  padding-left: 2.7rem;
 }
 
 .search-filter-actions {
@@ -244,9 +272,30 @@ function resetQuery() {
   gap: 0.75rem 1rem;
 }
 
+.search-filter-results:has(*) {
+  margin-top: 2rem;
+}
+
+.search-filter-results:not(:has(*)) {
+  display: none;
+}
+
 @media (max-width: 519px) {
+  .search-filter-head {
+    align-items: stretch;
+  }
+
   .search-filter-title {
-    font-size: 1.625rem;
+    font-size: var(--text-feature-title);
+  }
+
+  .search-filter-head-actions {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+
+  .search-filter-head-actions :deep(.app-button) {
+    width: 100%;
   }
 
   .field,

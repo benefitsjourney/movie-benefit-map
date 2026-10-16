@@ -1,31 +1,54 @@
-@import "./front.css";
-@import "./admin.css";
-
-/* 前後台共用：字級、字體、版面骨架 */
+/* 前後台共用：字級、字體、版面骨架。前台色票寫在 :root，後台由 .theme-admin 覆寫。 */
 :root {
   --shadow-soft: 0 10px 24px rgb(41 43 53 / 7%);
   --ease: 0.25s ease;
   --font-latin: "Fredoka", "Trebuchet MS", sans-serif;
   --font-sans: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
 
-  /* rem 依瀏覽器根字級縮放 */
-  /* 正文 */
-  --text-body: 1.0625rem;
+  /* rem 依瀏覽器根字級縮放。可見文字不得低於 16px。 */
+  /* 16px：次要標註、圖示旁的最小文字 */
+  --text-min: 1rem;
 
-  /* 輸入欄位、標籤、按鈕 */
-  --text-control: 1rem;
+  /* 18px：一般內文 */
+  --text-body: 1.125rem;
 
-  /* 結果摘要／工具列標題 */
-  --text-feature-title: 1.25rem;
+  /* 17px：按鈕、表單、導覽、標籤 */
+  --text-control: 1.0625rem;
 
-  /* 卡片影城名稱 */
-  --text-card-title: 1.375rem;
+  /* 20px：卡片標題 */
+  --text-card-title: 1.25rem;
 
-  /* 區塊副標題 */
-  --text-section-title: 1.875rem;
+  /* 22px：工具列、結果摘要 */
+  --text-feature-title: 1.375rem;
 
-  /* 頁面主標題 */
-  --text-page-title: 2.1875rem;
+  /* 24px：區塊標題 */
+  --text-section-title: 1.5rem;
+
+  /* 32px：頁面主標題 */
+  --text-page-title: 2rem;
+
+  --leading-body: 1.7;
+  --leading-title: 1.35;
+
+  --c-bg: #fff9f1;
+  --c-card: #fffdf8;
+  --c-ink: #292b35;
+  --c-muted: #5c564e;
+  --c-border: #f3e0c4;
+  --c-glow-start: rgb(255 200 87 / 25%);
+  --c-glow-end: rgb(126 167 232 / 18%);
+  --c-selection: #ffe08a;
+}
+
+.theme-admin {
+  --c-bg: #f8f6ff;
+  --c-card: #ffffff;
+  --c-ink: #292b35;
+  --c-muted: #666078;
+  --c-border: #e5dcf5;
+  --c-glow-start: rgb(183 122 255 / 16%);
+  --c-glow-end: rgb(147 184 240 / 20%);
+  --c-selection: #dcc5ff;
 }
 
 html {
@@ -38,23 +61,47 @@ body {
   min-height: 100vh;
   font-family: var(--font-sans);
   font-size: var(--text-body);
-  line-height: 1.6;
+  line-height: var(--leading-body);
   color: var(--c-ink);
+  background-color: var(--c-bg);
+}
+
+h1 {
+  font-size: var(--text-page-title);
+  line-height: 1.3;
+  font-weight: 900;
+}
+
+h2 {
+  font-size: var(--text-section-title);
+  line-height: var(--leading-title);
+  font-weight: 900;
 }
 
 .app-shell {
   min-height: 100vh;
+  color: var(--c-ink);
+  background-color: var(--c-bg);
+  background-image:
+    radial-gradient(circle at 0% 0%, var(--c-glow-start), transparent 32%),
+    radial-gradient(circle at 100% 10%, var(--c-glow-end), transparent 28%);
 }
 
 .page-main {
-  padding-top: 1.35rem;
+  padding-top: 1.5rem;
   padding-bottom: 3rem;
   padding-inline: 4rem;
 }
 
+@media (max-width: 991.98px) {
+  .page-main {
+    padding-inline: 1.25rem;
+  }
+}
+
 ::selection {
   color: var(--c-ink);
-  background: #ffe08a;
+  background: var(--c-selection);
 }
 
 @media (prefers-reduced-motion: reduce) {

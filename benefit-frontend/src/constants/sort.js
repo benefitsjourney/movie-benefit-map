@@ -8,12 +8,6 @@ export const CINEMA_SORT_DEFAULT = {
   label: "縣市（北 → 南）",
 };
 
-export const CINEMA_SORT_OPTIONS = [
-  { value: "COUNTY:DESC", label: "縣市（南 → 北）" },
-  { value: "CINEMA_ID:ASC", label: "編號（小 → 大）" },
-  { value: "CINEMA_ID:DESC", label: "編號（大 → 小）" },
-];
-
 export const MOVIE_SORT_DEFAULT = {
   orderBy: "RELEASE_DATE",
   sort: "DESC",
@@ -24,8 +18,8 @@ export const MOVIE_SORT_OPTIONS = [
   { value: "RELEASE_DATE:ASC", label: "上映日期（舊 → 新）" },
 ];
 
-// 解析排序參數
-function parseSort(sortKey, defaultSort, options) {
+// 解析排序參數。defaultSort 的 orderBy:sort 與 options 的 value 都是合法值。
+export function parseSort(sortKey, defaultSort, options) {
   const [orderBy, sort] = String(sortKey ?? "").split(":");
   const validKeys = [
     `${defaultSort.orderBy}:${defaultSort.sort}`,
@@ -36,9 +30,6 @@ function parseSort(sortKey, defaultSort, options) {
     ? { orderBy, sort }
     : { orderBy: defaultSort.orderBy, sort: defaultSort.sort };
 }
-
-export const parseCinemaSort = (key) =>
-  parseSort(key, CINEMA_SORT_DEFAULT, CINEMA_SORT_OPTIONS);
 
 export const parseMovieSort = (key) =>
   parseSort(key, MOVIE_SORT_DEFAULT, MOVIE_SORT_OPTIONS);

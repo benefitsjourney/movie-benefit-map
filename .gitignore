@@ -1,2 +1,4 @@
 .vscode/launch.json
 benefit-backend/src/main/resources/db/schema/users.sql
+benefit-backend/src/main/resources/db/data/users.sql
+.vscode/settings.json

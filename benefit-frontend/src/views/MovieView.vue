@@ -13,12 +13,12 @@ import calendarIcon from "@iconify-icons/mdi/calendar-blank-outline";
 
 import { MOVIE_SORT_DEFAULT, MOVIE_SORT_OPTIONS, parseMovieSort } from "@/constants/sort";
 import { useApiCollection } from "@/composables/useApiCollection";
-import PageIntro from "@/components/PageIntro.vue";
-import Pagination from "@/components/Pagination.vue";
-import ResultBanner from "@/components/ResultBanner.vue";
-import SearchFilter from "@/components/SearchFilter.vue";
-import StatePanel from "@/components/StatePanel.vue";
-import TicketCard from "@/components/TicketCard.vue";
+import PageIntro from "@/components/layout/PageIntro.vue";
+import Pagination from "@/components/ui/Pagination.vue";
+import ResultBanner from "@/components/layout/ResultBanner.vue";
+import SearchFilter from "@/components/layout/SearchFilter.vue";
+import StatePanel from "@/components/layout/StatePanel.vue";
+import TicketCard from "@/components/ui/TicketCard.vue";
 
 const PAGE_SIZE = 24;
 const filters = ref({ keyword: "", sortKey: "" });
@@ -82,7 +82,6 @@ const resultUnit = computed(() =>
   filters.value.keyword?.trim() ? "部符合條件的電影" : "部電影等你探索",
 );
 
-// 電影卡片的顯示邏輯只在本頁使用，不必再拆成專用元件。
 function posterUrl(movie) {
   const url =
     typeof movie.imageUrl === "string" ? movie.imageUrl.trim() : "";
@@ -114,75 +113,22 @@ function goToPage(next) {
 
 <template>
   <section>
-    <PageIntro
-      kicker="✦ MOVIE JOURNEY"
-      lead="下一場，"
-      mark="電影"
-      tail="！"
-      description="從喜歡的電影出發，開啟特典收藏旅程。"
-      :icon-left="clapperIcon"
-      :icon-right="reelIcon"
-      :icon-top="cameraIcon"
-    />
+    <PageIntro kicker="✦ MOVIE JOURNEY" lead="下一場，" mark="電影" tail="！" description="從喜歡的電影出發，開啟特典收藏旅程。"
+      :icon-left="clapperIcon" :icon-right="reelIcon" :icon-top="cameraIcon" />
 
-    <SearchFilter
-      v-model="appliedFilters"
-      title="尋找想看的電影"
-      :title-icon="compassIcon"
-      submit-label="探索電影"
-      :fields="filterFields"
-    />
+    <ResultBanner v-if="!(loading && !movies.length) && !error" :icon="clapperIcon" title="探索中的電影" :count="totalElements"
+      :unit-text="resultUnit" empty-text="這條路線還沒有找到電影，換個條件試試吧！" action-to="/cinemas" :action-icon="cinemaIcon"
+      action-label="探索影城" />
 
-    <StatePanel
-      v-if="loading && !movies.length"
-      variant="loading"
-      message="正在尋找電影…"
-      :icon="filmIcon"
-    />
-    <StatePanel
-      v-else-if="error"
-      variant="error"
-      title="目前無法取得電影資料"
-      message="請確認連線後再試一次。"
-      @retry="retry"
-    />
-
-    <template v-else>
-      <ResultBanner
-        :icon="clapperIcon"
-        title="探索中的電影"
-        :count="totalElements"
-        :unit-text="resultUnit"
-        empty-text="這條路線還沒有找到電影，換個條件試試吧！"
-        action-to="/cinemas"
-        :action-icon="cinemaIcon"
-        action-label="探索影城"
-      />
-
-      <div
-        v-if="movies.length"
-        ref="listTop"
-        class="ticket-grid"
-        :class="{ 'is-loading': loading }"
-        :aria-busy="loading"
-      >
-        <TicketCard
-          v-for="(movie, index) in movies"
-          :key="movie.movieId"
-          color="yellow"
-          :appear="index < 6"
-          :title="movie.movieName"
-        >
+    <SearchFilter v-if="!(loading && !movies.length) && !error" v-model="appliedFilters" title="尋找想看的電影"
+      :title-icon="compassIcon" submit-label="探索電影" :fields="filterFields">
+      <div v-if="movies.length" ref="listTop" class="ticket-grid" :class="{ 'is-loading': loading }"
+        :aria-busy="loading">
+        <TicketCard v-for="(movie, index) in movies" :key="movie.movieId" color="yellow" :appear="index < 6"
+          :title="movie.movieName">
           <template #poster>
-            <img
-              v-if="posterUrl(movie)"
-              :src="posterUrl(movie)"
-              :alt="`${movie.movieName} 海報`"
-              loading="lazy"
-              decoding="async"
-              referrerpolicy="no-referrer"
-              @error="markPosterBroken(movie)"
-            />
+            <img v-if="posterUrl(movie)" :src="posterUrl(movie)" :alt="`${movie.movieName} 海報`" loading="lazy"
+              decoding="async" referrerpolicy="no-referrer" @error="markPosterBroken(movie)" />
             <span v-else class="poster-fallback">
               <Icon :icon="filmIcon" aria-hidden="true" />
             </span>
@@ -194,14 +140,11 @@ function goToPage(next) {
         </TicketCard>
       </div>
 
-      <Pagination
-        v-if="totalPages > 1"
-        :page="page"
-        :total-pages="totalPages"
-        label="電影列表分頁"
-        @update:page="goToPage"
-      />
-    </template>
+      <Pagination v-if="totalPages > 1" :page="page" :total-pages="totalPages" label="電影列表分頁" @update:page="goToPage" />
+    </SearchFilter>
+
+    <StatePanel v-if="loading && !movies.length" variant="loading" message="正在尋找電影…" :icon="filmIcon" />
+    <StatePanel v-else-if="error" variant="error" title="目前無法取得電影資料" message="請確認連線後再試一次。" @retry="retry" />
   </section>
 </template>
 
@@ -241,6 +184,6 @@ function goToPage(next) {
 }
 
 .poster-fallback :deep(svg) {
-  font-size: 2.4rem;
+  font-size: var(--text-page-title);
 }
 </style>

@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -50,6 +51,47 @@ public interface BenefitRepository extends JpaRepository<BenefitBean, Integer> {
 
     /** 爬蟲去重（同貼文+同特典名稱），避免同一則貼文被重複抓到 */
     boolean existsBySourceUrlAndBenefitName(String sourceUrl, String benefitName);
+    
+    
+    // ===== 刪除特典 =====
+    // 刪除順序：貢獻→庫存回報→中介表→回報單解除關聯→特典本身
+
+    /** 有幾位會員的「持有紀錄」用到這個特典（有的話不允許刪除） */
+    @Query("SELECT COUNT(u) FROM UseBenefitBean u WHERE u.benefit.benefitId = :benefitId")
+    long countUseBenefits(@Param("benefitId") Integer benefitId);
+
+    /** 1. 刪除這個特典所有庫存回報對應的貢獻紀錄 */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            DELETE FROM UserContributionBean uc
+            WHERE uc.contributionType = 'INVENTORY_REPORT'
+            AND uc.referenceId IN (
+                SELECT r.reportId FROM InventoryReportBean r
+                WHERE r.cinemaMovieBenefit.cinemaMovieBenefitId IN (
+                    SELECT c.cinemaMovieBenefitId FROM CinemaMovieBenefitBean c
+                    WHERE c.benefit.benefitId = :benefitId))
+            """)
+    int deleteInventoryContributionsByBenefit(@Param("benefitId") Integer benefitId);
+
+    /** 2. 刪除這個特典所有庫存回報 */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("""
+            DELETE FROM InventoryReportBean r
+            WHERE r.cinemaMovieBenefit.cinemaMovieBenefitId IN (
+                SELECT c.cinemaMovieBenefitId FROM CinemaMovieBenefitBean c
+                WHERE c.benefit.benefitId = :benefitId)
+            """)
+    int deleteInventoryReportsByBenefit(@Param("benefitId") Integer benefitId);
+
+    /** 3. 刪除中介表 */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("DELETE FROM CinemaMovieBenefitBean c WHERE c.benefit.benefitId = :benefitId")
+    int deleteLinksByBenefit(@Param("benefitId") Integer benefitId);
+
+    /** 4. 回報單保留（歷史紀錄不刪），只把指向這個特典的關聯清掉 */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("UPDATE BenefitReportBean r SET r.benefit = NULL WHERE r.benefit.benefitId = :benefitId")
+    int detachReportsFromBenefit(@Param("benefitId") Integer benefitId);
     
     
 }

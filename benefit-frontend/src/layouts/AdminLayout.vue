@@ -1,10 +1,12 @@
 <script setup>
-import AppNavbar from "@/components/AppNavbar.vue";
+import AppNavbar from "@/components/layout/AppNavbar.vue";
+import movieIcon from "@iconify-icons/mdi/movie-open-outline";
 import syncIcon from "@iconify-icons/mdi/database-sync-outline";
 import arrowLeftIcon from "@iconify-icons/mdi/arrow-left";
 
 const links = [
   { to: "/admin/crawler", label: "爬蟲管理", icon: syncIcon },
+  { to: "/admin/cinemas", label: "影城資料", icon: movieIcon },
 ];
 </script>
 
