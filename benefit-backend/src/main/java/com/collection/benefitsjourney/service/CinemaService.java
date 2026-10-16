@@ -43,27 +43,33 @@ public class CinemaService {
             CinemaSort.SortBy orderBy,
             SortOrder sort) {
 
+        // 排序方向
         Sort.Direction direction = sort == SortOrder.DESC
                 ? Sort.Direction.DESC
                 : Sort.Direction.ASC;
 
+        // 排序方式
         Sort order;
+
+        // 如果排序方式是縣市，則使用縣市排序
         if (orderBy == CinemaSort.SortBy.COUNTY) {
-            // 整個 CASE 必須包在括號裡。Spring Data 看到不含括號的排序欄位，會再把查詢別名接在最前面。
             String northToSouth = "(" + County.northToSouthExpression("c.county") + ")";
             order = JpaSort.unsafe(direction, northToSouth);
         } else {
             order = Sort.by(direction, orderBy.getProperty());
         }
 
+        // 如果排序方式不是影城ID，則加上影城ID排序
         if (orderBy != CinemaSort.SortBy.CINEMA_ID) {
             order = order.and(Sort.by(
                     Sort.Direction.ASC,
                     TypedPropertyPath.path((CinemaBean cinema) -> cinema.getCinemaId())));
         }
 
+        // 分頁
         PageRequest pageable = PageRequest.of(page - 1, size, order);
 
+        // 查詢影城
         Page<CinemaResponse> result = cinemaRepository.findAllByFilters(
                 LikeKeywords.toLikeKeyword(keyword),
                 county,
@@ -142,8 +148,8 @@ public class CinemaService {
         CinemaBean cinema = cinemaRepository.findById(id)
                 .orElseThrow(() -> notFound("找不到影城ID：" + id));
 
+        // sourceId有修改時檢查是否與其他影城重複
         if (request.sourceId() != null) {
-            // sourceId有修改時檢查是否與其他影城重複
             cinemaRepository.findBySourceId(request.sourceId())
                     .filter(existing -> !existing.getCinemaId().equals(id))
                     .ifPresent(existing -> {

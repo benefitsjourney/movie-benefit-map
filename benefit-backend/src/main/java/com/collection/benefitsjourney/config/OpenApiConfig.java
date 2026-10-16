@@ -10,15 +10,24 @@ import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.collection.benefitsjourney.controller.AdminController;
 import com.collection.benefitsjourney.controller.AuthController;
+import com.collection.benefitsjourney.controller.BenefitAdminController;
 import com.collection.benefitsjourney.controller.BenefitController;
 import com.collection.benefitsjourney.controller.BenefitReportAdminController;
-import com.collection.benefitsjourney.controller.AdminController;
+import com.collection.benefitsjourney.controller.BenefitReportController;
 import com.collection.benefitsjourney.controller.CinemaController;
 import com.collection.benefitsjourney.controller.CrawlerController;
 import com.collection.benefitsjourney.controller.CrawlerReviewsController;
 import com.collection.benefitsjourney.controller.ExcelController;
+import com.collection.benefitsjourney.controller.ExchangeFavoriteController;
+import com.collection.benefitsjourney.controller.ExchangeListingController;
+import com.collection.benefitsjourney.controller.InventoryReportAdminController;
+import com.collection.benefitsjourney.controller.InventoryReportController;
+import com.collection.benefitsjourney.controller.InventoryStatusController;
 import com.collection.benefitsjourney.controller.MovieController;
+import com.collection.benefitsjourney.controller.TicketFavoriteController;
+import com.collection.benefitsjourney.controller.TicketListingController;
 import com.collection.benefitsjourney.controller.UserController;
 
 import io.swagger.v3.oas.models.Components;
@@ -39,9 +48,18 @@ public class OpenApiConfig {
             CinemaController.class,
             MovieController.class,
             BenefitController.class,
+            BenefitAdminController.class,
+            BenefitReportController.class,
+            BenefitReportAdminController.class,
+            InventoryStatusController.class,
+            InventoryReportController.class,
+            InventoryReportAdminController.class,
             CrawlerController.class,
             CrawlerReviewsController.class,
-            BenefitReportAdminController.class,
+            TicketListingController.class,
+            TicketFavoriteController.class,
+            ExchangeListingController.class,
+            ExchangeFavoriteController.class,
             ExcelController.class);
 
     private static final String SECURITY = "BearerAuth";
