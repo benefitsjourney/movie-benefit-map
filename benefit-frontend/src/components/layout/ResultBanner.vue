@@ -60,7 +60,7 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
     <div v-if="$slots.action" class="result-action">
       <slot name="action" />
     </div>
-    <RouterLink v-else class="result-scope" :to="actionTo">
+    <RouterLink v-else-if="actionTo" class="result-scope" :to="actionTo">
       <Icon :icon="actionIcon" aria-hidden="true" />
       {{ actionLabel }}
     </RouterLink>

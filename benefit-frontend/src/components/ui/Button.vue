@@ -25,10 +25,10 @@ const props = defineProps({
     default: "coral",
     validator: (value) => Object.hasOwn(COLORS, value),
   },
-  // 外觀名稱。傳 "reset" 切換成淡色文字的輕量按鈕
   variant: {
     type: String,
     default: "",
+    validator: (value) => ["", "reset", "outline"].includes(value),
   },
   icon: {
     type: [Object, String],
@@ -131,5 +131,17 @@ const buttonStyle = computed(() => COLORS[props.color] ?? COLORS.coral);
 
 .app-button.reset:focus-visible {
   outline-color: var(--btn-bg);
+}
+
+.app-button.outline {
+  border: 1.5px solid var(--btn-bg);
+  background: #fff;
+  color: var(--btn-bg);
+  box-shadow: none;
+}
+
+.app-button.outline:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--btn-bg) 8%, white);
+  box-shadow: none;
 }
 </style>

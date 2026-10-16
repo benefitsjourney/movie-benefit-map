@@ -14,11 +14,78 @@ export const MOVIE_SORT_DEFAULT = {
   label: "上映日期（新 → 舊）",
 };
 
-export const MOVIE_SORT_OPTIONS = [
-  { value: "RELEASE_DATE:ASC", label: "上映日期（舊 → 新）" },
+const RELEASE_DATE_DESC = {
+  value: "RELEASE_DATE:DESC",
+  label: MOVIE_SORT_DEFAULT.label,
+};
+const RELEASE_DATE_ASC = {
+  value: "RELEASE_DATE:ASC",
+  label: "上映日期（舊 → 新）",
+};
+const COUNTY_ASC = {
+  value: "COUNTY:ASC",
+  label: CINEMA_SORT_DEFAULT.label,
+};
+const UPDATED_AT_OPTIONS = [
+  { value: "UPDATED_AT:DESC", label: "更新時間（新 → 舊）" },
+  { value: "UPDATED_AT:ASC", label: "更新時間（舊 → 新）" },
+];
+const CREATED_AT_OPTIONS = [
+  { value: "CREATED_AT:DESC", label: "建立時間（新 → 舊）" },
+  { value: "CREATED_AT:ASC", label: "建立時間（舊 → 新）" },
 ];
 
-// 解析排序參數。defaultSort 的 orderBy:sort 與 options 的 value 都是合法值。
+export const MOVIE_SORT_OPTIONS = [RELEASE_DATE_ASC];
+
+export const ADMIN_MOVIE_SORT_DEFAULT = {
+  orderBy: "MOVIE_ID",
+  sort: "ASC",
+  label: "編號（小 → 大）",
+};
+
+export const ADMIN_MOVIE_SORT_OPTIONS = [
+  { value: "MOVIE_ID:DESC", label: "編號（大 → 小）" },
+  RELEASE_DATE_DESC,
+  RELEASE_DATE_ASC,
+  ...UPDATED_AT_OPTIONS,
+];
+
+export const ADMIN_CINEMA_SORT_DEFAULT = {
+  orderBy: "CINEMA_ID",
+  sort: "ASC",
+  label: "編號（小 → 大）",
+};
+
+export const ADMIN_CINEMA_SORT_OPTIONS = [
+  { value: "CINEMA_ID:DESC", label: "編號（大 → 小）" },
+  COUNTY_ASC,
+  { value: "COUNTY:DESC", label: "縣市（南 → 北）" },
+  ...UPDATED_AT_OPTIONS,
+];
+
+export const ADMIN_CRAWLER_REVIEW_SORT_DEFAULT = {
+  orderBy: "CRAWLED_AT",
+  sort: "DESC",
+  label: "爬取時間（新 → 舊）",
+};
+
+export const ADMIN_CRAWLER_REVIEW_SORT_OPTIONS = [
+  { value: "CRAWLED_AT:ASC", label: "爬取時間（舊 → 新）" },
+  { value: "REVIEWED_AT:DESC", label: "審核時間（新 → 舊）" },
+  { value: "REVIEWED_AT:ASC", label: "審核時間（舊 → 新）" },
+  { value: "REVIEW_STATUS:ASC", label: "審查狀態" },
+  { value: "CRAWLER_TYPE:ASC", label: "爬蟲類型" },
+  { value: "ENTITY_ID:ASC", label: "資料編號（小 → 大）" },
+  { value: "ENTITY_ID:DESC", label: "資料編號（大 → 小）" },
+  ...UPDATED_AT_OPTIONS,
+  ...CREATED_AT_OPTIONS,
+  { value: "UNLOCKED_AT:DESC", label: "解鎖時間（新 → 舊）" },
+  { value: "UNLOCKED_AT:ASC", label: "解鎖時間（舊 → 新）" },
+  { value: "CRAWLER_REVIEW_ID:ASC", label: "編號（小 → 大）" },
+  { value: "CRAWLER_REVIEW_ID:DESC", label: "編號（大 → 小）" },
+];
+
+/** 僅接受畫面提供的排序值，避免將任意欄位名稱傳給 API。 */
 export function parseSort(sortKey, defaultSort, options) {
   const [orderBy, sort] = String(sortKey ?? "").split(":");
   const validKeys = [

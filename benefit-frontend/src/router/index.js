@@ -2,8 +2,14 @@ import { createRouter, createWebHistory } from 'vue-router'
 import FrontLayout from '@/layouts/FrontLayout.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
 import AdminCinemaView from '@/views/AdminCinemaView.vue'
+import AdminCinemaDetail from '@/views/AdminCinemaDetail.vue'
 import AdminCinemaForm from '@/views/AdminCinemaForm.vue'
+import AdminMovieView from '@/views/AdminMovieView.vue'
+import AdminMovieDetail from '@/views/AdminMovieDetail.vue'
+import AdminMovieForm from '@/views/AdminMovieForm.vue'
 import AdminCrawlerView from '@/views/AdminCrawlerView.vue'
+import AdminCrawlerReviewView from '@/views/AdminCrawlerReviewView.vue'
+import AdminCrawlerReviewDetail from '@/views/AdminCrawlerReviewDetail.vue'
 import CinemaView from '@/views/CinemaView.vue'
 import MapView from '@/views/MapView.vue'
 import MovieView from '@/views/MovieView.vue'
@@ -47,6 +53,20 @@ const router = createRouter({
           component: AdminCrawlerView,
         },
         {
+          path: 'crawler-reviews',
+          name: 'admin-crawler-reviews',
+          component: AdminCrawlerReviewView,
+        },
+        {
+          path: 'crawler-reviews/new',
+          redirect: { name: 'admin-crawler-reviews' },
+        },
+        {
+          path: 'crawler-reviews/:id',
+          name: 'admin-crawler-review-detail',
+          component: AdminCrawlerReviewDetail,
+        },
+        {
           path: 'cinemas',
           name: 'admin-cinemas',
           component: AdminCinemaView,
@@ -57,9 +77,32 @@ const router = createRouter({
           component: AdminCinemaForm,
         },
         {
+          path: 'cinemas/:id',
+          name: 'admin-cinema-detail',
+          component: AdminCinemaDetail,
+        },
+        {
           path: 'cinemas/:id/edit',
-          name: 'admin-cinema-edit',
-          component: AdminCinemaForm,
+          redirect: (to) => ({ name: 'admin-cinema-detail', params: { id: to.params.id } }),
+        },
+        {
+          path: 'movies',
+          name: 'admin-movies',
+          component: AdminMovieView,
+        },
+        {
+          path: 'movies/new',
+          name: 'admin-movie-create',
+          component: AdminMovieForm,
+        },
+        {
+          path: 'movies/:id',
+          name: 'admin-movie-detail',
+          component: AdminMovieDetail,
+        },
+        {
+          path: 'movies/:id/edit',
+          redirect: (to) => ({ name: 'admin-movie-detail', params: { id: to.params.id } }),
         },
       ],
     },
