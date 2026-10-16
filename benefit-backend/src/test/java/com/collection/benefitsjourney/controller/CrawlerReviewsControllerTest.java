@@ -102,7 +102,7 @@ class CrawlerReviewsControllerTest {
         void allParameters() throws Exception {
             mockMvc.perform(get("/crawler-reviews")
                     .param("crawlerType", "CINEMA")
-                    .param("reviewStatus", "LOCKED")
+                    .param("reviewStatus", "APPROVED")
                     .param("orderBy", "CRAWLED_AT")
                     .param("sort", "DESC")
                     .param("page", "3")
@@ -111,7 +111,7 @@ class CrawlerReviewsControllerTest {
 
             verify(crawlerReviewsService).findAll(
                     CinemaResourceType.CINEMA,
-                    ReviewStatus.LOCKED,
+                    ReviewStatus.APPROVED,
                     3,
                     20,
                     CrawlerReviewSort.SortBy.CRAWLED_AT,
@@ -209,7 +209,7 @@ class CrawlerReviewsControllerTest {
                       "fieldName": "movieName",
                       "crawlerValue": "新片名",
                       "previousValue": "舊片名",
-                      "reviewStatus": "RESUMED",
+                      "reviewStatus": "REJECTED",
                       "crawledAt": "2026-10-08T10:33:00",
                       "reviewedAt": "2026-10-09T11:00:00",
                       "unlockedAt": "2026-10-10T12:15:30"
@@ -230,7 +230,7 @@ class CrawlerReviewsControllerTest {
             assertEquals("movieName", request.fieldName());
             assertEquals("新片名", request.crawlerValue());
             assertEquals("舊片名", request.previousValue());
-            assertEquals(ReviewStatus.RESUMED, request.reviewStatus());
+            assertEquals(ReviewStatus.REJECTED, request.reviewStatus());
             assertEquals(LocalDateTime.of(2026, 10, 8, 10, 33), request.crawledAt());
             assertEquals(LocalDateTime.of(2026, 10, 9, 11, 0), request.reviewedAt());
             assertEquals(LocalDateTime.of(2026, 10, 10, 12, 15, 30), request.unlockedAt());
@@ -430,12 +430,12 @@ class CrawlerReviewsControllerTest {
         }
 
         @Test
-        @DisplayName("已存在未鎖定的相同審核時應回傳 400")
+        @DisplayName("已存在未接受的相同審核時應回傳 400")
         void duplicateReview() throws Exception {
             when(crawlerReviewsService.createCrawlerReview(any(CrawlerReviewRequest.class)))
                     .thenThrow(new ResponseStatusException(
                             HttpStatus.BAD_REQUEST,
-                            "已存在相同資料的爬蟲審核，且審查狀態不是鎖定同步，無法新增"));
+                            "已存在相同資料的爬蟲審核，且審查狀態不是已接受，無法新增"));
 
             String json = """
                     {"crawlerType":"MOVIE","entityId":1,"fieldName":"movieName"}
@@ -446,7 +446,7 @@ class CrawlerReviewsControllerTest {
                     .content(json))
                     .andExpect(status().isBadRequest())
                     .andExpect(jsonPath("$.message")
-                            .value("已存在相同資料的爬蟲審核，且審查狀態不是鎖定同步，無法新增"));
+                            .value("已存在相同資料的爬蟲審核，且審查狀態不是已接受，無法新增"));
         }
     }
 
@@ -464,7 +464,7 @@ class CrawlerReviewsControllerTest {
                       "fieldName": "benefitName",
                       "crawlerValue": "新特典",
                       "previousValue": "舊特典",
-                      "reviewStatus": "RESUMED",
+                      "reviewStatus": "REJECTED",
                       "crawledAt": "2026-11-01T01:02:03",
                       "reviewedAt": "2026-11-02T04:05:06",
                       "unlockedAt": "2026-11-03T07:08:09"
@@ -485,7 +485,7 @@ class CrawlerReviewsControllerTest {
             assertEquals("benefitName", request.fieldName());
             assertEquals("新特典", request.crawlerValue());
             assertEquals("舊特典", request.previousValue());
-            assertEquals(ReviewStatus.RESUMED, request.reviewStatus());
+            assertEquals(ReviewStatus.REJECTED, request.reviewStatus());
             assertEquals(LocalDateTime.of(2026, 11, 1, 1, 2, 3), request.crawledAt());
             assertEquals(LocalDateTime.of(2026, 11, 2, 4, 5, 6), request.reviewedAt());
             assertEquals(LocalDateTime.of(2026, 11, 3, 7, 8, 9), request.unlockedAt());
@@ -542,21 +542,21 @@ class CrawlerReviewsControllerTest {
         }
 
         @Test
-        @DisplayName("Service 拒絕鎖定同步時應回傳 400")
+        @DisplayName("Service 拒絕已接受時應回傳 400")
         void lockedStatus() throws Exception {
             when(crawlerReviewsService.updateCrawlerReview(eq(10), any(CrawlerReviewRequest.class)))
                     .thenThrow(new ResponseStatusException(
-                            HttpStatus.BAD_REQUEST, "已解鎖的審核無法修改"));
+                            HttpStatus.BAD_REQUEST, "已接受的審核無法修改"));
 
             mockMvc.perform(patch("/crawler-reviews/10")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"reviewStatus\":\"LOCKED\"}"))
+                    .content("{\"reviewStatus\":\"APPROVED\"}"))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value("已解鎖的審核無法修改"));
+                    .andExpect(jsonPath("$.message").value("已接受的審核無法修改"));
 
             ArgumentCaptor<CrawlerReviewRequest> captor = ArgumentCaptor.forClass(CrawlerReviewRequest.class);
             verify(crawlerReviewsService).updateCrawlerReview(eq(10), captor.capture());
-            assertEquals(ReviewStatus.LOCKED, captor.getValue().reviewStatus());
+            assertEquals(ReviewStatus.APPROVED, captor.getValue().reviewStatus());
         }
 
         @Test
