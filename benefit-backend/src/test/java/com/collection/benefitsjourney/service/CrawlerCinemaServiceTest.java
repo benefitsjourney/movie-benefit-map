@@ -52,7 +52,7 @@ import com.collection.benefitsjourney.enums.County;
  * 座標抓取發生在 ExecutorService 工作執行緒，因此不能依賴 mockStatic(Jsoup.class)。
  */
 @ExtendWith(MockitoExtension.class)
-class CinemaCrawlerServiceTest {
+class CrawlerCinemaServiceTest {
 
     private static final String INDEX = "https://www.atmovies.com.tw/showtime/";
     private static final String AREA_01 = INDEX + "a01/";
@@ -69,11 +69,11 @@ class CinemaCrawlerServiceTest {
     @Mock
     private CrawlerReviewsService crawlerReviewsService;
 
-    private CinemaCrawlerService crawler;
+    private CrawlerCinemaService crawler;
 
     @BeforeEach
     void setUp() {
-        crawler = spy(new CinemaCrawlerService(cinemaService, crawlerReviewsService));
+        crawler = spy(new CrawlerCinemaService(cinemaService, crawlerReviewsService));
     }
 
     private Document page(String url, String html) {

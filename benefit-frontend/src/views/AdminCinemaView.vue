@@ -10,31 +10,27 @@ import sortIcon from "@iconify-icons/mdi/sort";
 import eyeIcon from "@iconify-icons/mdi/eye-outline";
 import storeIcon from "@iconify-icons/mdi/store-outline";
 import plusIcon from "@iconify-icons/mdi/plus";
-import pencilIcon from "@iconify-icons/mdi/pencil-outline";
+import { openAppAlert } from "@/components/ui/Alert.vue";
 
 import { COUNTY_LABELS, countyLabel } from "@/constants/county";
-import { parseSort } from "@/constants/sort";
+import {
+  ADMIN_CINEMA_SORT_DEFAULT,
+  ADMIN_CINEMA_SORT_OPTIONS,
+  parseSort,
+} from "@/constants/sort";
 import { useApiCollection } from "@/composables/useApiCollection";
+import http from "@/plugins/axios";
 import PageIntro from "@/components/layout/PageIntro.vue";
 import ResultBanner from "@/components/layout/ResultBanner.vue";
 import SearchFilter from "@/components/layout/SearchFilter.vue";
 import StatePanel from "@/components/layout/StatePanel.vue";
-import DataTable from "@/components/ui/DataTable.vue";
+import DataTable, { dateTimeText } from "@/components/ui/DataTable.vue";
 import Pagination from "@/components/ui/Pagination.vue";
 import AppButton from "@/components/ui/Button.vue";
+import Switch from "@/components/ui/Switch.vue";
 
 const router = useRouter();
 const PAGE_SIZE = 20;
-const SORT_DEFAULT = { orderBy: "CINEMA_ID", sort: "ASC" };
-const SORT_OPTIONS = [
-  { value: "CINEMA_ID:DESC", label: "編號（大 → 小）" },
-  { value: "COUNTY:ASC", label: "縣市（北 → 南）" },
-  { value: "COUNTY:DESC", label: "縣市（南 → 北）" },
-  { value: "UPDATED_AT:DESC", label: "更新時間（新 → 舊）" },
-  { value: "UPDATED_AT:ASC", label: "更新時間（舊 → 新）" },
-  { value: "CREATED_AT:DESC", label: "建立時間（新 → 舊）" },
-  { value: "CREATED_AT:ASC", label: "建立時間（舊 → 新）" },
-];
 const ACTIVE_OPTIONS = [
   { value: "true", label: "營業中" },
   { value: "false", label: "已歇業" },
@@ -53,6 +49,7 @@ const filters = ref({
 });
 const page = ref(1);
 const listTop = ref(null);
+const pendingVisibility = ref({});
 
 const appliedFilters = computed({
   get: () => filters.value,
@@ -104,17 +101,15 @@ const filterFields = [
     key: "sortKey",
     label: "排序",
     type: "select",
-    emptyLabel: "編號（小 → 大）",
+    emptyLabel: ADMIN_CINEMA_SORT_DEFAULT.label,
     icon: sortIcon,
-    options: SORT_OPTIONS,
+    options: ADMIN_CINEMA_SORT_OPTIONS,
   },
 ];
 
 const columns = [
-  { key: "actions", label: "操作", minWidth: "7.5rem", nowrap: true, align: "center" },
-  { key: "cinemaId", label: "編號", minWidth: "5.5rem", nowrap: true, align: "center" },
-  { key: "sourceId", label: "來源編號", minWidth: "8rem", nowrap: true, align: "center" },
-  { key: "cinemaName", label: "影城名稱", minWidth: "12rem" },
+  { key: "cinemaId", label: "編號", minWidth: "6rem", nowrap: true, align: "center" },
+  { key: "cinemaName", label: "影城名稱", minWidth: "18rem" },
   {
     key: "county",
     label: "縣市",
@@ -123,49 +118,31 @@ const columns = [
     align: "center",
     format: (value) => countyLabel(value),
   },
-  { key: "cinemaAddress", label: "地址", minWidth: "16rem" },
-  {
-    key: "latitude",
-    label: "緯度",
-    minWidth: "8.5rem",
-    nowrap: true,
-    align: "center",
-    format: coordText,
-  },
-  {
-    key: "longitude",
-    label: "經度",
-    minWidth: "8.5rem",
-    nowrap: true,
-    align: "center",
-    format: coordText,
-  },
-  { key: "officialWebsiteUrl", label: "官網", minWidth: "14rem", type: "link" },
   {
     key: "isActive",
     label: "營業狀態",
-    minWidth: "7rem",
+    minWidth: "7.5rem",
     nowrap: true,
     align: "center",
-    format: (value) => (value === true ? "營業中" : value === false ? "已歇業" : ""),
+    format: (value) => (value === true ? "營業中" : "已歇業"),
+  },
+  {
+    key: "updatedAt",
+    label: "更新時間",
+    minWidth: "12rem",
+    nowrap: true,
+    align: "center",
+    format: dateTimeText,
   },
   {
     key: "isVisible",
     label: "前台顯示",
-    minWidth: "7rem",
+    minWidth: "7.5rem",
     nowrap: true,
     align: "center",
-    format: (value) => (value === true ? "顯示" : value === false ? "隱藏" : ""),
   },
-  { key: "createdAt", label: "建立時間", minWidth: "12rem", nowrap: true, align: "center" },
-  { key: "updatedAt", label: "更新時間", minWidth: "12rem", nowrap: true, align: "center" },
+  { key: "actions", label: "操作", minWidth: "8rem", align: "center" },
 ];
-
-function coordText(value) {
-  if (value == null || value === "") return "";
-  const number = Number(value);
-  return Number.isFinite(number) ? number.toFixed(6) : String(value);
-}
 
 function flagParam(value) {
   if (value === "true") return true;
@@ -174,7 +151,11 @@ function flagParam(value) {
 }
 
 const requestParams = computed(() => {
-  const { orderBy, sort } = parseSort(filters.value.sortKey, SORT_DEFAULT, SORT_OPTIONS);
+  const { orderBy, sort } = parseSort(
+    filters.value.sortKey,
+    ADMIN_CINEMA_SORT_DEFAULT,
+    ADMIN_CINEMA_SORT_OPTIONS,
+  );
   const params = {
     page: page.value,
     size: PAGE_SIZE,
@@ -212,12 +193,49 @@ const resultUnit = computed(() =>
   hasFilters.value ? "間符合條件的影城" : "間影城",
 );
 
+function apiMessage(error, fallback) {
+  const message = error?.response?.data?.message;
+  return typeof message === "string" && message.trim() ? message.trim() : fallback;
+}
+
+function isUnauthorized(error) {
+  return error?.response?.status === 401;
+}
+
 function openCreate() {
   router.push({ name: "admin-cinema-create" });
 }
 
-function openEdit(cinemaId) {
-  router.push({ name: "admin-cinema-edit", params: { id: cinemaId } });
+function openDetail(cinemaId) {
+  router.push({ name: "admin-cinema-detail", params: { id: cinemaId } });
+}
+
+async function toggleVisible(row, next) {
+  const cinemaId = row?.cinemaId;
+  if (cinemaId == null || pendingVisibility.value[cinemaId]) return;
+
+  const previous = row.isVisible;
+  // 先更新列資料維持操作回饋；請求失敗時再還原。
+  row.isVisible = next;
+  pendingVisibility.value = { ...pendingVisibility.value, [cinemaId]: true };
+
+  try {
+    const { data } = await http.patch(`/cinemas/${cinemaId}`, { isVisible: next });
+    if (data && typeof data === "object") Object.assign(row, data);
+  } catch (error) {
+    row.isVisible = previous;
+    await openAppAlert({
+      variant: "error",
+      title: "無法更新顯示狀態",
+      text: isUnauthorized(error) ? "請登入管理員帳號" : apiMessage(error, "請確認連線後再試一次。"),
+      confirmText: "關閉",
+      cancelText: "",
+    });
+  } finally {
+    const nextPending = { ...pendingVisibility.value };
+    delete nextPending[cinemaId];
+    pendingVisibility.value = nextPending;
+  }
 }
 
 function goToPage(next) {
@@ -232,7 +250,7 @@ function goToPage(next) {
 
 <template>
   <section>
-    <PageIntro kicker="✦ CINEMA DATA" lead="影城" mark="資料" description="查看、新增或修改目前收錄的影城名稱、地址、座標與顯示狀態。" :icon-left="movieIcon"
+    <PageIntro kicker="✦ CINEMA DATA" lead="影城" mark="資料" description="管理影城資料，查看縣市、營業狀態及顯示狀態。" :icon-left="movieIcon"
       :icon-right="pinIcon" :icon-top="tableIcon" theme="purple" />
 
     <ResultBanner v-if="!(loading && !cinemas.length) && !error" :icon="movieIcon" title="收錄中的影城" :count="totalElements"
@@ -249,16 +267,19 @@ function goToPage(next) {
       <div ref="listTop" class="cinema-sheet">
         <DataTable caption="影城資料表" :columns="columns" :rows="cinemas" row-key="cinemaId" empty-text="目前沒有符合條件的影城。"
           :loading="loading" theme="purple">
+          <template #cell-isVisible="{ row }">
+            <div class="visible-switch">
+              <Switch :model-value="row.isVisible === true" :disabled="Boolean(pendingVisibility[row.cinemaId])"
+                :aria-label="`${row.cinemaName || '影城'}的前台顯示`" @update:model-value="toggleVisible(row, $event)" />
+            </div>
+          </template>
           <template #cell-actions="{ row }">
-            <AppButton
-              type="button"
-              color="purple"
-              variant="outline"
-              :icon="pencilIcon"
-              @click="openEdit(row.cinemaId)"
-            >
-              修改
-            </AppButton>
+            <div class="cinema-actions">
+              <AppButton type="button" color="purple" variant="outline" :icon="eyeIcon"
+                @click="openDetail(row.cinemaId)">
+                詳細
+              </AppButton>
+            </div>
           </template>
         </DataTable>
       </div>
@@ -277,5 +298,28 @@ function goToPage(next) {
 <style scoped>
 .cinema-sheet {
   scroll-margin-top: 5.5rem;
+}
+
+.cinema-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.cinema-actions :deep(.app-button) {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.8rem;
+  box-shadow: none;
+}
+
+.visible-switch {
+  display: flex;
+  justify-content: center;
+}
+
+.visible-switch :deep(.app-switch) {
+  min-height: 0;
+  --form-accent: #8d72ed;
 }
 </style>

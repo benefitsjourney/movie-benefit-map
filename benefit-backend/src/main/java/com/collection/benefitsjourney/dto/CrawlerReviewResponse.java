@@ -14,9 +14,7 @@ public record CrawlerReviewResponse(
         String crawlerValue,
         String previousValue,
         ReviewStatus reviewStatus,
-        LocalDateTime crawledAt,
         LocalDateTime reviewedAt,
-        LocalDateTime unlockedAt,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
 
@@ -29,9 +27,7 @@ public record CrawlerReviewResponse(
                 review.getCrawlerValue(),
                 review.getPreviousValue(),
                 review.getReviewStatus(),
-                review.getCrawledAt(),
                 review.getReviewedAt(),
-                review.getUnlockedAt(),
                 review.getCreatedAt(),
                 review.getUpdatedAt());
     }

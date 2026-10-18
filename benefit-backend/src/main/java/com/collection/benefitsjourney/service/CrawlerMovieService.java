@@ -34,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
-public class MovieCrawlerService {
+public class CrawlerMovieService {
 
     /** 單次網頁請求逾時時間（毫秒）。 */
     private static final int REQUEST_TIMEOUT_MS = 8_000;
@@ -98,7 +98,7 @@ public class MovieCrawlerService {
     private final MovieService movieService;
     private final CrawlerReviewsService crawlerReviewsService;
 
-    public MovieCrawlerService(
+    public CrawlerMovieService(
             MovieService movieService,
             CrawlerReviewsService crawlerReviewsService) {
         this.movieService = movieService;
@@ -312,7 +312,7 @@ public class MovieCrawlerService {
                 article == null ? null : getReleaseDate(article));
 
         // 不以後面列表的空值覆蓋先前抓到的有效資料。
-        movies.merge(sourceId, info, MovieCrawlerService::mergeMovieInfo);
+        movies.merge(sourceId, info, CrawlerMovieService::mergeMovieInfo);
     }
 
     /** 優先使用列表資料；缺漏才從詳細頁補足。 */

@@ -51,14 +51,8 @@ public class CrawlerReviewBean {
     @Column(name = "review_status", length = 32, comment = "審查狀態")
     private ReviewStatus reviewStatus;
 
-    @Column(name = "crawled_at", comment = "爬蟲輸入時間")
-    private LocalDateTime crawledAt;
-
-    @Column(name = "reviewed_at", comment = "審核同步時間")
+    @Column(name = "reviewed_at", comment = "審核資料時間")
     private LocalDateTime reviewedAt;
-
-    @Column(name = "unlocked_at", comment = "解鎖欄位時間")
-    private LocalDateTime unlockedAt;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, comment = "建立Review時間")

@@ -28,8 +28,8 @@ import com.collection.benefitsjourney.dto.CinemaResponse;
 import com.collection.benefitsjourney.dto.MovieResponse;
 import com.collection.benefitsjourney.enums.County;
 import com.collection.benefitsjourney.jwt.JsonWebTokenFilter;
-import com.collection.benefitsjourney.service.CinemaCrawlerService;
-import com.collection.benefitsjourney.service.MovieCrawlerService;
+import com.collection.benefitsjourney.service.CrawlerCinemaService;
+import com.collection.benefitsjourney.service.CrawlerMovieService;
 
 @WebMvcTest(controllers = CrawlerController.class,
         excludeFilters = @ComponentScan.Filter(
@@ -42,10 +42,10 @@ class CrawlerControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private CinemaCrawlerService cinemaCrawlerService;
+    private CrawlerCinemaService cinemaCrawlerService;
 
     @MockitoBean
-    private MovieCrawlerService movieCrawlerService;
+    private CrawlerMovieService movieCrawlerService;
 
     private CinemaResponse cinema() {
         return new CinemaResponse(
@@ -122,7 +122,7 @@ class CrawlerControllerTest {
     }
 
     @Nested
-    @DisplayName("GET /crawler/cinemas/movies（目前 Controller 的實際路由）")
+    @DisplayName("GET /crawler/movies")
     class SyncMoviesTests {
 
         @Test
@@ -130,7 +130,7 @@ class CrawlerControllerTest {
         void success() throws Exception {
             when(movieCrawlerService.syncMovies()).thenReturn(List.of(movie()));
 
-            mockMvc.perform(get("/crawler/cinemas/movies"))
+            mockMvc.perform(get("/crawler/movies"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$[0].movieId").value(1))
                     .andExpect(jsonPath("$[0].sourceId").value("fA001"))
@@ -147,7 +147,7 @@ class CrawlerControllerTest {
         void emptyResult() throws Exception {
             when(movieCrawlerService.syncMovies()).thenReturn(List.of());
 
-            mockMvc.perform(get("/crawler/cinemas/movies"))
+            mockMvc.perform(get("/crawler/movies"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$").isArray())
                     .andExpect(jsonPath("$").isEmpty());
@@ -160,7 +160,7 @@ class CrawlerControllerTest {
                     new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                             "電影爬蟲未成功同步任何資料"));
 
-            mockMvc.perform(get("/crawler/cinemas/movies"))
+            mockMvc.perform(get("/crawler/movies"))
                     .andExpect(status().isBadGateway())
                     .andExpect(jsonPath("$.status").value(502))
                     .andExpect(jsonPath("$.message")
@@ -174,7 +174,7 @@ class CrawlerControllerTest {
                     new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                             "電影同步遭到中斷"));
 
-            mockMvc.perform(get("/crawler/cinemas/movies"))
+            mockMvc.perform(get("/crawler/movies"))
                     .andExpect(status().isServiceUnavailable())
                     .andExpect(jsonPath("$.status").value(503));
         }
@@ -195,9 +195,9 @@ class CrawlerControllerTest {
         }
 
         @Test
-        @DisplayName("POST /crawler/cinemas/movies 應回傳 405")
+        @DisplayName("POST /crawler/movies 應回傳 405")
         void postMovies() throws Exception {
-            mockMvc.perform(post("/crawler/cinemas/movies"))
+            mockMvc.perform(post("/crawler/movies"))
                     .andExpect(status().isMethodNotAllowed());
 
             verifyNoInteractions(cinemaCrawlerService, movieCrawlerService);
@@ -209,7 +209,7 @@ class CrawlerControllerTest {
             when(movieCrawlerService.syncMovies())
                     .thenThrow(new IllegalStateException("unexpected"));
 
-            mockMvc.perform(get("/crawler/cinemas/movies"))
+            mockMvc.perform(get("/crawler/movies"))
                     .andExpect(status().isInternalServerError())
                     .andExpect(jsonPath("$.status").value(500))
                     .andExpect(jsonPath("$.message").value("系統發生錯誤"));

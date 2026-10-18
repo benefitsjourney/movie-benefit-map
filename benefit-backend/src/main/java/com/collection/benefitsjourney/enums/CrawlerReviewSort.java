@@ -7,9 +7,7 @@ public class CrawlerReviewSort {
         CRAWLER_TYPE("crawlerType"),
         ENTITY_ID("entityId"),
         REVIEW_STATUS("reviewStatus"),
-        CRAWLED_AT("crawledAt"),
         REVIEWED_AT("reviewedAt"),
-        UNLOCKED_AT("unlockedAt"),
         CREATED_AT("createdAt"),
         UPDATED_AT("updatedAt");
 

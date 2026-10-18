@@ -42,11 +42,11 @@ import com.collection.benefitsjourney.dto.MovieResponse;
 
 /**
  * 透過 Spy connect() 模擬網站，Mockito Mock 模擬資料庫服務。
- * 前提：MovieCrawlerService 的 connect(String url) 改為 package-private（移除 private）。
+ * 前提：CrawlerMovieService 的 connect(String url) 改為 package-private（移除 private）。
  * 不能依賴 mockStatic(Jsoup.class)：電影列表是在 ExecutorService 工作執行緒下載。
  */
 @ExtendWith(MockitoExtension.class)
-class MovieCrawlerServiceTest {
+class CrawlerMovieServiceTest {
 
     private static final String BASE = "https://www.atmovies.com.tw";
     private static final String NEW = BASE + "/movie/new/";
@@ -65,11 +65,11 @@ class MovieCrawlerServiceTest {
     @Mock
     private CrawlerReviewsService crawlerReviewsService;
 
-    private MovieCrawlerService crawler;
+    private CrawlerMovieService crawler;
 
     @BeforeEach
     void setUp() {
-        crawler = spy(new MovieCrawlerService(movieService, crawlerReviewsService));
+        crawler = spy(new CrawlerMovieService(movieService, crawlerReviewsService));
     }
 
     private Document page(String url, String html) {
