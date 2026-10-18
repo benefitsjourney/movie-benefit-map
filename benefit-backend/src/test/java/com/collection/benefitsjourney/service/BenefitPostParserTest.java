@@ -1,6 +1,7 @@
 package com.collection.benefitsjourney.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.InputStream;
@@ -17,7 +18,7 @@ import com.collection.benefitsjourney.service.sourcerules.VieshowPostRules;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-/** 用威秀真實貼文測試Parser（一般週特典） */
+/** 用威秀真實貼文測試 Parser（一般週特典） */
 class BenefitPostParserTest {
 
     private static final BenefitPostParser parser = new BenefitPostParser(List.of(new VieshowPostRules()));
@@ -52,6 +53,7 @@ class BenefitPostParserTest {
         assertEquals(LocalDateTime.of(2026, 10, 16, 0, 0), r.startDate());
         assertEquals(LocalDateTime.of(2026, 10, 22, 23, 59, 59), r.endDate());
         assertEquals(Boolean.FALSE, r.memberOnly());
+        assertEquals("威秀", r.chainKeyword());
         assertEquals(LocalDateTime.of(2026, 10, 14, 19, 0, 51), r.publishedAt()); // UTC 11:00 → 台北 19:00
     }
 
@@ -74,12 +76,62 @@ class BenefitPostParserTest {
     }
 
     @Test
-    @DisplayName("特別場：先標 INCOMPLETE 交給人工")
-    void special() {
+    @DisplayName("泥面人特別場：贈品合成一筆、放映日期當起訖、影城來自「放映影城」")
+    void specialByDate() {
         ParsedBenefitPost r = parse("面對恐懼A3工藝海報 x1").get(0);
-        assertEquals(Classification.INCOMPLETE, r.classification());
+        assertEquals(Classification.BENEFIT, r.classification());
         assertEquals("SPECIAL_BY_DATE", r.benefitType());
-        assertTrue(r.reviewNote().contains("特別場"));
+        assertEquals("泥面人", r.movieName());
+        assertEquals("特別場套組：面對恐懼A3工藝海報、原文漫畫、4DX限定A3海報、主視覺A3海報", r.benefitName());
+        assertEquals(LocalDateTime.of(2026, 10, 24, 0, 0), r.startDate());
+        assertEquals(LocalDateTime.of(2026, 10, 25, 23, 59, 59), r.endDate());
+        assertNull(r.chainKeyword());
+        assertEquals(List.of("台北信義", "林口三井OUTLET", "台南大遠百", "高雄大遠百"), r.cinemaNames());
+    }
+
+    @Test
+    @DisplayName("哥吉拉首映：單日、多行影城清單、括號備註不影響")
+    void premiere() {
+        ParsedBenefitPost r = parse("特殊工藝日本原版A3海報+神秘驚喜禮").get(0);
+        assertEquals(Classification.BENEFIT, r.classification());
+        assertEquals("哥吉拉-0.0", r.movieName());
+        assertEquals("首映限定特典—特殊工藝日本原版A3海報+神秘驚喜禮", r.benefitName());
+        assertEquals(LocalDateTime.of(2026, 11, 5, 0, 0), r.startDate());
+        assertEquals(LocalDateTime.of(2026, 11, 5, 23, 59, 59), r.endDate());
+        assertTrue(r.cinemaNames().contains("台北信義"));
+        assertTrue(r.cinemaNames().contains("台中老虎城"));      // TIGER CITY 別名
+        assertTrue(r.cinemaNames().contains("台中大遠百"));      // 括號備註已移除
+        assertEquals(22, r.cinemaNames().size());
+    }
+
+    @Test
+    @DisplayName("快打旋風：限量兌換型只有開始日")
+    void limitedRedeem() {
+        ParsedBenefitPost r = parse("BLANKA 娃娃購物袋").get(0);
+        assertEquals(Classification.BENEFIT, r.classification());
+        assertEquals("SPECIAL_UNTIL_OUT", r.benefitType());
+        assertEquals("快打旋風", r.movieName());
+        assertEquals("STREET FIGHTER 6 BLANKA 娃娃購物袋", r.benefitName());
+        assertEquals(LocalDateTime.of(2026, 10, 16, 0, 0), r.startDate());
+        assertNull(r.endDate());
+        assertEquals(List.of("台北南港LaLaport威秀影城", "台北京站威秀影城"), r.cinemaNames());
+    }
+
+    @Test
+    @DisplayName("我們不是什麼：電影名在【】、沒有放映日期 → INCOMPLETE")
+    void bracketMovieNoDate() {
+        ParsedBenefitPost r = parse("全球唯一的素描版海報").get(0);
+        assertEquals(Classification.INCOMPLETE, r.classification());
+        assertEquals("我們不是什麼", r.movieName());
+        assertEquals("台灣專屬 全球唯一的素描版海報", r.benefitName());
+        assertTrue(r.reviewNote().contains("活動日期"));
+    }
+
+    @Test
+    @DisplayName("LISA明信片：沒有日期 → INCOMPLETE；Stray Kids 特典未公布 → INCOMPLETE")
+    void incompleteCases() {
+        assertEquals(Classification.INCOMPLETE, parse("電影限定明信片").get(0).classification());
+        assertEquals(Classification.INCOMPLETE, parse("即將啟售").get(0).classification());
     }
 
     @Test

@@ -51,6 +51,23 @@ public interface BenefitRepository extends JpaRepository<BenefitBean, Integer> {
 
     /** 爬蟲去重（同貼文+同特典名稱），避免同一則貼文被重複抓到 */
     boolean existsBySourceUrlAndBenefitName(String sourceUrl, String benefitName);
+
+
+    /** 重複匯入同一則貼文時，替還沒有圖片的特典補圖 */
+    List<BenefitBean> findBySourceUrlAndBenefitName(String sourceUrl, String benefitName);
+    
+    /** 爬蟲去重：同一部電影、同名、同開始日已經有正式特典（不同貼文重複宣傳同一個特典） */
+    @Query("""
+            SELECT COUNT(DISTINCT b) FROM BenefitBean b
+            JOIN CinemaMovieBenefitBean c ON c.benefit = b
+            WHERE c.movie.movieId = :movieId
+            AND b.benefitName = :benefitName
+            AND b.startDate = :startDate
+            """)
+    long countByMovieAndNameAndStartDate(
+            @Param("movieId") Integer movieId,
+            @Param("benefitName") String benefitName,
+            @Param("startDate") java.time.LocalDateTime startDate);
     
     
     // ===== 刪除特典 =====

@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,7 +18,7 @@ import com.collection.benefitsjourney.service.ParsedBenefitPost.Classification;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-/** 用威秀粉專的真實貼文（fixtures/vieshow30.json）驗證規則，不需要啟動 Spring。 */
+/** 用威秀貼文（fixtures/vieshow30.json）驗證規則 */
 class VieshowPostRulesTest {
 
     private static final VieshowPostRules rules = new VieshowPostRules();
@@ -54,7 +53,7 @@ class VieshowPostRulesTest {
     @DisplayName("supports")
     class Supports {
         @Test
-        @DisplayName("威秀粉專網址 → true；其他影城 → false")
+        @DisplayName("威秀粉專網址true，其他影城false")
         void supports() {
             assertTrue(rules.supports("https://www.facebook.com/vieshow/posts/pfbid0abc"));
             assertFalse(rules.supports("https://www.facebook.com/miramar/posts/123"));
@@ -90,7 +89,7 @@ class VieshowPostRulesTest {
         }
 
         @Test
-        @DisplayName("removeBoilerplate 移除罐頭文後，保留標題與兌換說明")
+        @DisplayName("removeBoilerplate移除罐頭文後，保留標題與兌換說明")
         void removeBoilerplateKeepsBody() {
             String body = rules.removeBoilerplate(post("盜作主題壓克力吊飾"));
             assertTrue(body.contains("盜作主題壓克力吊飾"));
@@ -101,7 +100,7 @@ class VieshowPostRulesTest {
     }
 
     @Nested
-    @DisplayName("特別場（入場贈送型）")
+    @DisplayName("入場贈送型特別場")
     class SpecialByDate {
         @Test
         @DisplayName("泥面人4DX特別場：入場即可獲得套組")
@@ -124,15 +123,15 @@ class VieshowPostRulesTest {
     @DisplayName("資訊不完整（INCOMPLETE）")
     class Incomplete {
         @Test
-        @DisplayName("ATEEZ應援場：沒有講贈品")
+        @DisplayName("ATEEZ應援場：沒有寫明特典，當雜訊，不送審核")
         void ateez() {
-            assertEquals(Classification.INCOMPLETE, rules.classifyPost(post("光感應援場")));
+            assertEquals(Classification.NOT_BENEFIT, rules.classifyPost(post("光感應援場")));
         }
 
         @Test
-        @DisplayName("人魚戀習曲導演映後場：沒有講贈品")
+        @DisplayName("人魚戀習曲導演映後場：沒有寫明特典，當雜訊，不送審核")
         void director() {
-            assertEquals(Classification.INCOMPLETE, rules.classifyPost(post("導演映後場")));
+            assertEquals(Classification.NOT_BENEFIT, rules.classifyPost(post("導演映後場")));
         }
 
         @Test
@@ -167,7 +166,7 @@ class VieshowPostRulesTest {
         }
 
         @Test
-        @DisplayName("空字串與 null")
+        @DisplayName("空字串與null")
         void blank() {
             assertEquals(Classification.NOT_BENEFIT, rules.classifyPost(""));
             assertEquals(Classification.NOT_BENEFIT, rules.classifyPost(null));
@@ -176,14 +175,42 @@ class VieshowPostRulesTest {
     }
 
     @Nested
-    @DisplayName("尚未支援（之後做限量兌換型再打開）")
-    class Deferred {
-        @Disabled("限量兌換型還沒做：哥吉拉首映、LISA明信片、快打旋風POSE挑戰，目前會被判成 NOT_BENEFIT")
+    @DisplayName("限量兌換型與首映特典")
+    class LimitedRedeem {
         @Test
-        void limitedRedeem() {
-            assertEquals(Classification.BENEFIT, rules.classifyPost(post("特殊工藝日本原版A3海報+神秘驚喜禮")));
-            assertEquals(Classification.BENEFIT, rules.classifyPost(post("電影限定明信片")));
-            assertEquals(Classification.BENEFIT, rules.classifyPost(post("BLANKA 娃娃購物袋")));
+        @DisplayName("快打旋風POSE挑戰：臨櫃兌換，數量有限")
+        void streetFighter() {
+            String t = post("BLANKA 娃娃購物袋");
+            assertEquals(Classification.BENEFIT, rules.classifyPost(t));
+            assertEquals(Optional.of(BenefitType.SPECIAL_UNTIL_OUT), rules.classifyBenefitType(t));
+        }
+
+        @Test
+        @DisplayName("LISA電影限定明信片")
+        void lisaPostcard() {
+            String t = post("電影限定明信片");
+            assertEquals(Classification.BENEFIT, rules.classifyPost(t));
+            assertEquals(Optional.of(BenefitType.SPECIAL_UNTIL_OUT), rules.classifyBenefitType(t));
+        }
+
+        @Test
+        @DisplayName("哥吉拉首映：觀影當天兌換＝入場贈送型")
+        void godzillaPremiere() {
+            String t = post("特殊工藝日本原版A3海報+神秘驚喜禮");
+            assertEquals(Classification.BENEFIT, rules.classifyPost(t));
+            assertEquals(Optional.of(BenefitType.SPECIAL_BY_DATE), rules.classifyBenefitType(t));
+        }
+
+        @Test
+        @DisplayName("哥吉拉預售情報（🈶清單）與首映貼文重複，不另外建立")
+        void godzillaPresale() {
+            assertEquals(Classification.NOT_BENEFIT, rules.classifyPost(post("神秘首映禮*1")));
+        }
+
+        @Test
+        @DisplayName("iShow抽獎活動不是特典")
+        void lottery() {
+            assertEquals(Classification.NOT_BENEFIT, rules.classifyPost(post("加碼抽")));
         }
     }
 }

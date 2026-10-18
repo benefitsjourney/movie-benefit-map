@@ -32,6 +32,11 @@ public class SqlDataInitializer implements ApplicationRunner {
         this.dataSource = dataSource;
         this.resolver = resolver;
     }
+    
+    /** 排序用的名稱：一般檔案用原檔名，cinema_movie_benefit排在movie之後 */
+    private static String sortKey(String filename) {
+        return "cinema_movie_benefit.sql".equals(filename) ? "movie~.sql" : filename;
+    }
 
     /** 啟動時自動掃描並匯入空表的 SQL 資料 */
     @Override
@@ -46,7 +51,8 @@ public class SqlDataInitializer implements ApplicationRunner {
         }
 
         // 固定處理順序
-        Arrays.sort(files, (a, b) -> a.getFilename().compareTo(b.getFilename()));
+        // 照檔名排序，但cinema_movie_benefit要等cinema、movie、benefit都匯入後才能執行
+        Arrays.sort(files, (a, b) ->sortKey(a.getFilename()).compareTo(sortKey(b.getFilename())));
 
         for (Resource file : files) {
             String name = file.getFilename();
