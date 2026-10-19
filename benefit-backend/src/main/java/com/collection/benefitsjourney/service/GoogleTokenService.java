@@ -29,7 +29,14 @@ public class GoogleTokenService {
     public GoogleIdToken.Payload verify(String idToken) {
 
         try {
-            GoogleIdToken googleIdToken = verifier.verify(idToken);
+            GoogleIdToken googleIdToken;
+
+            try {
+                googleIdToken = verifier.verify(idToken);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(
+                        "Google ID Token 格式無效", e);
+            }
 
             if (googleIdToken == null) {
                 throw new IllegalArgumentException(

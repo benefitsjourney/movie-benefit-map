@@ -12,36 +12,36 @@ import com.collection.benefitsjourney.dto.ChangePasswordRequest;
 import com.collection.benefitsjourney.dto.RegisterRequest;
 import com.collection.benefitsjourney.repository.UsersRepository;
 
-@Service
-public class AuthService {
-    private final UsersRepository usersRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final LoginLogService loginLogService;
+        @Service
+        public class AuthService {
+        private final UsersRepository usersRepository;
+        private final PasswordEncoder passwordEncoder;
+        private final LoginLogService loginLogService;
 
-    public AuthService(
-            UsersRepository usersRepository,
-            PasswordEncoder passwordEncoder,
-            LoginLogService loginLogService) {
+        public AuthService(
+                UsersRepository usersRepository,
+                PasswordEncoder passwordEncoder,
+                LoginLogService loginLogService) {
 
-        this.usersRepository = usersRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.loginLogService = loginLogService;
-    }
-
-    /**
-     * 一般會員註冊
-     */
-    public UsersBean register(RegisterRequest request) {
-
-        // 檢查帳號是否重複
-        if (usersRepository.existsByAccount(request.getAccount())) {
-            throw new IllegalArgumentException("帳號已存在");
+                this.usersRepository = usersRepository;
+                this.passwordEncoder = passwordEncoder;
+                this.loginLogService = loginLogService;
         }
 
-        // 檢查 Email 是否重複
-        if (usersRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("Email 已存在");
-        }
+        /**
+         * 一般會員註冊
+         */
+        public UsersBean register(RegisterRequest request) {
+
+                // 檢查帳號是否重複
+                if (usersRepository.existsByAccount(request.getAccount())) {
+                throw new IllegalArgumentException("帳號已存在");
+                }
+
+                // 檢查 Email 是否重複
+                if (usersRepository.existsByEmail(request.getEmail())) {
+                throw new IllegalArgumentException("Email 已存在");
+                }
 
         // 建立會員
         UsersBean usersBean = new UsersBean();
@@ -175,18 +175,18 @@ public class AuthService {
 
         // 儲存會員資料
         usersRepository.save(usersBean);
-    }
+        }
 
-    /**
-     * Google OAuth 登入
-     *
-     * @param googleId googleId、email、name 必須來自後端已驗證的 Google ID Token，
-     * 不能直接使用前端自行傳來、尚未驗證的資料。
-     */
-    public UsersBean googleLogin(
-            String googleId,
-            String email,
-            String name) {
+        /**
+         * Google OAuth 登入
+         *
+         * @param googleId googleId、email、name 必須來自後端已驗證的 Google ID Token，
+         * 不能直接使用前端自行傳來、尚未驗證的資料。
+         */
+        public UsersBean googleLogin(
+                String googleId,
+                String email,
+                String name) {
 
         /*
          * ① 先確認 Google 帳號是否註冊
@@ -196,30 +196,30 @@ public class AuthService {
 
         if (googleUser.isPresent()) {
 
-            UsersBean usersBean = googleUser.get();
+        UsersBean usersBean = googleUser.get();
 
             // 停權或已註銷的帳號不能登入
-            if ("BANNED".equals(usersBean.getStatus())
-                    || "DELETED".equals(usersBean.getStatus())) {
+        if ("BANNED".equals(usersBean.getStatus())
+                || "DELETED".equals(usersBean.getStatus())) {
 
                 throw new IllegalArgumentException(
                         "此帳號目前無法登入"
                 );
-            }
+        }
 
             // 已存在的 Google 會員直接回傳
             // 不更新 updatedAt，因為沒有修改會員資料
-            return usersBean;
+        return usersBean;
         }
-    
+
 
         // 2. Google ID 不存在，檢查 Email 是否已被使用
         // 不自動將 Google 帳號綁定到一般會員
-        if (usersRepository.existsByEmail(email)) {
+                if (usersRepository.existsByEmail(email)) {
 
-            throw new IllegalArgumentException(
-                    "此 Email 已註冊，請使用一般帳號登入"
-            );
+                throw new IllegalArgumentException(
+                        "此 Email 已註冊，請使用一般帳號登入"
+                );
         }
 
         // 3. Email 尚未使用，建立新的 Google 會員
@@ -229,9 +229,9 @@ public class AuthService {
         String account;
 
         do {
-            account = "G_" + UUID.randomUUID()
-                    .toString()
-                    .replace("-", "");
+        account = "G_" + UUID.randomUUID()
+                .toString()
+                .replace("-", "");
         } while (usersRepository.existsByAccount(account));
 
         newUser.setAccount(account);
