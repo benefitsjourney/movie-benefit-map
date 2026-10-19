@@ -453,11 +453,11 @@ class CrawlerReviewsControllerTest {
         void validRequest() throws Exception {
             String json = """
                     {
-                      "crawlerType": "BENEFIT",
+                      "crawlerType": "MOVIE",
                       "entityId": 88,
-                      "fieldName": "benefitName",
-                      "crawlerValue": "新特典",
-                      "previousValue": "舊特典",
+                      "fieldName": "movieName",
+                      "crawlerValue": "新片名",
+                      "previousValue": "舊片名",
                       "reviewStatus": "REJECTED",
                       "reviewedAt": "2026-11-02T04:05:06"
                     }
@@ -472,11 +472,11 @@ class CrawlerReviewsControllerTest {
             verify(crawlerReviewsService).updateCrawlerReview(eq(7), captor.capture());
             CrawlerReviewRequest request = captor.getValue();
 
-            assertEquals(CinemaResourceType.BENEFIT, request.crawlerType());
+            assertEquals(CinemaResourceType.MOVIE, request.crawlerType());
             assertEquals(88, request.entityId());
-            assertEquals("benefitName", request.fieldName());
-            assertEquals("新特典", request.crawlerValue());
-            assertEquals("舊特典", request.previousValue());
+            assertEquals("movieName", request.fieldName());
+            assertEquals("新片名", request.crawlerValue());
+            assertEquals("舊片名", request.previousValue());
             assertEquals(ReviewStatus.REJECTED, request.reviewStatus());
             assertEquals(LocalDateTime.of(2026, 11, 2, 4, 5, 6), request.reviewedAt());
         }

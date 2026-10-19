@@ -1,15 +1,19 @@
 package com.collection.benefitsjourney.service;
 
 import java.io.IOException;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -17,12 +21,11 @@ import java.util.concurrent.Future;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -36,457 +39,300 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class CrawlerMovieService {
 
-    /** 單次網頁請求逾時時間（毫秒）。 */
-    private static final int REQUEST_TIMEOUT_MS = 8_000;
-
-    /** 同時下載網頁的最大執行緒數，資料庫操作仍在主執行緒。 */
-    private static final int DOWNLOAD_THREAD_COUNT = 4;
-
-    /** 開眼電影網網站根網址。 */
     private static final String BASE_URL = "https://www.atmovies.com.tw";
-    private static final String USER_AGENT = "Mozilla/5.0";
+    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
+    private static final int TIMEOUT_MS = 12_000;
+    private static final int THREADS = 6;
+    private static final int NAME_MAX_LENGTH = 64;
 
-    // 只抓固定的最新列表，不再自動往歷史分頁延伸。
-    private static final List<String> MOVIE_URLS = List.of(
+    private static final List<String> ENTRY_URLS = List.of(
             BASE_URL + "/movie/new/",
             BASE_URL + "/movie/now/0/",
             BASE_URL + "/movie/now2/0/",
-            BASE_URL + "/movie/next/0/");
+            BASE_URL + "/movie/next/0/",
+            BASE_URL + "/movie/next2/");
 
-    /** 僅接受開眼電影網的電影詳情網址，並擷取來源sourceId。 */
-    private static final Pattern MOVIE_PATTERN = Pattern.compile(
-            "^https?://(?:www\\.)?atmovies\\.com\\.tw/(?:movie|film)/(f[A-Za-z0-9]+)/?$",
+    private static final Pattern MOVIE_LINK = Pattern.compile(
+            "^https?://(?:www\\.)?atmovies\\.com\\.tw/(?:movie|film)/(f[A-Za-z0-9]+)/?(?:[?#].*)?$",
             Pattern.CASE_INSENSITIVE);
-
-    /** 從中文「上映日期」欄位擷取日期文字。 */
-    private static final Pattern DATE_PATTERN = Pattern.compile(
-            "上映日期\\s*[：:]\\s*(\\d{1,4}/\\d{1,2}/\\d{1,4})");
-
-    /** 清除片名後方附加的英文名稱（符合指定標題格式時）。 */
-    private static final Pattern TITLE_PATTERN = Pattern.compile(
-            "^(.+[\\p{IsHan}」』〉】）])\\s+([A-Za-z].+)$");
-
-    /** 正規化片名時使用的格式。 */
-    private static final Pattern WHITESPACE_PATTERN = Pattern.compile("\\s+");
-    private static final Pattern ATMOVIES_SUFFIX_PATTERN = Pattern.compile(
-            "\\s*[@＠]movies.*$", Pattern.CASE_INSENSITIVE);
-    private static final Pattern SITE_SUFFIX_PATTERN = Pattern.compile(
-            "\\s*〖開眼電影網〗.*$");
-
-    /** 來源網站可能出現的兩種日期格式。 */
+    private static final Pattern WEEK_LINK = Pattern.compile("/movie/next/w\\d+/?$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern RELEASE_DATE = Pattern.compile("上映日期\\s*[：:]\\s*(\\d{1,4}/\\d{1,2}/\\d{1,4})");
+    private static final Pattern WEBSITE_SUFFIX = Pattern.compile(
+            "\\s*(?:[-–—|｜]\\s*)?(?:[@＠]movies|〖開眼電影網〗|開眼電影網)(?:.*)$",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern CHINESE = Pattern.compile("[\\p{IsHan}]");
+    private static final Pattern SPACE = Pattern.compile("\\s+");
+    private static final Pattern ENGLISH_TRANSLATION = Pattern.compile(
+            "^(.+?)\\s+([A-Za-z][A-Za-z0-9 .=,!?:;’'&+()\\-/–—！]+)$");
+    private static final Pattern ENGLISH_WITH_DESCRIPTION = Pattern.compile(
+            "^(.+?)\\s+[A-Za-z][A-Za-z0-9 .=,!?'&+()\\-/–—]*[：:]\\s*[\\p{IsHan}].*$");
+    private static final Pattern EDITION_SUFFIX = Pattern.compile(
+            "\\s*[（(《〈\u3010]\\s*(?:真人版|數位修復版|數字修復版|修復版|[24]K修復版)\\s*[）)》〉\u3011]$");
     private static final DateTimeFormatter[] DATE_FORMATS = {
             DateTimeFormatter.ofPattern("yyyy/M/d"),
             DateTimeFormatter.ofPattern("M/d/yyyy")
     };
 
-    /** 爬取過程使用的暫存資料 */
-    private record MovieInfo(
-            String sourceId,
-            String url,
-            String movieName,
-            String imageUrl,
-            LocalDateTime releaseDate) {
-    }
+    private record MovieInfo(String sourceId, String url, String movieName,
+                             String imageUrl, LocalDateTime releaseDate) {}
 
-    /** 主執行緒取得正式資料，背景任務只下載詳細頁，不操作 JPA。 */
-    private record MovieJob(
-            MovieInfo info,
-            MovieResponse existing,
-            Future<MovieInfo> detail) {
-    }
+    private record StoredMovie(Integer id, String sourceId, String name) {}
 
     private final MovieService movieService;
     private final CrawlerReviewsService crawlerReviewsService;
+    private final JdbcTemplate jdbcTemplate;
 
-    public CrawlerMovieService(
-            MovieService movieService,
-            CrawlerReviewsService crawlerReviewsService) {
+    public CrawlerMovieService(MovieService movieService,
+                               CrawlerReviewsService crawlerReviewsService,
+                               JdbcTemplate jdbcTemplate) {
         this.movieService = movieService;
         this.crawlerReviewsService = crawlerReviewsService;
+        this.jdbcTemplate = jdbcTemplate;
     }
 
-    /** 同步最新電影資料 */
+    /** 列表找影片，詳細頁確認完整名稱及資料。 */
     public List<MovieResponse> syncMovies() {
-        long startTime = System.nanoTime();
-        ExecutorService executor = Executors.newFixedThreadPool(DOWNLOAD_THREAD_COUNT);
-
+        long started = System.nanoTime();
+        ExecutorService executor = Executors.newFixedThreadPool(THREADS);
         try {
-            // 平行抓取四個列表，以 sourceId 合併同一部電影。
-            Map<String, MovieInfo> movies = getAllMovies(executor, startTime);
-
-            // 所有列表都抓不到電影時，不應視為正常成功
-            if (movies.isEmpty()) {
-                log.error("電影爬蟲未取得任何電影資料");
-
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_GATEWAY, "電影爬蟲未成功同步任何資料");
+            Map<String, Future<Document>> pages = new LinkedHashMap<>();
+            for (String url : ENTRY_URLS) {
+                pages.put(url, executor.submit(() -> connect(url)));
             }
 
-            List<MovieResponse> results = new ArrayList<>();
-            List<MovieJob> jobs = new ArrayList<>();
-
-            // 逐部查詢正式資料，列表與資料庫皆無法補足的欄位才需要下載詳細頁
-            for (MovieInfo info : movies.values()) {
-                try {
-                    MovieResponse existing = movieService.findBySourceId(info.sourceId()).orElse(null);
-                    Future<MovieInfo> detail = needsDetail(info, existing)
-                            ? executor.submit(() -> completeMovieInfo(info))
-                            : null;
-
-                    jobs.add(new MovieJob(info, existing, detail));
-                } catch (Exception e) {
-                    log.warn(
-                            "電影查詢失敗：{}",
-                            info.url(),
-                            e);
+            Map<String, MovieInfo> discovered = new LinkedHashMap<>();
+            Set<String> weeks = new LinkedHashSet<>();
+            int loaded = 0;
+            for (var entry : pages.entrySet()) {
+                Document doc = await(entry.getValue(), entry.getKey());
+                if (doc == null) continue;
+                loaded++;
+                discover(doc, discovered);
+                if (entry.getKey().contains("/next/0/")) {
+                    for (Element link : doc.select("a[href]")) {
+                        String url = link.absUrl("href");
+                        if (WEEK_LINK.matcher(url).find()) weeks.add(url);
+                    }
                 }
             }
 
-            // 等待各部電影詳情下載完成，依序寫入資料庫或建立差異審核
-            for (MovieJob job : jobs) {
+            Map<String, Future<Document>> weeklyJobs = new LinkedHashMap<>();
+            for (String url : weeks) weeklyJobs.put(url, executor.submit(() -> connect(url)));
+            for (var entry : weeklyJobs.entrySet()) {
+                Document doc = await(entry.getValue(), entry.getKey());
+                if (doc == null) continue;
+                loaded++;
+                discover(doc, discovered);
+            }
+
+            if (discovered.isEmpty()) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "電影網站沒有回傳可用列表");
+            }
+
+            Map<String, Future<MovieInfo>> details = new LinkedHashMap<>();
+            for (MovieInfo item : discovered.values()) {
+                details.put(item.sourceId(), executor.submit(() -> fetchDetail(item)));
+            }
+
+            Map<String, StoredMovie> names = loadStoredMovies();
+            List<MovieResponse> results = new ArrayList<>();
+            int duplicates = 0;
+            int failed = 0;
+
+            for (MovieInfo candidate : discovered.values()) {
+                MovieInfo info = await(details.get(candidate.sourceId()), candidate.url());
+                if (info == null || info.movieName() == null) {
+                    failed++;
+                    continue;
+                }
                 try {
-                    MovieInfo info = job.detail() == null
-                            ? job.info()
-                            : job.detail().get();
-
-                    MovieResponse existing = job.existing();
-                    MovieResponse saved = saveMovie(info, existing);
-
-                    if (saved == null) {
+                    MovieResponse existing = movieService.findBySourceId(info.sourceId()).orElse(null);
+                    if (existing != null) {
+                        reviewExisting(info, existing);
+                        results.add(existing);
                         continue;
                     }
 
-                    // 新電影直接新增，既有電影不自動覆蓋，而是把有值且不同的欄位送審
-                    if (existing != null) {
-                        reviewExistingMovie(info, existing);
+                    StoredMovie duplicate = names.get(normalizeName(info.movieName()));
+                    if (duplicate != null) {
+                        duplicates++;
+                        if (!Objects.equals(duplicate.sourceId(), info.sourceId())) {
+                            submitDuplicateReview(info, duplicate);
+                        }
+                        continue;
                     }
-                    results.add(saved);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    log.error(
-                            "電影同步遭到中斷，耗時 {} 秒",
-                            elapsedSeconds(startTime),
-                            e);
 
-                    throw new ResponseStatusException(
-                            HttpStatus.SERVICE_UNAVAILABLE, "電影同步遭到中斷", e);
-                } catch (ExecutionException e) {
-                    log.warn(
-                            "電影詳細頁處理失敗：{}",
-                            job.info().url(),
-                            e.getCause() == null ? e : e.getCause());
-                } catch (DataIntegrityViolationException e) {
-                    log.warn(
-                            "電影資料違反資料庫限制，略過同步：{} ({})",
-                            job.info().movieName(),
-                            job.info().sourceId(),
-                            e);
+                    MovieResponse saved = movieService.createMovie(new MovieRequest(
+                            info.sourceId(), info.movieName(), info.imageUrl(), true, info.releaseDate()));
+                    results.add(saved);
+                    names.put(normalizeName(info.movieName()),
+                            new StoredMovie(saved.movieId(), info.sourceId(), info.movieName()));
                 } catch (Exception e) {
-                    log.warn(
-                            "電影同步失敗：{}",
-                            job.info().url(),
-                            e);
+                    failed++;
+                    log.warn("電影同步失敗：{} ({})", info.url(), info.movieName(), e);
                 }
             }
 
-            // 有部分電影寫入失敗時留下紀錄，但不影響其他電影
-            if (results.size() < movies.size()) {
-                log.warn(
-                        "部分電影同步資料庫失敗，共抓取 {} 部，成功存入 {} 部，失敗 {} 部",
-                        movies.size(),
-                        results.size(),
-                        movies.size() - results.size());
+            log.info("電影同步完成：列表{}頁、發現{}部、處理{}部、重複{}部、失敗{}部、耗時{}秒",
+                    loaded, discovered.size(), results.size(), duplicates, failed,
+                    "%.2f".formatted((System.nanoTime() - started) / 1_000_000_000.0));
+            if (results.isEmpty() && duplicates == 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "沒有任何電影同步成功");
             }
-
-            // 全部資料都無法處理時，代表同步結果不可視為成功
-            if (results.isEmpty()) {
-                log.error("所有電影資料皆寫入資料庫失敗");
-
-                throw new ResponseStatusException(
-                        HttpStatus.BAD_GATEWAY, "電影爬蟲未成功同步任何資料");
-            }
-
-            log.info(
-                    "電影爬蟲完成，共抓取 {} 部電影，成功處理 {} 部，耗時 {} 秒",
-                    movies.size(),
-                    results.size(),
-                    elapsedSeconds(startTime));
-
             return results;
         } finally {
-            // 無論同步成功或失敗，都釋放下載用的執行緒
             executor.shutdownNow();
         }
     }
 
-    /** 同時抓四個列表，按照 MOVIE_URLS 的順序合併，避免覆蓋較完整的資料。 */
-    private Map<String, MovieInfo> getAllMovies(ExecutorService executor, long startTime) {
-        Map<String, Future<Document>> pages = new LinkedHashMap<>();
-        Map<String, MovieInfo> movies = new LinkedHashMap<>();
-
-        // 先送出所有下載任務，避免依序下載造成等待
-        for (String url : MOVIE_URLS) {
-            pages.put(url, executor.submit(() -> connect(url)));
-        }
-
-        // 再依固定列表順序解析，讓較前面的來源資料優先保留
-        for (Map.Entry<String, Future<Document>> page : pages.entrySet()) {
-            try {
-                getMovies(page.getValue().get(), movies);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                log.error(
-                        "電影列表抓取遭到中斷，耗時 {} 秒",
-                        elapsedSeconds(startTime),
-                        e);
-
-                throw new ResponseStatusException(
-                        HttpStatus.SERVICE_UNAVAILABLE, "電影列表抓取遭到中斷", e);
-            } catch (ExecutionException e) {
-                logPageFailure(page.getKey(), e.getCause() == null ? e : e.getCause());
-            }
-        }
-
-        return movies;
-    }
-
-    /** 單一列表失敗不影響其他列表，HTTP 狀態與連線失敗分開記錄。 */
-    private void logPageFailure(String url, Throwable error) {
-        if (error instanceof HttpStatusException httpStatus) {
-            log.warn(
-                    "電影列表回傳 HTTP {}：{}",
-                    httpStatus.getStatusCode(),
-                    url,
-                    httpStatus);
-            return;
-        }
-
-        log.warn(
-                "電影列表抓取失敗：{}",
-                url,
-                error);
-    }
-
-    /** 只在來源列表、資料庫都拿不到完整資料時，才讀電影詳細頁 */
-    private boolean needsDetail(MovieInfo info, MovieResponse existing) {
-        if (existing == null) {
-            return info.movieName() == null
-                    || info.imageUrl() == null
-                    || info.releaseDate() == null;
-        }
-
-        return info.movieName() == null && existing.movieName() == null
-                || info.imageUrl() == null && existing.imageUrl() == null
-                || info.releaseDate() == null && existing.releaseDate() == null;
-    }
-
-    /** 取得列表中的電影，同一 sourceId 只保留一份。 */
-    private void getMovies(Document doc, Map<String, MovieInfo> movies) {
-        for (Element article : doc.select("article.box.post")) {
-            Element link = article.selectFirst(".filmTitle a[href]");
-            if (link != null) {
-                addMovie(movies, link, article);
-            }
-        }
-
-        // /now/0/、/now2/0/、/next/0/ 是快覽頁，只有電影連結。
-        for (Element link : doc.select("a[href]")) {
-            addMovie(movies, link, null);
-        }
-    }
-
-    /** 驗證電影網址、擷取欄位，並將相同 sourceId 的非空資訊合併。 */
-    private void addMovie(Map<String, MovieInfo> movies, Element link, Element article) {
-        String url = link.absUrl("href");
-        Matcher matcher = MOVIE_PATTERN.matcher(url);
-        if (!matcher.matches()) {
-            return;
-        }
-
-        String sourceId = matcher.group(1);
-        MovieInfo info = new MovieInfo(
-                sourceId,
-                url,
-                cleanMovieName(link.text()),
-                article == null ? null : getImageUrl(article),
-                article == null ? null : getReleaseDate(article));
-
-        // 不以後面列表的空值覆蓋先前抓到的有效資料。
-        movies.merge(sourceId, info, CrawlerMovieService::mergeMovieInfo);
-    }
-
-    /** 優先使用列表資料；缺漏才從詳細頁補足。 */
-    private MovieInfo completeMovieInfo(MovieInfo info) {
+    private <T> T await(Future<T> job, String url) {
         try {
-            Document doc = connect(info.url());
-            return new MovieInfo(
-                    info.sourceId(),
-                    info.url(),
-                    info.movieName() != null ? info.movieName() : getMovieName(doc),
-                    info.imageUrl() != null ? info.imageUrl() : getImageUrl(doc),
-                    info.releaseDate() != null ? info.releaseDate() : getReleaseDate(doc.body()));
-        } catch (HttpStatusException e) {
-            log.warn(
-                    "電影詳細頁回傳 HTTP {}：{}",
-                    e.getStatusCode(),
-                    info.url(),
-                    e);
-            return info;
-        } catch (IOException e) {
-            log.warn(
-                    "電影詳細頁抓取失敗：{}",
-                    info.url(),
-                    e);
-            return info;
-        }
-    }
-
-    /** 已存在就維持正式資料；首次出現才建立電影，且必須有片名。 */
-    private MovieResponse saveMovie(MovieInfo info, MovieResponse existing) {
-        if (existing != null) {
-            return existing;
-        }
-
-        if (info.movieName() == null) {
-            log.warn("略過缺少名稱的電影：{}", info.url());
+            return job.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "電影爬蟲執行遭中斷", e);
+        } catch (ExecutionException e) {
+            log.warn("電影頁面抓取失敗：{}", url, e.getCause());
             return null;
         }
-
-        return movieService.createMovie(new MovieRequest(
-                info.sourceId(),
-                info.movieName(),
-                info.imageUrl(),
-                true,
-                info.releaseDate()));
     }
 
-    /** 只把實際抓到、且與正式資料不同的欄位送審。 */
-    private void reviewExistingMovie(MovieInfo info, MovieResponse existing) {
-        reviewField(existing.movieId(), CrawlerReviewsService.MOVIE_NAME,
-                info.movieName(), existing.movieName());
+    private void discover(Document page, Map<String, MovieInfo> found) {
+        for (Element link : page.select("a[href]")) {
+            Matcher match = MOVIE_LINK.matcher(link.absUrl("href"));
+            if (!match.matches()) continue;
+            String id = match.group(1);
+            found.putIfAbsent(id, new MovieInfo(id, BASE_URL + "/movie/" + id + "/",
+                    null, null, null));
+        }
+    }
+
+    private MovieInfo fetchDetail(MovieInfo item) throws IOException {
+        Document doc = connect(item.url());
+        String name = movieTitle(doc);
+        if (name == null) {
+            log.warn("電影詳細頁缺少完整有效中文片名，略過：{}", item.url());
+            return item;
+        }
+        return new MovieInfo(item.sourceId(), item.url(), name,
+                BASE_URL + "/photo101/" + item.sourceId() + "/pl_" + item.sourceId() + ".jpg",
+                releaseDate(doc));
+    }
+
+    /** 網站頁籤的正式名稱最穩定；不得把劇情簡介拼進片名。 */
+    private String movieTitle(Document doc) {
+        // 開眼格式：「中文片名 English Title @movies〖開眼電影網〗」
+        String pageTitle = doc.title();
+        String title = WEBSITE_SUFFIX.matcher(pageTitle).find() ? cleanTitle(pageTitle) : null;
+        if (title != null) return title;
+
+        // 網站頁籤缺失時，才使用電影標題欄位；不讀取其父層的介紹文字。
+        for (String selector : List.of(".filmTitle a", "meta[property=og:title]")) {
+            Element element = doc.selectFirst(selector);
+            if (element == null) continue;
+            String raw = element.tagName().equals("meta") ? element.attr("content") : element.ownText();
+            title = cleanTitle(raw);
+            if (title != null) return title;
+        }
+        return null;
+    }
+
+    /** 保留中文正式片名及副標題，只移除後方獨立的英文譯名。 */
+    private String cleanTitle(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String title = raw.replace('\u00a0', ' ').strip().split("[\r\n]+", 2)[0];
+        title = WEBSITE_SUFFIX.matcher(title).replaceFirst("");
+        title = title.replaceFirst("\\s*[-–—|｜]\\s*(?:電影介紹|劇情介紹|劇情簡介).*$", "");
+        title = SPACE.matcher(title).replaceAll(" ").trim();
+
+        // 詳細頁可能是「中文正式名稱 English Title：劇情文字」。
+        // 從中英文交界拆開，而不是從冒號或片名中的數字、英文拆開。
+        title = stripEnglishTranslation(title);
+
+        if (title.isEmpty() || title.length() > NAME_MAX_LENGTH || !CHINESE.matcher(title).find()
+                || title.equals("電影") || title.equals("開眼電影網")) return null;
+        return title;
+    }
+
+    private String stripEnglishTranslation(String title) {
+        // 譯名必須以空格後的英文單字起頭，且中文名稱部分確實含中文字。
+        // 允許中文名稱以 2、0.0、N.E.W.、2+2=5、半形括號等形式結尾。
+        Matcher description = ENGLISH_WITH_DESCRIPTION.matcher(title);
+        if (description.matches() && CHINESE.matcher(description.group(1)).find()) {
+            return description.group(1).trim();
+        }
+        Matcher suffix = ENGLISH_TRANSLATION.matcher(title);
+        if (suffix.matches() && CHINESE.matcher(suffix.group(1)).find()) {
+            return suffix.group(1).trim();
+        }
+        return title;
+    }
+
+    /** 網站略去版本註記時，避免把現有「真人版／修復版」改成一般電影名稱。 */
+    private boolean sameTitleIgnoringEdition(String crawled, String stored) {
+        if (crawled == null || stored == null) return false;
+        String withoutEdition = EDITION_SUFFIX.matcher(stored.trim()).replaceFirst("").trim();
+        return !withoutEdition.equals(stored.trim())
+                && normalizeName(crawled).equals(normalizeName(withoutEdition));
+    }
+
+    private LocalDateTime releaseDate(Document doc) {
+        Matcher match = RELEASE_DATE.matcher(doc.body().text());
+        if (!match.find()) return null;
+        for (DateTimeFormatter formatter : DATE_FORMATS) {
+            try {
+                return LocalDate.parse(match.group(1), formatter).atStartOfDay();
+            } catch (DateTimeParseException ignored) {
+                // 日期來源有兩種格式。
+            }
+        }
+        return null;
+    }
+
+    private String normalizeName(String raw) {
+        return Normalizer.normalize(raw, Normalizer.Form.NFKC).toLowerCase(Locale.ROOT)
+                .replaceAll("[\\p{P}\\p{Z}\\s]+", "");
+    }
+
+    private Map<String, StoredMovie> loadStoredMovies() {
+        Map<String, StoredMovie> names = new LinkedHashMap<>();
+        jdbcTemplate.query("SELECT movie_id, source_id, movie_name FROM movie", rs -> {
+            StoredMovie movie = new StoredMovie(rs.getInt("movie_id"),
+                    rs.getString("source_id"), rs.getString("movie_name"));
+            if (movie.name() != null) names.putIfAbsent(normalizeName(movie.name()), movie);
+        });
+        return names;
+    }
+
+    private void submitDuplicateReview(MovieInfo info, StoredMovie duplicate) {
+        log.warn("同名電影待審核：{}，現有sourceId={}，新sourceId={}",
+                info.movieName(), duplicate.sourceId(), info.sourceId());
+        crawlerReviewsService.submitCrawlerChange(CinemaResourceType.MOVIE, duplicate.id(),
+                CrawlerReviewsService.SOURCE_ID, info.sourceId(), duplicate.sourceId());
+    }
+
+    private void reviewExisting(MovieInfo info, MovieResponse existing) {
+        if (!sameTitleIgnoringEdition(info.movieName(), existing.movieName())) {
+            reviewField(existing.movieId(), CrawlerReviewsService.MOVIE_NAME,
+                    info.movieName(), existing.movieName());
+        }
         reviewField(existing.movieId(), CrawlerReviewsService.IMAGE_URL,
                 info.imageUrl(), existing.imageUrl());
         reviewField(existing.movieId(), CrawlerReviewsService.RELEASE_DATE,
                 info.releaseDate(), existing.releaseDate());
     }
 
-    /** 欄位有抓到值且和正式資料不同才送審，回傳是否真的新增審核。 */
-    private int reviewField(Integer entityId, String fieldName, Object crawled, Object current) {
-        if (crawled == null) {
-            return 0;
+    private void reviewField(Integer id, String field, Object crawled, Object current) {
+        if (crawled == null) return;
+        String after = CrawlerReviewsService.formatValue(crawled);
+        String before = CrawlerReviewsService.formatValue(current);
+        if (!Objects.equals(after, before)) {
+            crawlerReviewsService.submitCrawlerChange(CinemaResourceType.MOVIE, id, field, after, before);
         }
-
-        String crawlerValue = CrawlerReviewsService.formatValue(crawled);
-        String previousValue = CrawlerReviewsService.formatValue(current);
-
-        if (Objects.equals(crawlerValue, previousValue)) {
-            return 0;
-        }
-
-        return crawlerReviewsService.submitCrawlerChange(
-                CinemaResourceType.MOVIE,
-                entityId,
-                fieldName,
-                crawlerValue,
-                previousValue) ? 1 : 0;
     }
 
-    /** 集中設定 HTTP User-Agent 與逾時；保留 package 可見性方便測試 Spy。 */
     Document connect(String url) throws IOException {
-        return Jsoup.connect(url)
-                .userAgent(USER_AGENT)
-                .timeout(REQUEST_TIMEOUT_MS)
-                .get();
-    }
-
-    /** 片名優先順序：電影標題區塊 → OG 標題 → 網頁 title。 */
-    private String getMovieName(Document doc) {
-        String name = cleanMovieName(doc.select(".filmTitle").text());
-        if (name != null) {
-            return name;
-        }
-
-        name = cleanMovieName(doc.select("meta[property=og:title]").attr("content"));
-        return name != null ? name : cleanMovieName(doc.title());
-    }
-
-    /** 移除網站後綴、壓縮空白，必要時去除英文副標。 */
-    private String cleanMovieName(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-
-        String name = WHITESPACE_PATTERN.matcher(value).replaceAll(" ").trim();
-        name = ATMOVIES_SUFFIX_PATTERN.matcher(name).replaceFirst("");
-        name = SITE_SUFFIX_PATTERN.matcher(name).replaceFirst("").trim();
-
-        if (name.isBlank() || name.equals("開眼電影網")) {
-            return null;
-        }
-
-        Matcher matcher = TITLE_PATTERN.matcher(name);
-        return matcher.matches() ? matcher.group(1).trim() : name;
-    }
-
-    /** 優先取得電影海報，支援延遲載入屬性與 OG 圖片。 */
-    private String getImageUrl(Element root) {
-        Element image = root.selectFirst(".filmImg img, .filmPic img, .poster img");
-
-        if (image == null && root.tagName().equalsIgnoreCase("article")) {
-            image = root.selectFirst("img[src], img[data-src]");
-        }
-
-        if (image != null) {
-            for (String attr : List.of("data-src", "data-original", "src")) {
-                String url = image.absUrl(attr);
-                if (url.startsWith("http")) {
-                    return url;
-                }
-            }
-        }
-
-        Element meta = root.selectFirst("meta[property=og:image]");
-        if (meta != null) {
-            String url = meta.absUrl("content");
-            if (url.startsWith("http")) {
-                return url;
-            }
-        }
-
-        return null;
-    }
-
-    /** 從頁面文字解析上映日期，日期以當天 00:00 儲存。 */
-    private LocalDateTime getReleaseDate(Element root) {
-        Matcher matcher = DATE_PATTERN.matcher(root.text());
-        if (!matcher.find()) {
-            return null;
-        }
-
-        String value = matcher.group(1);
-        for (DateTimeFormatter format : DATE_FORMATS) {
-            try {
-                return LocalDate.parse(value, format).atStartOfDay();
-            } catch (DateTimeParseException ignored) {
-                // 換一種日期格式解析。
-            }
-        }
-
-        log.warn("無法解析上映日期：{}", value);
-        return null;
-    }
-
-    /** 合併重複電影資料，固定保留先出現的網址與非空欄位。 */
-    private static MovieInfo mergeMovieInfo(MovieInfo first, MovieInfo second) {
-        return new MovieInfo(
-                first.sourceId(),
-                first.url(),
-                first.movieName() != null ? first.movieName() : second.movieName(),
-                first.imageUrl() != null ? first.imageUrl() : second.imageUrl(),
-                first.releaseDate() != null ? first.releaseDate() : second.releaseDate());
-    }
-
-    private static String elapsedSeconds(long startTime) {
-        return "%.2f".formatted((System.nanoTime() - startTime) / 1_000_000_000.0);
+        return Jsoup.connect(url).userAgent(USER_AGENT).referrer(BASE_URL + "/")
+                .timeout(TIMEOUT_MS).followRedirects(true).get();
     }
 }

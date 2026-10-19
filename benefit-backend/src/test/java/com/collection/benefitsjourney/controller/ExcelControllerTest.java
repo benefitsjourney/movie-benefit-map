@@ -162,20 +162,20 @@ class ExcelControllerTest {
         @Test
         @DisplayName("Accept 為 Excel 時，業務錯誤仍回傳 JSON")
         void exportNotFoundReturnsJson() throws Exception {
-            when(excelService.export(CinemaResourceType.BENEFIT))
+            when(excelService.export(CinemaResourceType.CINEMA))
                     .thenThrow(new ResponseStatusException(
                             HttpStatus.NOT_FOUND,
-                            "不支援的類型：BENEFIT"));
+                            "找不到影城"));
 
             mockMvc.perform(get("/export")
-                    .param("type", "BENEFIT")
+                    .param("type", "CINEMA")
                     .accept(EXCEL_CONTENT_TYPE))
                     .andExpect(status().isNotFound())
                     .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                     .andExpect(jsonPath("$.status").value(404))
-                    .andExpect(jsonPath("$.message").value("不支援的類型：BENEFIT"));
+                    .andExpect(jsonPath("$.message").value("找不到影城"));
 
-            verify(excelService).export(CinemaResourceType.BENEFIT);
+            verify(excelService).export(CinemaResourceType.CINEMA);
         }
     }
 }

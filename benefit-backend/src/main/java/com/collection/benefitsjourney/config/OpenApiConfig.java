@@ -14,6 +14,7 @@ import com.collection.benefitsjourney.controller.AdminController;
 import com.collection.benefitsjourney.controller.AuthController;
 import com.collection.benefitsjourney.controller.BenefitAdminController;
 import com.collection.benefitsjourney.controller.BenefitController;
+import com.collection.benefitsjourney.controller.BenefitCrawlerController;
 import com.collection.benefitsjourney.controller.BenefitReportAdminController;
 import com.collection.benefitsjourney.controller.BenefitReportController;
 import com.collection.benefitsjourney.controller.CinemaController;
@@ -51,6 +52,7 @@ public class OpenApiConfig {
             BenefitAdminController.class,
             BenefitReportController.class,
             BenefitReportAdminController.class,
+            BenefitCrawlerController.class,
             InventoryStatusController.class,
             InventoryReportController.class,
             InventoryReportAdminController.class,
