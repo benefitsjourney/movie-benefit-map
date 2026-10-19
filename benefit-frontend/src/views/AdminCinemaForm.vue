@@ -4,9 +4,10 @@ import { useRouter } from "vue-router";
 import movieIcon from "@iconify-icons/mdi/movie-open-outline";
 import pinIcon from "@iconify-icons/mdi/map-marker-outline";
 import plusIcon from "@iconify-icons/mdi/plus";
+import formIcon from "@iconify-icons/mdi/form-textbox";
 import { openAppAlert } from "@/components/ui/Alert.vue";
 import PageIntro from "@/components/layout/PageIntro.vue";
-import BackLink from "@/components/layout/BackLink.vue";
+import DetailCard from "@/components/layout/DetailCard.vue";
 import AppButton from "@/components/ui/Button.vue";
 import CinemaForm from "@/components/forms/CinemaForm.vue";
 import http from "@/plugins/axios";
@@ -68,17 +69,15 @@ async function createCinema(payload) {
     <PageIntro kicker="✦ NEW CINEMA" lead="新增" mark="影城" description="填寫影城基本資料，新增影城至資料庫。" :icon-left="movieIcon"
       :icon-right="pinIcon" :icon-top="plusIcon" theme="purple" />
 
-    <CinemaForm mode="create" hide-submit :submitting="submitting" @submit="createCinema">
-      <template #back>
-        <BackLink :to="{ name: 'admin-cinemas' }">
-          返回影城一覽
-        </BackLink>
-      </template>
+    <DetailCard title="新增影城資料" :title-icon="formIcon" :back-to="{ name: 'admin-cinemas' }" back-label="返回影城一覽">
       <template #actions>
-        <AppButton type="submit" color="purple" :icon="plusIcon" :disabled="submitting">
+        <AppButton type="submit" form="cinema-create-form" color="purple" :icon="plusIcon" :disabled="submitting">
           {{ submitting ? "新增中…" : "新增影城" }}
         </AppButton>
       </template>
-    </CinemaForm>
+
+      <CinemaForm mode="create" plain hide-submit form-id="cinema-create-form" :submitting="submitting"
+        @submit="createCinema" />
+    </DetailCard>
   </section>
 </template>

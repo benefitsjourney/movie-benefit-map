@@ -30,7 +30,6 @@ const PAGE_SIZE = 20;
 const CRAWLER_TYPE_OPTIONS = [
   { value: "CINEMA", label: "影城" },
   { value: "MOVIE", label: "電影" },
-  { value: "BENEFIT", label: "優惠" },
 ];
 const REVIEW_STATUS_OPTIONS = [
   { value: "PENDING", label: "待審核" },
@@ -164,8 +163,8 @@ const columns = [
     align: "center",
     format: reviewFieldLabel,
   },
-  { key: "crawlerValue", label: "爬蟲值", minWidth: "12rem", format: reviewValueText },
   { key: "previousValue", label: "原值", minWidth: "12rem", format: reviewValueText },
+  { key: "crawlerValue", label: "爬蟲值", minWidth: "12rem", format: reviewValueText },
   {
     key: "reviewStatus",
     label: "審查狀態",

@@ -62,10 +62,6 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.coral);
 
   <form v-else :id="formId" class="app-form" :class="{ 'is-plain': plain }" :style="themeStyle" :aria-busy="submitting"
     novalidate @submit.prevent="emit('submit')">
-    <div v-if="$slots.back" class="form-toolbar">
-      <slot name="back" />
-    </div>
-
     <div v-if="title || $slots.actions" class="form-head">
       <h2 v-if="title" class="form-title">
         <Icon v-if="titleIcon" :icon="titleIcon" aria-hidden="true" />
@@ -108,18 +104,6 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.coral);
   border-radius: 0;
   background: transparent;
   box-shadow: none;
-}
-
-.app-form:has(.form-toolbar) {
-  padding-top: 0;
-  overflow: hidden;
-}
-
-.form-toolbar {
-  margin: 0 -1.35rem 1.15rem;
-  padding: 0.85rem 1.35rem;
-  border-bottom: 1.5px solid #e4d8fb;
-  background: #f3ecff;
 }
 
 .form-head {

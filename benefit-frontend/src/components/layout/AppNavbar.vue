@@ -16,12 +16,13 @@ export const THEMES = {
 </script>
 
 <script setup>
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import { Icon } from "@iconify/vue";
 import filmIcon from "@iconify-icons/mdi/filmstrip";
 import menuIcon from "@iconify-icons/mdi/menu";
 import closeIcon from "@iconify-icons/mdi/close";
+import chevronIcon from "@iconify-icons/mdi/chevron-down";
 
 const props = defineProps({
   links: {
@@ -63,13 +64,58 @@ const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
 
 const route = useRoute();
 const menuOpen = ref(false);
+const openDropdown = ref(null);
 
 const isActive = (path) =>
   route.path === path || route.path.startsWith(`${path}/`);
 
+function dropdownId(label) {
+  return `nav-dropdown-${label}`;
+}
+
+function isGroupActive(link) {
+  return link.children?.some((child) => isActive(child.to)) ?? false;
+}
+
+function canHoverNav() {
+  return window.matchMedia("(hover: hover) and (min-width: 992px)").matches;
+}
+
+function onGroupEnter(label) {
+  if (canHoverNav()) openDropdown.value = label;
+}
+
+function onGroupLeave(label) {
+  if (canHoverNav() && openDropdown.value === label) openDropdown.value = null;
+}
+
+function onGroupToggle(label) {
+  if (canHoverNav() && openDropdown.value === label) return;
+  openDropdown.value = openDropdown.value === label ? null : label;
+}
+
+function onGroupFocusOut(event, label) {
+  if (event.currentTarget.contains(event.relatedTarget)) return;
+  if (openDropdown.value === label) openDropdown.value = null;
+}
+
 function closeMenu() {
   menuOpen.value = false;
+  openDropdown.value = null;
 }
+
+function onDocumentPointerDown(event) {
+  if (event.target instanceof Element && event.target.closest(".nav-dropdown")) return;
+  openDropdown.value = null;
+}
+
+onMounted(() => {
+  document.addEventListener("pointerdown", onDocumentPointerDown);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener("pointerdown", onDocumentPointerDown);
+});
 </script>
 
 <template>
@@ -89,12 +135,32 @@ function closeMenu() {
       </RouterLink>
 
       <div id="main-nav-links" class="nav-links" :class="{ 'is-open': menuOpen }">
-        <RouterLink v-for="link in links" :key="link.to" :to="link.to" class="nav-pill"
-          :class="{ active: isActive(link.to) }" :aria-current="isActive(link.to) ? 'page' : undefined"
-          @click="closeMenu">
-          <Icon :icon="link.icon" aria-hidden="true" />
-          {{ link.label }}
-        </RouterLink>
+        <template v-for="link in links" :key="link.to || link.label">
+          <div v-if="link.children?.length" class="nav-dropdown" :class="{ 'is-open': openDropdown === link.label }"
+            @mouseenter="onGroupEnter(link.label)" @mouseleave="onGroupLeave(link.label)"
+            @focusout="onGroupFocusOut($event, link.label)" @keydown.esc="openDropdown = null">
+            <button type="button" class="nav-pill nav-dropdown-toggle" :class="{ active: isGroupActive(link) }"
+              :aria-expanded="openDropdown === link.label" aria-haspopup="true" :aria-controls="dropdownId(link.label)"
+              @click="onGroupToggle(link.label)">
+              <Icon :icon="link.icon" aria-hidden="true" />
+              {{ link.label }}
+              <Icon :icon="chevronIcon" class="nav-caret" aria-hidden="true" />
+            </button>
+            <div :id="dropdownId(link.label)" class="nav-dropdown-menu" :aria-label="link.label">
+              <RouterLink v-for="child in link.children" :key="child.to" :to="child.to" class="nav-dropdown-item"
+                :class="{ active: isActive(child.to) }" :aria-current="isActive(child.to) ? 'page' : undefined"
+                @click="closeMenu">
+                <Icon :icon="child.icon" aria-hidden="true" />
+                {{ child.label }}
+              </RouterLink>
+            </div>
+          </div>
+          <RouterLink v-else :to="link.to" class="nav-pill" :class="{ active: isActive(link.to) }"
+            :aria-current="isActive(link.to) ? 'page' : undefined" @click="closeMenu">
+            <Icon :icon="link.icon" aria-hidden="true" />
+            {{ link.label }}
+          </RouterLink>
+        </template>
       </div>
 
       <div class="nav-actions">
@@ -265,6 +331,73 @@ function closeMenu() {
   height: 1.2rem;
 }
 
+button.nav-pill {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: inherit;
+}
+
+.nav-pill .nav-caret {
+  width: 1rem;
+  height: 1rem;
+  transition: transform var(--ease);
+}
+
+.nav-dropdown.is-open .nav-caret {
+  transform: rotate(180deg);
+}
+
+.nav-dropdown {
+  position: relative;
+}
+
+.nav-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 5;
+  display: none;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 11.5rem;
+  padding: 0.45rem;
+  border-radius: 0.9rem;
+  background: #fff9f1;
+  box-shadow:
+    0 6px 0 color-mix(in srgb, var(--nav-brand) 38%, transparent),
+    0 14px 24px rgb(41 43 53 / 16%);
+}
+
+.nav-dropdown.is-open .nav-dropdown-menu {
+  display: flex;
+}
+
+.nav-dropdown-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.55rem 0.8rem;
+  border-radius: 0.65rem;
+  color: var(--nav-ink);
+  font-size: var(--text-control);
+  font-weight: 800;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.nav-dropdown-item svg {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.nav-dropdown-item:hover,
+.nav-dropdown-item.active {
+  background: var(--nav-accent);
+  color: var(--nav-ink);
+}
+
 .nav-pill:hover,
 .nav-pill.active {
   color: var(--nav-accent);
@@ -324,6 +457,7 @@ function closeMenu() {
 
 .brand:focus-visible,
 .nav-pill:focus-visible,
+.nav-dropdown-item:focus-visible,
 .nav-switch:focus-visible,
 .nav-toggle:focus-visible {
   outline: 2px solid var(--nav-accent);
@@ -382,6 +516,19 @@ function closeMenu() {
   .nav-links.is-open {
     display: flex;
     flex-wrap: wrap;
+  }
+
+  .nav-dropdown {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .nav-dropdown-menu {
+    position: static;
+    min-width: 0;
+    margin: 0 0.35rem 0.25rem;
+    box-shadow: none;
   }
 }
 

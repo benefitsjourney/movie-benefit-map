@@ -202,9 +202,6 @@ async function save() {
   <Form :title="plain ? '' : (mode === 'edit' ? '修改影城資料' : '新增影城資料')" :title-icon="plain ? null : formIcon"
     :submitting="submitting" :submit-label="resolvedSubmitLabel" :submit-icon="resolvedSubmitIcon" :plain="plain"
     :hide-submit="hideSubmit" :form-id="formId" theme="purple" @submit="save">
-    <template v-if="$slots.back" #back>
-      <slot name="back" />
-    </template>
     <template v-if="$slots.actions" #actions>
       <slot name="actions" />
     </template>
