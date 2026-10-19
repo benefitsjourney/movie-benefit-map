@@ -84,6 +84,10 @@ public class BenefitReportBean {
 
     @Column(name = "review_note", length = 100)
     private String reviewNote;
+    
+    // 爬蟲匯入時比對到的影城ID，用逗號隔開（例如 1,2,3）。「重新比對」補齊電影後，靠它知道要綁哪些影城
+    @Column(name = "matched_cinema_ids", length = 600)
+    private String matchedCinemaIds;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
