@@ -107,6 +107,79 @@ public class CloudinaryClient {
     }
 
     /**
+     * 上傳使用者自己選的圖片（收藏庫照片用）。
+     * 跟uploadFromUrl一樣：沒設定、太大、上傳失敗都回Optional.empty()，原因寫在log。
+     */
+    public Optional<UploadedImage> uploadBytes(byte[] bytes, String contentType) {
+        if (!isConfigured()) {
+            log.warn("尚未設定CLOUDINARY_CLOUD_NAME/CLOUDINARY_API_KEY/CLOUDINARY_API_SECRET，無法上傳圖片");
+            return Optional.empty();
+        }
+        if (bytes == null || bytes.length == 0 || bytes.length > MAX_BYTES) {
+            log.warn("【上傳Cloudinary】圖片大小不符（{} bytes）", bytes == null ? 0 : bytes.length);
+            return Optional.empty();
+        }
+        try {
+            return upload(bytes, contentType);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return Optional.empty();
+        } catch (Exception e) {
+            log.warn("【上傳Cloudinary】失敗：{}", describe(e));
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * 刪除Cloudinary上的圖片（用上傳時取得的publicId）。
+     * 成功／圖片本來就不存在都回true，沒設定／連線失敗回false。
+     *
+     * 簽名規則跟上傳一樣：參數照字母排序組成"public_id=xxx&timestamp=123"，後面接API Secret，再做SHA-1。
+     */
+    public boolean delete(String publicId) {
+        if (!isConfigured() || publicId == null || publicId.isBlank()) {
+            return false;
+        }
+        try {
+            long timestamp = System.currentTimeMillis() / 1000;
+            String toSign = "public_id=" + publicId + "&timestamp=" + timestamp + apiSecret;
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-1")
+                    .digest(toSign.getBytes(StandardCharsets.UTF_8));
+            StringBuilder signature = new StringBuilder();
+            for (byte b : digest) {
+                signature.append(String.format("%02x", b));
+            }
+
+            String body = "public_id=" + java.net.URLEncoder.encode(publicId, StandardCharsets.UTF_8)
+                    + "&timestamp=" + timestamp
+                    + "&api_key=" + java.net.URLEncoder.encode(apiKey, StandardCharsets.UTF_8)
+                    + "&signature=" + signature;
+
+            HttpResponse<String> response = http.send(HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.cloudinary.com/v1_1/" + cloudName.trim() + "/image/destroy"))
+                    .timeout(Duration.ofSeconds(30))
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .POST(HttpRequest.BodyPublishers.ofString(body))
+                    .build(), HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                log.warn("Cloudinary刪除失敗HTTP {}：{}", response.statusCode(), abbreviate(response.body()));
+                return false;
+            }
+            // 回應是{"result":"ok"}或{"result":"not found"}，兩種都代表Cloudinary上已經沒有這張圖
+            String result = mapper.readTree(response.body()).path("result").asText("");
+            return "ok".equals(result) || "not found".equals(result);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return false;
+        } catch (Exception e) {
+            log.warn("【刪除Cloudinary圖片】失敗：{}", describe(e));
+            return false;
+        }
+    }
+
+
+    /**
      * 連線檢查（GET /crawler/benefits/cloudinary-check用，管理員權限）
      * 1. 金鑰有沒有設定　2. 連不連得到 Cloudinary、金鑰是否正確　3.（可選）能不能下載指定的圖片網址
      */
