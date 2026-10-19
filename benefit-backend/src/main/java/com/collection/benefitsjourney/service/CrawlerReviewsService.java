@@ -43,6 +43,8 @@ public class CrawlerReviewsService {
     public static final String OFFICIAL_WEBSITE_URL = "official_website_url";
     public static final String IS_ACTIVE = "is_active";
     public static final String IS_VISIBLE = "is_visible";
+    /** 電影來源 ID 衝突審核 */
+    public static final String SOURCE_ID = "sourceId";
     public static final String MOVIE_NAME = "movie_name";
     public static final String IMAGE_URL = "image_url";
     public static final String RELEASE_DATE = "release_date";
@@ -71,25 +73,21 @@ public class CrawlerReviewsService {
             CrawlerReviewSort.SortBy orderBy,
             SortOrder sort) {
 
-        // 排序方向
         Sort.Direction direction = sort == SortOrder.DESC
                 ? Sort.Direction.DESC
                 : Sort.Direction.ASC;
 
-        // 排序方式
         Sort order = Sort.by(direction, orderBy.getProperty());
 
-        // 如果排序方式不是爬蟲審核ID，則加上爬蟲審核ID排序
+        // 相同排序值以審核 ID 排序
         if (orderBy != CrawlerReviewSort.SortBy.CRAWLER_REVIEW_ID) {
             order = order.and(Sort.by(
                     Sort.Direction.ASC,
                     TypedPropertyPath.path((CrawlerReviewBean review) -> review.getCrawlerReviewId())));
         }
 
-        // 分頁
         PageRequest pageable = PageRequest.of(page - 1, size, order);
 
-        // 查詢爬蟲審核
         Page<CrawlerReviewResponse> result = crawlerReviewsRepository.findAllByFilters(
                 crawlerType,
                 reviewStatus,
@@ -99,12 +97,7 @@ public class CrawlerReviewsService {
         return PageResponse.from(result);
     }
 
-    /**
-     * 爬蟲發現欄位差異時寫入待審核。
-     * 相同差異已有 PENDING 或 REJECTED 則略過；同欄位已有 PENDING 但爬蟲值改變則更新該筆。
-     *
-     * @return 有新增或更新待審核時為 true
-     */
+    /** 提交差異：重複略過，待審核值變更則更新 */
     @Transactional
     public boolean submitCrawlerChange(
             CinemaResourceType crawlerType,
@@ -116,7 +109,7 @@ public class CrawlerReviewsService {
                 .isPresent();
     }
 
-    /** 新增爬蟲審核。只建立待審核，並沿用爬蟲匯入的去重規則。 */
+    /** 新增待審核資料 */
     @Transactional
     public CrawlerReviewResponse createCrawlerReview(CrawlerReviewRequest request) {
         if (request == null) {
@@ -155,11 +148,7 @@ public class CrawlerReviewsService {
                 .orElseThrow(() -> badRequest("已有相同差異的審核紀錄，不重複新增"));
     }
 
-    /**
-     * 人工審核。
-     * 接受會把爬蟲值寫入正式資料並改成 APPROVED；拒絕只改成 REJECTED；
-     * 重新審核會另建一筆 PENDING，原紀錄保留。
-     */
+    /** 審核差異；電影來源ID衝突僅確認重複，不覆蓋來源 */
     @Transactional
     public CrawlerReviewResponse updateCrawlerReview(Integer id, CrawlerReviewRequest request) {
         if (request == null) {
@@ -171,7 +160,7 @@ public class CrawlerReviewsService {
         }
 
         CrawlerReviewBean review = crawlerReviewsRepository.findById(id)
-                .orElseThrow(() -> notFound("找不到爬蟲審核 ID：" + id));
+                .orElseThrow(() -> notFound("找不到爬蟲審核ID：" + id));
 
         return switch (request.reviewStatus()) {
             case APPROVED -> CrawlerReviewResponse.from(approve(review));
@@ -181,15 +170,16 @@ public class CrawlerReviewsService {
     }
 
     /** 刪除爬蟲審核 */
+    @Transactional
     public void deleteCrawlerReview(Integer id) {
         if (!crawlerReviewsRepository.existsById(id)) {
-            throw notFound("找不到爬蟲審核 ID：" + id);
+            throw notFound("找不到爬蟲審核ID：" + id);
         }
 
         crawlerReviewsRepository.deleteById(id);
     }
 
-    /** 把爬蟲值與正式資料轉成可比較、可儲存的文字。 */
+    /** 統一欄位值格式 */
     public static String formatValue(Object value) {
         if (value == null) {
             return null;
@@ -243,8 +233,12 @@ public class CrawlerReviewsService {
             return Optional.of(crawlerReviewsRepository.save(pending));
         }
 
+        // 已拒絕或已確認的來源衝突不再送審
         boolean duplicate = reviews.stream()
-                .anyMatch(review -> review.getReviewStatus() == ReviewStatus.REJECTED
+                .anyMatch(review -> (review.getReviewStatus() == ReviewStatus.REJECTED
+                        || (crawlerType == CinemaResourceType.MOVIE
+                                && SOURCE_ID.equals(fieldName)
+                                && review.getReviewStatus() == ReviewStatus.APPROVED))
                         && sameDifference(review, crawlerValue, previousValue));
 
         if (duplicate) {
@@ -267,7 +261,13 @@ public class CrawlerReviewsService {
             throw badRequest("只有待審核資料可以接受");
         }
 
-        applyOfficialValue(review);
+        // 來源衝突只確認重複，不修改電影
+        if (isMovieSourceConflict(review)) {
+            requireText(review.getCrawlerValue());
+            movieService.findById(review.getEntityId()); // 確認被比對的既有電影仍存在
+        } else {
+            applyOfficialValue(review);
+        }
         review.setReviewStatus(ReviewStatus.APPROVED);
         review.setReviewedAt(now());
         return crawlerReviewsRepository.save(review);
@@ -325,11 +325,15 @@ public class CrawlerReviewsService {
                 case MOVIE -> movieService.updateMovie(
                         review.getEntityId(),
                         movieRequest(review.getFieldName(), review.getCrawlerValue()));
-                case BENEFIT -> throw badRequest("尚未支援此類型的正式資料更新");
             }
         } catch (IllegalArgumentException | DateTimeParseException exception) {
             throw badRequest("爬蟲值無法寫入正式資料：" + review.getFieldName());
         }
+    }
+
+    private boolean isMovieSourceConflict(CrawlerReviewBean review) {
+        return review.getCrawlerType() == CinemaResourceType.MOVIE
+                && SOURCE_ID.equals(review.getFieldName());
     }
 
     private String currentOfficialValue(CrawlerReviewBean review) {
@@ -340,7 +344,6 @@ public class CrawlerReviewsService {
             case MOVIE -> movieField(
                     movieService.findById(review.getEntityId()),
                     review.getFieldName());
-            case BENEFIT -> review.getPreviousValue();
         };
     }
 
@@ -393,6 +396,7 @@ public class CrawlerReviewsService {
 
     private String movieField(MovieResponse movie, String fieldName) {
         return switch (fieldName) {
+            case SOURCE_ID -> formatValue(movie.sourceId());
             case MOVIE_NAME -> formatValue(movie.movieName());
             case IMAGE_URL -> formatValue(movie.imageUrl());
             case RELEASE_DATE -> formatValue(movie.releaseDate());

@@ -1,7 +1,6 @@
 <script setup>
 import { computed, onUnmounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
-import { Icon } from "@iconify/vue";
 import filmIcon from "@iconify-icons/mdi/filmstrip";
 import calendarIcon from "@iconify-icons/mdi/calendar-blank-outline";
 import eyeIcon from "@iconify-icons/mdi/eye-outline";
@@ -10,7 +9,7 @@ import contentSaveIcon from "@iconify-icons/mdi/content-save-outline";
 import closeIcon from "@iconify-icons/mdi/close";
 import { openAppAlert } from "@/components/ui/Alert.vue";
 import PageIntro from "@/components/layout/PageIntro.vue";
-import BackLink from "@/components/layout/BackLink.vue";
+import DetailCard from "@/components/layout/DetailCard.vue";
 import StatePanel from "@/components/layout/StatePanel.vue";
 import AppButton from "@/components/ui/Button.vue";
 import Switch from "@/components/ui/Switch.vue";
@@ -194,36 +193,25 @@ onUnmounted(() => {
     <StatePanel v-else-if="loadFailed" variant="error" title="目前無法取得電影資料" :message="loadErrorMessage" color="purple"
       @retry="loadMovie" />
 
-    <article v-else-if="movie" class="movie-detail">
-      <div class="detail-toolbar">
-        <BackLink :to="{ name: 'admin-movies' }">
-          返回電影一覽
-        </BackLink>
-      </div>
-
-      <div class="detail-head">
-        <h2>
-          <Icon :icon="filmIcon" aria-hidden="true" />
-          {{ displayText(movie.movieName) }}
-        </h2>
-        <div class="detail-actions">
-          <template v-if="editing">
-            <AppButton type="button" variant="outline" color="purple" :icon="closeIcon" :disabled="submitting"
-              @click="cancelEdit">
-              取消
-            </AppButton>
-            <AppButton type="submit" form="movie-edit-form" color="purple" :icon="contentSaveIcon"
-              :disabled="submitting">
-              {{ submitting ? "儲存中…" : "儲存" }}
-            </AppButton>
-          </template>
-          <AppButton v-else type="button" color="purple" :icon="pencilIcon" @click="startEdit">
-            編輯資料
+    <DetailCard v-else-if="movie" :title="displayText(movie.movieName)" :title-icon="filmIcon"
+      :back-to="{ name: 'admin-movies' }" back-label="返回電影一覽">
+      <template #actions>
+        <template v-if="editing">
+          <AppButton type="button" variant="outline" color="purple" :icon="closeIcon" :disabled="submitting"
+            @click="cancelEdit">
+            取消
           </AppButton>
-        </div>
-      </div>
+          <AppButton type="submit" form="movie-edit-form" color="purple" :icon="contentSaveIcon"
+            :disabled="submitting">
+            {{ submitting ? "儲存中…" : "儲存" }}
+          </AppButton>
+        </template>
+        <AppButton v-else type="button" color="purple" :icon="pencilIcon" @click="startEdit">
+          編輯資料
+        </AppButton>
+      </template>
 
-      <div v-if="editing" class="detail-edit">
+      <div v-if="editing">
         <MovieForm :key="editSession" mode="edit" plain hide-submit form-id="movie-edit-form" :movie="movie"
           :show-visibility="false" :submitting="submitting" @submit="saveMovie" />
       </div>
@@ -274,128 +262,11 @@ onUnmounted(() => {
           </div>
         </dl>
       </section>
-    </article>
+    </DetailCard>
   </section>
 </template>
 
 <style scoped>
-.movie-detail {
-  margin-bottom: 1rem;
-  padding: 0 1.35rem 1.35rem;
-  border: 1.5px solid var(--c-border);
-  border-radius: 22px;
-  background: var(--c-card);
-  box-shadow: var(--shadow-soft);
-  overflow: hidden;
-}
-
-.detail-toolbar {
-  margin: 0 -1.35rem 1.15rem;
-  padding: 0.85rem 1.35rem;
-  border-bottom: 1.5px solid #e4d8fb;
-  background: #f3ecff;
-}
-
-.detail-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem 1rem;
-  margin-bottom: 1rem;
-}
-
-.detail-head h2 {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-width: 0;
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-
-.detail-head h2 svg {
-  flex: none;
-  color: #8d72ed;
-  font-size: var(--text-card-title);
-}
-
-.detail-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  margin-left: auto;
-}
-
-.detail-section+.detail-section {
-  margin-top: 1.2rem;
-  padding-top: 1.2rem;
-  border-top: 1.5px solid var(--c-border);
-}
-
-.detail-section.is-after-edit {
-  margin-top: 1.2rem;
-  padding-top: 1.2rem;
-  border-top: 1.5px solid var(--c-border);
-}
-
-.detail-section :deep(.app-switch) {
-  min-height: 0;
-  --form-accent: #8d72ed;
-}
-
-.detail-section h3 {
-  margin: 0 0 0.85rem;
-  font-size: var(--text-card-title);
-  line-height: 1.3;
-  font-weight: 900;
-}
-
-.detail-section dl {
-  display: grid;
-  gap: 0.85rem 1.25rem;
-  margin: 0;
-}
-
-.detail-section dl>div {
-  display: grid;
-  grid-template-columns: 7.5rem minmax(0, 1fr);
-  gap: 0.35rem 1rem;
-  align-items: start;
-}
-
-.detail-section dt {
-  margin: 0;
-  color: var(--c-muted);
-  font-size: var(--text-control);
-  font-weight: 700;
-}
-
-.detail-section dd {
-  min-width: 0;
-  margin: 0;
-  overflow-wrap: anywhere;
-  font-size: var(--text-body);
-  line-height: var(--leading-body);
-}
-
-.detail-link {
-  color: #8d72ed;
-  font-weight: 700;
-  overflow-wrap: anywhere;
-  text-underline-offset: 0.18em;
-}
-
-.detail-link:hover {
-  color: #5c4696;
-}
-
-.detail-link:focus-visible {
-  border-radius: 4px;
-  outline: 2px solid #8d72ed;
-  outline-offset: 3px;
-}
-
 .detail-poster {
   display: block;
   max-width: min(100%, 16rem);
@@ -405,21 +276,5 @@ onUnmounted(() => {
   border-radius: 16px;
   background: #f8f4ff;
   object-fit: contain;
-}
-
-@media (max-width: 719px) {
-  .detail-actions {
-    flex-basis: 100%;
-    margin-left: 0;
-  }
-
-  .detail-actions :deep(.app-button) {
-    width: 100%;
-  }
-
-  .detail-section dl>div {
-    grid-template-columns: 1fr;
-    gap: 0.15rem;
-  }
 }
 </style>

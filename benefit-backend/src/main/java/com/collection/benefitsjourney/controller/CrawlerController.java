@@ -1,13 +1,12 @@
 package com.collection.benefitsjourney.controller;
 
-import java.util.List;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.collection.benefitsjourney.dto.CinemaResponse;
+import com.collection.benefitsjourney.dto.CrawlerSyncResult;
 import com.collection.benefitsjourney.dto.MovieResponse;
 import com.collection.benefitsjourney.service.CrawlerCinemaService;
 import com.collection.benefitsjourney.service.CrawlerMovieService;
@@ -29,13 +28,13 @@ public class CrawlerController {
 
     @GetMapping("/cinemas")
     @Operation(summary = "爬取並同步影城資料")
-    public ResponseEntity<List<CinemaResponse>> syncCinemas() {
+    public ResponseEntity<CrawlerSyncResult<CinemaResponse>> syncCinemas() {
         return ResponseEntity.ok(cinemaCrawlerService.syncCinemas());
     }
 
     @GetMapping("/movies")
     @Operation(summary = "爬取並同步電影資料")
-    public ResponseEntity<List<MovieResponse>> syncMovies() {
+    public ResponseEntity<CrawlerSyncResult<MovieResponse>> syncMovies() {
         return ResponseEntity.ok(
                 movieCrawlerService.syncMovies());
     }

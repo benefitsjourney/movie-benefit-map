@@ -2,7 +2,6 @@
 package com.collection.benefitsjourney.service;
 
 import static com.collection.benefitsjourney.exception.ExceptionUtils.badRequest;
-import static com.collection.benefitsjourney.exception.ExceptionUtils.notFound;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -116,8 +115,6 @@ public class ExcelService {
                     page, size,
                     MovieSort.SortBy.MOVIE_ID,
                     SortOrder.ASC);
-
-            default -> throw notFound("不支援的類型：" + type);
         };
     }
 }

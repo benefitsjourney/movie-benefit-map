@@ -25,6 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.collection.benefitsjourney.dto.CinemaResponse;
+import com.collection.benefitsjourney.dto.CrawlerSyncResult;
 import com.collection.benefitsjourney.dto.MovieResponse;
 import com.collection.benefitsjourney.enums.County;
 import com.collection.benefitsjourney.jwt.JsonWebTokenFilter;
@@ -67,29 +68,44 @@ class CrawlerControllerTest {
         @Test
         @DisplayName("同步成功應回傳 200 與影城資料")
         void success() throws Exception {
-            when(cinemaCrawlerService.syncCinemas()).thenReturn(List.of(cinema()));
+            when(cinemaCrawlerService.syncCinemas()).thenReturn(
+                    CrawlerSyncResult.of(3, 1, 2, 4, 5, 8, List.of(cinema())));
 
             mockMvc.perform(get("/crawler/cinemas"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0].cinemaId").value(100))
-                    .andExpect(jsonPath("$[0].sourceId").value("t02a01"))
-                    .andExpect(jsonPath("$[0].cinemaName").value("信義威秀"))
-                    .andExpect(jsonPath("$[0].county").value("TAIPEI"))
-                    .andExpect(jsonPath("$[0].isActive").value(true));
+                    .andExpect(jsonPath("$.fetchedCount").value(3))
+                    .andExpect(jsonPath("$.createdCount").value(1))
+                    .andExpect(jsonPath("$.skippedCount").value(2))
+                    .andExpect(jsonPath("$.updatedCount").value(4))
+                    .andExpect(jsonPath("$.reviewCount").value(5))
+                    .andExpect(jsonPath("$.elapsedSeconds").value(8))
+                    .andExpect(jsonPath("$.message")
+                            .value("本次抓到 3 筆、新增 1 筆、略過 2 筆、更新 4 筆、納入審核 5 筆，耗時 8 秒。"))
+                    .andExpect(jsonPath("$.items[0].cinemaId").value(100))
+                    .andExpect(jsonPath("$.items[0].sourceId").value("t02a01"))
+                    .andExpect(jsonPath("$.items[0].cinemaName").value("信義威秀"))
+                    .andExpect(jsonPath("$.items[0].county").value("TAIPEI"))
+                    .andExpect(jsonPath("$.items[0].isActive").value(true));
 
             verify(cinemaCrawlerService).syncCinemas();
             verifyNoInteractions(movieCrawlerService);
         }
 
         @Test
-        @DisplayName("Service 回傳空集合應回傳 200 與空陣列")
+        @DisplayName("Service 回傳空結果應回傳 200 與統計")
         void emptyResult() throws Exception {
-            when(cinemaCrawlerService.syncCinemas()).thenReturn(List.of());
+            when(cinemaCrawlerService.syncCinemas()).thenReturn(
+                    CrawlerSyncResult.of(0, 0, 0, 0, 0, 0, List.of()));
 
             mockMvc.perform(get("/crawler/cinemas"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$").isArray())
-                    .andExpect(jsonPath("$").isEmpty());
+                    .andExpect(jsonPath("$.fetchedCount").value(0))
+                    .andExpect(jsonPath("$.createdCount").value(0))
+                    .andExpect(jsonPath("$.skippedCount").value(0))
+                    .andExpect(jsonPath("$.updatedCount").value(0))
+                    .andExpect(jsonPath("$.reviewCount").value(0))
+                    .andExpect(jsonPath("$.items").isArray())
+                    .andExpect(jsonPath("$.items").isEmpty());
         }
 
         @Test
@@ -128,29 +144,43 @@ class CrawlerControllerTest {
         @Test
         @DisplayName("同步成功應回傳 200 與電影資料")
         void success() throws Exception {
-            when(movieCrawlerService.syncMovies()).thenReturn(List.of(movie()));
+            when(movieCrawlerService.syncMovies()).thenReturn(
+                    CrawlerSyncResult.of(4, 2, 3, 1, 1, 6, List.of(movie())));
 
             mockMvc.perform(get("/crawler/movies"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$[0].movieId").value(1))
-                    .andExpect(jsonPath("$[0].sourceId").value("fA001"))
-                    .andExpect(jsonPath("$[0].movieName").value("測試電影"))
-                    .andExpect(jsonPath("$[0].isVisible").value(true))
-                    .andExpect(jsonPath("$[0].releaseDate").exists());
+                    .andExpect(jsonPath("$.fetchedCount").value(4))
+                    .andExpect(jsonPath("$.createdCount").value(2))
+                    .andExpect(jsonPath("$.skippedCount").value(3))
+                    .andExpect(jsonPath("$.updatedCount").value(1))
+                    .andExpect(jsonPath("$.reviewCount").value(1))
+                    .andExpect(jsonPath("$.elapsedSeconds").value(6))
+                    .andExpect(jsonPath("$.message")
+                            .value("本次抓到 4 筆、新增 2 筆、略過 3 筆、更新 1 筆、納入審核 1 筆，耗時 6 秒。"))
+                    .andExpect(jsonPath("$.items[0].movieId").value(1))
+                    .andExpect(jsonPath("$.items[0].sourceId").value("fA001"))
+                    .andExpect(jsonPath("$.items[0].movieName").value("測試電影"))
+                    .andExpect(jsonPath("$.items[0].isVisible").value(true))
+                    .andExpect(jsonPath("$.items[0].releaseDate").exists());
 
             verify(movieCrawlerService).syncMovies();
             verifyNoInteractions(cinemaCrawlerService);
         }
 
         @Test
-        @DisplayName("Service 回傳空集合應回傳 200 與空陣列")
+        @DisplayName("Service 回傳空結果應回傳 200 與統計")
         void emptyResult() throws Exception {
-            when(movieCrawlerService.syncMovies()).thenReturn(List.of());
+            when(movieCrawlerService.syncMovies()).thenReturn(
+                    CrawlerSyncResult.of(0, 0, 0, 0, 0, 0, List.of()));
 
             mockMvc.perform(get("/crawler/movies"))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$").isArray())
-                    .andExpect(jsonPath("$").isEmpty());
+                    .andExpect(jsonPath("$.items").isArray())
+                    .andExpect(jsonPath("$.items").isEmpty())
+                    .andExpect(jsonPath("$.createdCount").value(0))
+                    .andExpect(jsonPath("$.skippedCount").value(0))
+                    .andExpect(jsonPath("$.message")
+                            .value("本次抓到 0 筆、新增 0 筆、略過 0 筆、更新 0 筆、納入審核 0 筆，耗時 0 秒。"));
         }
 
         @Test

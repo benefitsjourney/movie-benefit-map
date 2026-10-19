@@ -4,9 +4,10 @@ import { useRouter } from "vue-router";
 import filmIcon from "@iconify-icons/mdi/filmstrip";
 import calendarIcon from "@iconify-icons/mdi/calendar-blank-outline";
 import plusIcon from "@iconify-icons/mdi/plus";
+import formIcon from "@iconify-icons/mdi/form-textbox";
 import { openAppAlert } from "@/components/ui/Alert.vue";
 import PageIntro from "@/components/layout/PageIntro.vue";
-import BackLink from "@/components/layout/BackLink.vue";
+import DetailCard from "@/components/layout/DetailCard.vue";
 import AppButton from "@/components/ui/Button.vue";
 import MovieForm from "@/components/forms/MovieForm.vue";
 import http from "@/plugins/axios";
@@ -68,17 +69,15 @@ async function createMovie(payload) {
     <PageIntro kicker="✦ NEW MOVIE" lead="新增" mark="電影" description="填寫電影基本資料，新增電影至資料庫。" :icon-left="filmIcon"
       :icon-right="calendarIcon" :icon-top="plusIcon" theme="purple" />
 
-    <MovieForm mode="create" hide-submit :submitting="submitting" @submit="createMovie">
-      <template #back>
-        <BackLink :to="{ name: 'admin-movies' }">
-          返回電影一覽
-        </BackLink>
-      </template>
+    <DetailCard title="新增電影資料" :title-icon="formIcon" :back-to="{ name: 'admin-movies' }" back-label="返回電影一覽">
       <template #actions>
-        <AppButton type="submit" color="purple" :icon="plusIcon" :disabled="submitting">
+        <AppButton type="submit" form="movie-create-form" color="purple" :icon="plusIcon" :disabled="submitting">
           {{ submitting ? "新增中…" : "新增電影" }}
         </AppButton>
       </template>
-    </MovieForm>
+
+      <MovieForm mode="create" plain hide-submit form-id="movie-create-form" :submitting="submitting"
+        @submit="createMovie" />
+    </DetailCard>
   </section>
 </template>
