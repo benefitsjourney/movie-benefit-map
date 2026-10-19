@@ -25,6 +25,7 @@ const state = reactive({
   variant: "confirm",
   title: "",
   text: "",
+  rows: [],
   confirmText: "確定",
   cancelText: "取消",
 });
@@ -52,6 +53,7 @@ export function openAppAlert(options = {}) {
     variant,
     title: options.title ?? "",
     text: options.text ?? "",
+    rows: Array.isArray(options.rows) ? options.rows : [],
     confirmText: options.confirmText ?? "確定",
     cancelText: variant === "loading" ? "" : (options.cancelText ?? "取消"),
   });
@@ -67,6 +69,7 @@ export function updateAppAlert(patch = {}) {
 
   if (patch.title != null) state.title = patch.title;
   if (patch.text != null) state.text = patch.text;
+  if (patch.rows != null) state.rows = patch.rows;
 }
 
 /** 關閉 Alert，並回傳取消結果。 */
@@ -190,12 +193,12 @@ onUnmounted(() => {
         :class="{ 'is-loading': state.variant === 'loading' }" role="alertdialog" aria-modal="true"
         aria-labelledby="app-alert-title" aria-describedby="app-alert-text" :aria-busy="state.variant === 'loading'"
         tabindex="-1">
-        <TicketCard appear :color="currentVariant.color" :title="state.title" :detail="state.text">
+        <TicketCard appear :color="currentVariant.color" :title="state.title" :detail="state.rows.length ? '' : state.text">
           <template #title>
             <span id="app-alert-title">{{ state.title }}</span>
           </template>
 
-          <template #detail>
+          <template v-if="!state.rows.length" #detail>
             <span id="app-alert-text">{{ state.text }}</span>
           </template>
 
@@ -204,6 +207,13 @@ onUnmounted(() => {
               <Icon :icon="currentVariant.icon" :class="{ 'is-spin': state.variant === 'loading' }" />
             </span>
           </div>
+
+          <dl v-if="state.rows.length" id="app-alert-text" class="alert-stats">
+            <div v-for="row in state.rows" :key="row.label">
+              <dt>{{ row.label }}</dt>
+              <dd>{{ row.value }}</dd>
+            </div>
+          </dl>
 
           <template v-if="state.variant !== 'loading'" #action>
             <button v-if="state.cancelText" ref="cancelRef" type="button" class="ticket-link" @click="onDismiss">
@@ -289,6 +299,45 @@ onUnmounted(() => {
   margin-top: 0.55rem;
   font-size: var(--text-body);
   line-height: var(--leading-body);
+}
+
+.alert-stats {
+  display: grid;
+  width: 100%;
+  margin: 0.95rem 0 0;
+  overflow: hidden;
+  border: 2px dashed var(--accent);
+  border-radius: 14px;
+}
+
+.alert-stats > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.72rem 0.9rem;
+}
+
+.alert-stats > div + div {
+  border-top: 2px dashed var(--accent);
+}
+
+.alert-stats dt,
+.alert-stats dd {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: var(--leading-body);
+}
+
+.alert-stats dt {
+  color: var(--ticket-ink);
+  font-weight: 800;
+}
+
+.alert-stats dd {
+  color: var(--c-ink);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
 }
 
 .alert-dialog :deep(.ticket-stub) {

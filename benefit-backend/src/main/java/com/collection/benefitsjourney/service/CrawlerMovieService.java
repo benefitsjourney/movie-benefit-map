@@ -29,6 +29,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.collection.benefitsjourney.dto.CrawlerSyncResult;
 import com.collection.benefitsjourney.dto.MovieRequest;
 import com.collection.benefitsjourney.dto.MovieResponse;
 import com.collection.benefitsjourney.enums.CinemaResourceType;
@@ -91,7 +92,7 @@ public class CrawlerMovieService {
     }
 
     /** 列表找影片，詳細頁確認完整名稱及資料。 */
-    public List<MovieResponse> syncMovies() {
+    public CrawlerSyncResult<MovieResponse> syncMovies() {
         long started = System.nanoTime();
         ExecutorService executor = Executors.newFixedThreadPool(THREADS);
         try {
@@ -102,11 +103,9 @@ public class CrawlerMovieService {
 
             Map<String, MovieInfo> discovered = new LinkedHashMap<>();
             Set<String> weeks = new LinkedHashSet<>();
-            int loaded = 0;
             for (var entry : pages.entrySet()) {
                 Document doc = await(entry.getValue(), entry.getKey());
                 if (doc == null) continue;
-                loaded++;
                 discover(doc, discovered);
                 if (entry.getKey().contains("/next/0/")) {
                     for (Element link : doc.select("a[href]")) {
@@ -121,7 +120,6 @@ public class CrawlerMovieService {
             for (var entry : weeklyJobs.entrySet()) {
                 Document doc = await(entry.getValue(), entry.getKey());
                 if (doc == null) continue;
-                loaded++;
                 discover(doc, discovered);
             }
 
@@ -136,19 +134,28 @@ public class CrawlerMovieService {
 
             Map<String, StoredMovie> names = loadStoredMovies();
             List<MovieResponse> results = new ArrayList<>();
+            int fetched = 0;
+            int created = 0;
+            int skipped = 0;
+            int updated = 0;
+            int reviewed = 0;
             int duplicates = 0;
-            int failed = 0;
 
             for (MovieInfo candidate : discovered.values()) {
                 MovieInfo info = await(details.get(candidate.sourceId()), candidate.url());
                 if (info == null || info.movieName() == null) {
-                    failed++;
+                    skipped++;
                     continue;
                 }
+                fetched++;
                 try {
                     MovieResponse existing = movieService.findBySourceId(info.sourceId()).orElse(null);
                     if (existing != null) {
-                        reviewExisting(info, existing);
+                        int reviewedFields = reviewExisting(info, existing);
+                        reviewed += reviewedFields;
+                        if (reviewedFields > 0) {
+                            updated++;
+                        }
                         results.add(existing);
                         continue;
                     }
@@ -156,8 +163,9 @@ public class CrawlerMovieService {
                     StoredMovie duplicate = names.get(normalizeName(info.movieName()));
                     if (duplicate != null) {
                         duplicates++;
-                        if (!Objects.equals(duplicate.sourceId(), info.sourceId())) {
-                            submitDuplicateReview(info, duplicate);
+                        if (!Objects.equals(duplicate.sourceId(), info.sourceId())
+                                && submitDuplicateReview(info, duplicate)) {
+                            reviewed++;
                         }
                         continue;
                     }
@@ -165,21 +173,21 @@ public class CrawlerMovieService {
                     MovieResponse saved = movieService.createMovie(new MovieRequest(
                             info.sourceId(), info.movieName(), info.imageUrl(), true, info.releaseDate()));
                     results.add(saved);
+                    created++;
                     names.put(normalizeName(info.movieName()),
                             new StoredMovie(saved.movieId(), info.sourceId(), info.movieName()));
                 } catch (Exception e) {
-                    failed++;
                     log.warn("電影同步失敗：{} ({})", info.url(), info.movieName(), e);
                 }
             }
 
-            log.info("電影同步完成：列表{}頁、發現{}部、處理{}部、重複{}部、失敗{}部、耗時{}秒",
-                    loaded, discovered.size(), results.size(), duplicates, failed,
-                    "%.2f".formatted((System.nanoTime() - started) / 1_000_000_000.0));
             if (results.isEmpty() && duplicates == 0) {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "沒有任何電影同步成功");
             }
-            return results;
+            CrawlerSyncResult<MovieResponse> result = CrawlerSyncResult.of(
+                    fetched, created, skipped, updated, reviewed, elapsedSeconds(started), results);
+            log.info("電影同步完成：{}", result.message());
+            return result;
         } finally {
             executor.shutdownNow();
         }
@@ -304,31 +312,41 @@ public class CrawlerMovieService {
         return names;
     }
 
-    private void submitDuplicateReview(MovieInfo info, StoredMovie duplicate) {
+    private boolean submitDuplicateReview(MovieInfo info, StoredMovie duplicate) {
         log.warn("同名電影待審核：{}，現有sourceId={}，新sourceId={}",
                 info.movieName(), duplicate.sourceId(), info.sourceId());
-        crawlerReviewsService.submitCrawlerChange(CinemaResourceType.MOVIE, duplicate.id(),
+        return crawlerReviewsService.submitCrawlerChange(CinemaResourceType.MOVIE, duplicate.id(),
                 CrawlerReviewsService.SOURCE_ID, info.sourceId(), duplicate.sourceId());
     }
 
-    private void reviewExisting(MovieInfo info, MovieResponse existing) {
-        if (!sameTitleIgnoringEdition(info.movieName(), existing.movieName())) {
-            reviewField(existing.movieId(), CrawlerReviewsService.MOVIE_NAME,
-                    info.movieName(), existing.movieName());
+    private int reviewExisting(MovieInfo info, MovieResponse existing) {
+        int reviewed = 0;
+        if (!sameTitleIgnoringEdition(info.movieName(), existing.movieName())
+                && reviewField(existing.movieId(), CrawlerReviewsService.MOVIE_NAME,
+                        info.movieName(), existing.movieName())) {
+            reviewed++;
         }
-        reviewField(existing.movieId(), CrawlerReviewsService.IMAGE_URL,
-                info.imageUrl(), existing.imageUrl());
-        reviewField(existing.movieId(), CrawlerReviewsService.RELEASE_DATE,
-                info.releaseDate(), existing.releaseDate());
+        if (reviewField(existing.movieId(), CrawlerReviewsService.IMAGE_URL,
+                info.imageUrl(), existing.imageUrl())) {
+            reviewed++;
+        }
+        if (reviewField(existing.movieId(), CrawlerReviewsService.RELEASE_DATE,
+                info.releaseDate(), existing.releaseDate())) {
+            reviewed++;
+        }
+        return reviewed;
     }
 
-    private void reviewField(Integer id, String field, Object crawled, Object current) {
-        if (crawled == null) return;
+    private boolean reviewField(Integer id, String field, Object crawled, Object current) {
+        if (crawled == null) return false;
         String after = CrawlerReviewsService.formatValue(crawled);
         String before = CrawlerReviewsService.formatValue(current);
-        if (!Objects.equals(after, before)) {
-            crawlerReviewsService.submitCrawlerChange(CinemaResourceType.MOVIE, id, field, after, before);
-        }
+        if (Objects.equals(after, before)) return false;
+        return crawlerReviewsService.submitCrawlerChange(CinemaResourceType.MOVIE, id, field, after, before);
+    }
+
+    private static long elapsedSeconds(long started) {
+        return (System.nanoTime() - started) / 1_000_000_000L;
     }
 
     Document connect(String url) throws IOException {

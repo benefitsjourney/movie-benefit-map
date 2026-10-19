@@ -30,6 +30,7 @@ import java.util.Optional;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -38,12 +39,19 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.collection.benefitsjourney.dto.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaResponse;
+import com.collection.benefitsjourney.dto.CrawlerSyncResult;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.collection.benefitsjourney.enums.CinemaResourceType;
 import com.collection.benefitsjourney.enums.County;
 
@@ -70,10 +78,51 @@ class CrawlerCinemaServiceTest {
     private CrawlerReviewsService crawlerReviewsService;
 
     private CrawlerCinemaService crawler;
+    private Logger logger;
+    private ListAppender<ILoggingEvent> logs;
 
     @BeforeEach
     void setUp() {
         crawler = spy(new CrawlerCinemaService(cinemaService, crawlerReviewsService));
+        logger = (Logger) LoggerFactory.getLogger(CrawlerCinemaService.class);
+        logs = new ListAppender<>();
+        logs.start();
+        logger.addAppender(logs);
+        lenient().when(crawlerReviewsService.submitCrawlerChange(any(), any(), any(), any(), any()))
+                .thenReturn(true);
+    }
+
+    @AfterEach
+    void tearDown() {
+        logger.detachAppender(logs);
+    }
+
+    private void assertSummary(
+            CrawlerSyncResult<?> result, int fetched, int created, int skipped, int updated, int reviewed) {
+        assertEquals(fetched, result.fetchedCount());
+        assertEquals(created, result.createdCount());
+        assertEquals(skipped, result.skippedCount());
+        assertEquals(updated, result.updatedCount());
+        assertEquals(reviewed, result.reviewCount());
+        assertTrue(result.elapsedSeconds() >= 0);
+        assertEquals(
+                "本次抓到 %d 筆、新增 %d 筆、略過 %d 筆、更新 %d 筆、納入審核 %d 筆，耗時 %d 秒。"
+                        .formatted(fetched, created, skipped, updated, reviewed, result.elapsedSeconds()),
+                result.message());
+    }
+
+    private void assertOnlyResultLog(CrawlerSyncResult<?> result) {
+        var infos = logs.list.stream().filter(event -> event.getLevel() == Level.INFO).toList();
+        assertEquals(1, infos.size());
+        assertEquals("影城同步完成：" + result.message(), infos.get(0).getFormattedMessage());
+        assertTrue(infos.get(0).getFormattedMessage().contains("本次抓到"));
+        assertTrue(logs.list.stream().noneMatch(event -> {
+            String message = event.getFormattedMessage();
+            return message.contains("縣市資料抓取")
+                    || message.contains("既有影城查詢")
+                    || message.contains("座標階段")
+                    || message.contains("資料庫比對");
+        }));
     }
 
     private Document page(String url, String html) {
@@ -145,9 +194,11 @@ class CrawlerCinemaServiceTest {
             CinemaResponse saved = saved(100, "t02a01", "信義威秀");
             when(cinemaService.createCinema(any(CinemaRequest.class))).thenReturn(saved);
 
-            List<CinemaResponse> result = crawler.syncCinemas();
+            CrawlerSyncResult<CinemaResponse> result = crawler.syncCinemas();
 
-            assertEquals(List.of(saved), result);
+            assertEquals(List.of(saved), result.items());
+            assertSummary(result, 1, 1, 0, 0, 0);
+            assertOnlyResultLog(result);
             ArgumentCaptor<CinemaRequest> captor = ArgumentCaptor.forClass(CinemaRequest.class);
             verify(cinemaService).createCinema(captor.capture());
             CinemaRequest request = captor.getValue();
@@ -174,9 +225,10 @@ class CrawlerCinemaServiceTest {
             CinemaResponse existing = saved(100, "t02a01", "舊名稱");
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(existing));
 
-            List<CinemaResponse> result = crawler.syncCinemas();
+            CrawlerSyncResult<CinemaResponse> result = crawler.syncCinemas();
 
-            assertEquals(List.of(existing), result);
+            assertEquals(List.of(existing), result.items());
+            assertSummary(result, 1, 0, 0, 1, 1);
             verify(crawlerReviewsService).submitCrawlerChange(
                     CinemaResourceType.CINEMA,
                     100,
@@ -200,8 +252,8 @@ class CrawlerCinemaServiceTest {
                     "25.0000000", "121.0000000", "https://www.example.com/");
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(existing));
 
-            assertEquals(List.of(existing), crawler.syncCinemas());
-            assertEquals(List.of(existing), crawler.syncCinemas(false));
+            assertEquals(List.of(existing), crawler.syncCinemas().items());
+            assertEquals(List.of(existing), crawler.syncCinemas(false).items());
 
             verify(crawler, never()).connect(MAP_01);
             verifyNoInteractions(crawlerReviewsService);
@@ -221,7 +273,9 @@ class CrawlerCinemaServiceTest {
                     "25.0000000", "121.0000000", "https://www.example.com/");
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(existing));
 
-            assertEquals(List.of(existing), crawler.syncCinemas(true));
+            CrawlerSyncResult<CinemaResponse> result = crawler.syncCinemas(true);
+            assertEquals(List.of(existing), result.items());
+            assertSummary(result, 1, 0, 0, 1, 2);
 
             verify(crawler).connect(MAP_01);
             verify(crawlerReviewsService).submitCrawlerChange(
@@ -247,7 +301,7 @@ class CrawlerCinemaServiceTest {
                     "25.0356840", "121.5665420", "https://www.example.com/");
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(existing));
 
-            assertEquals(List.of(existing), crawler.syncCinemas(true));
+            assertEquals(List.of(existing), crawler.syncCinemas(true).items());
             verify(crawler).connect(MAP_01);
             verifyNoInteractions(crawlerReviewsService);
         }
@@ -264,7 +318,7 @@ class CrawlerCinemaServiceTest {
                     "25.0356840", null, "https://www.example.com/");
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(existing));
 
-            assertEquals(List.of(existing), crawler.syncCinemas());
+            assertEquals(List.of(existing), crawler.syncCinemas().items());
 
             verify(crawler).connect(MAP_01);
             verify(crawlerReviewsService).submitCrawlerChange(
@@ -293,7 +347,7 @@ class CrawlerCinemaServiceTest {
             when(cinemaService.createCinema(any(CinemaRequest.class)))
                     .thenReturn(saved(200, "t02a02", "第二間影城"));
 
-            List<CinemaResponse> result = crawler.syncCinemas();
+            List<CinemaResponse> result = crawler.syncCinemas().items();
 
             assertEquals(2, result.size());
             verify(crawler, never()).connect(MAP_01);
@@ -326,7 +380,7 @@ class CrawlerCinemaServiceTest {
             when(cinemaService.createCinema(any(CinemaRequest.class)))
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
-            List<CinemaResponse> result = crawler.syncCinemas();
+            List<CinemaResponse> result = crawler.syncCinemas().items();
 
             assertEquals(1, result.size());
             verify(cinemaService).findBySourceId("t02a01");
@@ -346,7 +400,7 @@ class CrawlerCinemaServiceTest {
             when(cinemaService.createCinema(any(CinemaRequest.class)))
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
-            assertEquals(1, crawler.syncCinemas().size());
+            assertEquals(1, crawler.syncCinemas().items().size());
 
             ArgumentCaptor<CinemaRequest> captor = ArgumentCaptor.forClass(CinemaRequest.class);
             verify(cinemaService).createCinema(captor.capture());
@@ -374,10 +428,11 @@ class CrawlerCinemaServiceTest {
                         return saved(100, "t02a01", "信義威秀");
                     });
 
-            List<CinemaResponse> result = crawler.syncCinemas();
+            CrawlerSyncResult<CinemaResponse> result = crawler.syncCinemas();
 
-            assertEquals(1, result.size());
-            assertEquals("t02a01", result.get(0).sourceId());
+            assertEquals(1, result.items().size());
+            assertEquals("t02a01", result.items().get(0).sourceId());
+            assertSummary(result, 2, 1, 0, 0, 0);
             verify(cinemaService, times(2)).createCinema(any(CinemaRequest.class));
         }
 
@@ -404,7 +459,7 @@ class CrawlerCinemaServiceTest {
                         return saved(100, request.sourceId(), request.cinemaName());
                     });
 
-            assertEquals(5, crawler.syncCinemas().size());
+            assertEquals(5, crawler.syncCinemas().items().size());
 
             ArgumentCaptor<CinemaRequest> captor = ArgumentCaptor.forClass(CinemaRequest.class);
             verify(cinemaService, times(5)).createCinema(captor.capture());
@@ -434,7 +489,7 @@ class CrawlerCinemaServiceTest {
             when(cinemaService.createCinema(any(CinemaRequest.class)))
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
-            assertEquals(1, crawler.syncCinemas().size());
+            assertEquals(1, crawler.syncCinemas().items().size());
             verify(crawler, never()).connect(INDEX + "a1/");
             verify(crawler, never()).connect(INDEX + "about/");
         }
@@ -454,7 +509,7 @@ class CrawlerCinemaServiceTest {
             when(cinemaService.createCinema(any(CinemaRequest.class)))
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
-            assertEquals(1, crawler.syncCinemas().size());
+            assertEquals(1, crawler.syncCinemas().items().size());
             verify(cinemaService).findBySourceId("t02a01");
             verify(cinemaService).createCinema(any(CinemaRequest.class));
         }
@@ -470,7 +525,7 @@ class CrawlerCinemaServiceTest {
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
             ArgumentCaptor<CinemaRequest> captor = ArgumentCaptor.forClass(CinemaRequest.class);
-            assertEquals(1, crawler.syncCinemas().size());
+            assertEquals(1, crawler.syncCinemas().items().size());
             verify(cinemaService).createCinema(captor.capture());
             assertEquals(0, new BigDecimal("25.0356842").compareTo(captor.getValue().latitude()));
             assertEquals(0, new BigDecimal("121.5665416").compareTo(captor.getValue().longitude()));
@@ -487,7 +542,7 @@ class CrawlerCinemaServiceTest {
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
             ArgumentCaptor<CinemaRequest> captor = ArgumentCaptor.forClass(CinemaRequest.class);
-            assertEquals(1, crawler.syncCinemas().size());
+            assertEquals(1, crawler.syncCinemas().items().size());
             verify(cinemaService).createCinema(captor.capture());
             assertNull(captor.getValue().latitude());
             assertNull(captor.getValue().longitude());
@@ -505,7 +560,7 @@ class CrawlerCinemaServiceTest {
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
             ArgumentCaptor<CinemaRequest> captor = ArgumentCaptor.forClass(CinemaRequest.class);
-            assertEquals(1, crawler.syncCinemas().size());
+            assertEquals(1, crawler.syncCinemas().items().size());
             verify(cinemaService).createCinema(captor.capture());
             assertNull(captor.getValue().latitude());
             assertNull(captor.getValue().longitude());
@@ -541,9 +596,10 @@ class CrawlerCinemaServiceTest {
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(taipei));
             when(cinemaService.findBySourceId("t02a02")).thenReturn(Optional.of(unknown));
 
-            List<CinemaResponse> result = crawler.syncCinemas();
+            CrawlerSyncResult<CinemaResponse> result = crawler.syncCinemas();
 
-            assertEquals(2, result.size());
+            assertEquals(2, result.items().size());
+            assertSummary(result, 2, 0, 0, 2, 4);
             verify(crawler, never()).connect(MAP_01);
             verify(crawler).connect(MAP_02);
             verify(crawlerReviewsService).submitCrawlerChange(
@@ -585,7 +641,7 @@ class CrawlerCinemaServiceTest {
             CinemaResponse existing = saved(100, "t02a01", "信義威秀");
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(existing));
 
-            assertEquals(List.of(existing), crawler.syncCinemas());
+            assertEquals(List.of(existing), crawler.syncCinemas().items());
             verifyNoInteractions(crawlerReviewsService);
             verify(cinemaService, never()).updateCinema(anyInt(), any());
             verify(cinemaService, never()).createCinema(any());
@@ -607,6 +663,7 @@ class CrawlerCinemaServiceTest {
             assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode());
             assertEquals("找不到影城縣市資料，來源網站結構可能已變更", error.getReason());
             verifyNoInteractions(cinemaService);
+            assertTrue(logs.list.stream().noneMatch(event -> event.getLevel() == Level.INFO));
         }
 
         @Test
@@ -696,7 +753,7 @@ class CrawlerCinemaServiceTest {
             when(cinemaService.createCinema(any(CinemaRequest.class)))
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
-            List<CinemaResponse> result = crawler.syncCinemas();
+            List<CinemaResponse> result = crawler.syncCinemas().items();
 
             assertEquals(1, result.size());
             assertTrue(result.stream().anyMatch(c -> "t02a01".equals(c.sourceId())));
@@ -717,7 +774,7 @@ class CrawlerCinemaServiceTest {
             when(cinemaService.createCinema(any(CinemaRequest.class)))
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
-            List<CinemaResponse> result = crawler.syncCinemas();
+            List<CinemaResponse> result = crawler.syncCinemas().items();
 
             assertEquals(1, result.size());
             assertEquals("t02a01", result.get(0).sourceId());

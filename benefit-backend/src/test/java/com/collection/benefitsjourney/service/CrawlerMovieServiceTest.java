@@ -4,12 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
@@ -25,6 +27,7 @@ import java.util.Optional;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -33,14 +36,21 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.collection.benefitsjourney.dto.CrawlerSyncResult;
 import com.collection.benefitsjourney.dto.MovieRequest;
 import com.collection.benefitsjourney.dto.MovieResponse;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.collection.benefitsjourney.enums.CinemaResourceType;
 
 /**
@@ -74,10 +84,43 @@ class CrawlerMovieServiceTest {
     private JdbcTemplate jdbcTemplate;
 
     private CrawlerMovieService crawler;
+    private Logger logger;
+    private ListAppender<ILoggingEvent> logs;
 
     @BeforeEach
     void setUp() {
         crawler = spy(new CrawlerMovieService(movieService, crawlerReviewsService, jdbcTemplate));
+        logger = (Logger) LoggerFactory.getLogger(CrawlerMovieService.class);
+        logs = new ListAppender<>();
+        logs.start();
+        logger.addAppender(logs);
+        lenient().when(crawlerReviewsService.submitCrawlerChange(any(), any(), any(), any(), any()))
+                .thenReturn(true);
+    }
+
+    @AfterEach
+    void tearDown() {
+        logger.detachAppender(logs);
+    }
+
+    private void assertSummary(
+            CrawlerSyncResult<?> result, int fetched, int created, int skipped, int updated, int reviewed) {
+        assertEquals(fetched, result.fetchedCount());
+        assertEquals(created, result.createdCount());
+        assertEquals(skipped, result.skippedCount());
+        assertEquals(updated, result.updatedCount());
+        assertEquals(reviewed, result.reviewCount());
+        assertTrue(result.elapsedSeconds() >= 0);
+        assertEquals(
+                "本次抓到 %d 筆、新增 %d 筆、略過 %d 筆、更新 %d 筆、納入審核 %d 筆，耗時 %d 秒。"
+                        .formatted(fetched, created, skipped, updated, reviewed, result.elapsedSeconds()),
+                result.message());
+    }
+
+    private void assertOnlyResultLog(CrawlerSyncResult<?> result) {
+        var infos = logs.list.stream().filter(event -> event.getLevel() == Level.INFO).toList();
+        assertEquals(1, infos.size());
+        assertEquals("電影同步完成：" + result.message(), infos.get(0).getFormattedMessage());
     }
 
     private Document page(String url, String html) {
@@ -152,7 +195,10 @@ class CrawlerMovieServiceTest {
             MovieResponse created = saved(1, "fA001", "測試電影", poster("fA001"), true, DATE_A);
             when(movieService.createMovie(any(MovieRequest.class))).thenReturn(created);
 
-            assertEquals(List.of(created), crawler.syncMovies());
+            CrawlerSyncResult<MovieResponse> result = crawler.syncMovies();
+            assertEquals(List.of(created), result.items());
+            assertSummary(result, 1, 1, 0, 0, 0);
+            assertOnlyResultLog(result);
 
             MovieRequest request = captureCreated();
             assertEquals("fA001", request.sourceId());
@@ -179,7 +225,7 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "正式名稱", poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().size());
+            assertEquals(1, crawler.syncMovies().items().size());
             MovieRequest request = captureCreated();
             assertEquals("正式名稱", request.movieName());
             assertEquals(DATE_A, request.releaseDate());
@@ -202,7 +248,7 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "錨點片名", poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().size());
+            assertEquals(1, crawler.syncMovies().items().size());
             assertEquals("錨點片名", captureCreated().movieName());
             verify(crawler).connect(DETAIL_A);
         }
@@ -221,7 +267,7 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "片名：特別篇", poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().size());
+            assertEquals(1, crawler.syncMovies().items().size());
             assertEquals("片名：特別篇", captureCreated().movieName());
         }
 
@@ -234,7 +280,7 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "2+2=5 的電影", poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().size());
+            assertEquals(1, crawler.syncMovies().items().size());
             assertEquals("2+2=5 的電影", captureCreated().movieName());
         }
 
@@ -247,7 +293,7 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "測試電影", poster("fA001"), true, null));
 
-            assertEquals(1, crawler.syncMovies().size());
+            assertEquals(1, crawler.syncMovies().items().size());
             assertEquals("測試電影", captureCreated().movieName());
             assertNull(captureCreated().releaseDate());
         }
@@ -263,7 +309,7 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "週次電影", poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().size());
+            assertEquals(1, crawler.syncMovies().items().size());
             assertEquals("週次電影", captureCreated().movieName());
             verify(crawler).connect(WEEK);
             verify(crawler, never()).connect(BASE + "/movie/next/w9/");
@@ -280,7 +326,7 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "測試電影", poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().size());
+            assertEquals(1, crawler.syncMovies().items().size());
             verify(movieService).createMovie(any(MovieRequest.class));
             verify(crawler).connect(DETAIL_A);
         }
@@ -300,6 +346,7 @@ class CrawlerMovieServiceTest {
             assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode());
             assertEquals("電影網站沒有回傳可用列表", error.getReason());
             verifyNoInteractions(movieService);
+            assertTrue(logs.list.stream().noneMatch(event -> event.getLevel() == Level.INFO));
         }
     }
 
@@ -315,10 +362,11 @@ class CrawlerMovieServiceTest {
             MovieResponse existing = saved(1, "fA001", "測試電影", poster("fA001"), false, DATE_A);
             when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
 
-            List<MovieResponse> result = crawler.syncMovies();
+            CrawlerSyncResult<MovieResponse> result = crawler.syncMovies();
 
-            assertEquals(1, result.size());
-            assertSame(existing, result.get(0));
+            assertEquals(1, result.items().size());
+            assertSame(existing, result.items().get(0));
+            assertSummary(result, 1, 0, 0, 0, 0);
             verifyNoInteractions(crawlerReviewsService);
             verify(movieService, never()).createMovie(any());
         }
@@ -331,7 +379,9 @@ class CrawlerMovieServiceTest {
             MovieResponse existing = saved(1, "fA001", "舊名稱", BASE + "/poster/old.jpg", false, DATE_A);
             when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
 
-            assertEquals(List.of(existing), crawler.syncMovies());
+            CrawlerSyncResult<MovieResponse> result = crawler.syncMovies();
+            assertEquals(List.of(existing), result.items());
+            assertSummary(result, 1, 0, 0, 1, 3);
 
             verify(crawlerReviewsService).submitCrawlerChange(
                     CinemaResourceType.MOVIE, 1, CrawlerReviewsService.MOVIE_NAME, "更新後名稱", "舊名稱");
@@ -352,7 +402,7 @@ class CrawlerMovieServiceTest {
             MovieResponse existing = saved(1, "fA001", "測試電影", poster("fA001"), false, DATE_A);
             when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
 
-            assertEquals(List.of(existing), crawler.syncMovies());
+            assertEquals(List.of(existing), crawler.syncMovies().items());
 
             verify(crawlerReviewsService, never()).submitCrawlerChange(
                     any(), any(), eq(CrawlerReviewsService.RELEASE_DATE), any(), any());
@@ -376,7 +426,7 @@ class CrawlerMovieServiceTest {
             for (String storedName : storedNames) {
                 MovieResponse existing = saved(1, "fA001", storedName, poster("fA001"), false, DATE_A);
                 when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
-                assertEquals(List.of(existing), crawler.syncMovies(), storedName);
+                assertEquals(List.of(existing), crawler.syncMovies().items(), storedName);
             }
 
             verifyNoInteractions(crawlerReviewsService);
@@ -390,7 +440,7 @@ class CrawlerMovieServiceTest {
             MovieResponse existing = saved(1, "fA001", "測試電影（導演版）", poster("fA001"), false, DATE_A);
             when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
 
-            assertEquals(List.of(existing), crawler.syncMovies());
+            assertEquals(List.of(existing), crawler.syncMovies().items());
 
             verify(crawlerReviewsService).submitCrawlerChange(
                     CinemaResourceType.MOVIE, 1, CrawlerReviewsService.MOVIE_NAME,
@@ -405,7 +455,9 @@ class CrawlerMovieServiceTest {
             givenStored(8, "fOLD", "Test　測試電影！");
             when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
 
-            assertEquals(List.of(), crawler.syncMovies());
+            CrawlerSyncResult<MovieResponse> result = crawler.syncMovies();
+            assertEquals(List.of(), result.items());
+            assertSummary(result, 1, 0, 0, 0, 1);
 
             verify(crawlerReviewsService).submitCrawlerChange(
                     CinemaResourceType.MOVIE, 8, CrawlerReviewsService.SOURCE_ID, "fA001", "fOLD");
@@ -425,10 +477,11 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "測試電影", poster("fA001"), true, DATE_A));
 
-            List<MovieResponse> result = crawler.syncMovies();
+            CrawlerSyncResult<MovieResponse> result = crawler.syncMovies();
 
-            assertEquals(1, result.size());
-            assertEquals("fA001", result.get(0).sourceId());
+            assertEquals(1, result.items().size());
+            assertEquals("fA001", result.items().get(0).sourceId());
+            assertSummary(result, 2, 1, 0, 0, 1);
             verify(movieService).createMovie(any(MovieRequest.class));
             verify(crawlerReviewsService).submitCrawlerChange(
                     CinemaResourceType.MOVIE, 1, CrawlerReviewsService.SOURCE_ID, "fB002", "fA001");
@@ -442,7 +495,7 @@ class CrawlerMovieServiceTest {
             givenStored(8, "fA001", "測試電影");
             when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
 
-            assertEquals(List.of(), crawler.syncMovies());
+            assertEquals(List.of(), crawler.syncMovies().items());
 
             verifyNoInteractions(crawlerReviewsService);
             verify(movieService, never()).createMovie(any());
@@ -494,7 +547,7 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "測試電影", poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().size());
+            assertEquals(1, crawler.syncMovies().items().size());
             verify(movieService).createMovie(any(MovieRequest.class));
         }
 
@@ -542,10 +595,11 @@ class CrawlerMovieServiceTest {
                 return saved(2, "fB002", "第二部", poster("fB002"), true, DATE_B);
             });
 
-            List<MovieResponse> result = crawler.syncMovies();
+            CrawlerSyncResult<MovieResponse> result = crawler.syncMovies();
 
-            assertEquals(1, result.size());
-            assertEquals("fB002", result.get(0).sourceId());
+            assertEquals(1, result.items().size());
+            assertEquals("fB002", result.items().get(0).sourceId());
+            assertSummary(result, 2, 1, 0, 0, 0);
             verify(movieService, org.mockito.Mockito.times(2)).createMovie(any(MovieRequest.class));
         }
 

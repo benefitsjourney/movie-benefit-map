@@ -11,7 +11,7 @@ const links = [
   { to: "/admin/crawler", label: "爬蟲管理", icon: syncIcon },
   { to: "/admin/crawler-reviews", label: "爬蟲審核", icon: reviewIcon },
   {
-    label: "電影影城",
+    label: "電影 / 影城",
     icon: libraryIcon,
     children: [
       { to: "/admin/cinemas", label: "影城資料", icon: movieIcon },

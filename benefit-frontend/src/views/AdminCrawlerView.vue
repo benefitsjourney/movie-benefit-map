@@ -53,7 +53,6 @@ function createJob() {
   return {
     status: "idle",
     error: "",
-    items: [],
     elapsedSeconds: 0,
   };
 }
@@ -64,6 +63,17 @@ function errorMessage(error) {
 
 function formatSeconds(seconds) {
   return String(Math.floor(seconds));
+}
+
+function summaryRows(summary) {
+  return [
+    { label: "本次抓到", value: `${summary?.fetchedCount ?? 0} 筆` },
+    { label: "新增", value: `${summary?.createdCount ?? 0} 筆` },
+    { label: "略過", value: `${summary?.skippedCount ?? 0} 筆` },
+    { label: "更新", value: `${summary?.updatedCount ?? 0} 筆` },
+    { label: "納入審核", value: `${summary?.reviewCount ?? 0} 筆` },
+    { label: "耗時", value: `${summary?.elapsedSeconds ?? 0} 秒` },
+  ];
 }
 
 function startElapsed(job, crawler) {
@@ -116,21 +126,16 @@ async function syncCrawler(crawler) {
   const job = jobs[crawler.key];
   job.status = "running";
   job.error = "";
-  job.items = [];
   startElapsed(job, crawler);
 
   try {
     const { data } = await http.get(crawler.endpoint);
-    job.items = Array.isArray(data) ? data : [];
+    stopElapsed(job);
     job.status = "success";
-    const seconds = formatSeconds(stopElapsed(job));
-    const countText = job.items.length
-      ? `共取得 ${job.items.length} 筆，耗時 ${seconds} 秒。`
-      : `執行完成，無回傳資料。耗時 ${seconds} 秒。`;
     const done = await openAppAlert({
       variant: "success",
       title: `${crawler.stamp}更新完成`,
-      text: countText,
+      rows: summaryRows(data),
       confirmText: crawler.resultLabel,
       cancelText: "關閉",
     });

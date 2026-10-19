@@ -14,7 +14,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
@@ -27,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.collection.benefitsjourney.dto.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaResponse;
+import com.collection.benefitsjourney.dto.CrawlerSyncResult;
 import com.collection.benefitsjourney.enums.CinemaResourceType;
 import com.collection.benefitsjourney.enums.County;
 
@@ -86,6 +86,10 @@ public class CrawlerCinemaService {
     private record Coordinates(BigDecimal latitude, BigDecimal longitude) {
     }
 
+    /** 單一縣市頁抓到的影城，以及連結存在但沒能撈成影城的筆數。 */
+    private record AreaCinemas(List<CinemaResponse> cinemas, int omitted) {
+    }
+
     private record CountyMapping(String keyword, County county) {
     }
 
@@ -103,12 +107,12 @@ public class CrawlerCinemaService {
     }
 
     /** 一般同步：已有完整座標就不重新抓取地圖頁。 */
-    public List<CinemaResponse> syncCinemas() {
+    public CrawlerSyncResult<CinemaResponse> syncCinemas() {
         return syncCinemas(false);
     }
 
     /** 完整同步可指定重新檢查所有影城座標。 */
-    public List<CinemaResponse> syncCinemas(boolean refreshCoordinates) {
+    public CrawlerSyncResult<CinemaResponse> syncCinemas(boolean refreshCoordinates) {
         long startTime = System.nanoTime();
         ExecutorService executor = Executors.newFixedThreadPool(HTTP_CONCURRENCY);
         try {
@@ -120,22 +124,21 @@ public class CrawlerCinemaService {
                         "找不到影城縣市資料，來源網站結構可能已變更");
             }
 
-            long areaStart = System.nanoTime();
-
             // 縣市抓取只分析基本資料，不在這裡逐間請求座標。
-            List<CompletableFuture<List<CinemaResponse>>> areaTasks = areaUrls.stream()
+            List<CompletableFuture<AreaCinemas>> areaTasks = areaUrls.stream()
                     .map(url -> CompletableFuture.supplyAsync(
-                            () -> getCinemasByAreaUrl(url).toList(), executor))
+                            () -> getCinemasByAreaUrl(url), executor))
                     .toList();
 
             List<CinemaResponse> crawled = new ArrayList<>();
+            int omitted = 0;
             for (var task : areaTasks) {
-                crawled.addAll(task.join());
+                AreaCinemas area = task.join();
+                crawled.addAll(area.cinemas());
+                omitted += area.omitted();
             }
 
             List<CinemaResponse> cinemas = deduplicateBySourceId(crawled);
-            log.info("縣市資料抓取耗時 {} 秒，原始 {} 筆，去重後 {} 間",
-                    elapsedSeconds(areaStart), crawled.size(), cinemas.size());
 
             if (cinemas.isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
@@ -143,15 +146,11 @@ public class CrawlerCinemaService {
             }
 
             // 查詢每個sourceId，後續入庫直接重用結果
-            long lookupStart = System.nanoTime();
             Map<String, Optional<CinemaResponse>> existing = new LinkedHashMap<>();
             for (CinemaResponse cinema : cinemas) {
                 existing.put(cinema.sourceId(), cinemaService.findBySourceId(cinema.sourceId()));
             }
 
-            log.info("既有影城查詢耗時 {} 秒，共 {} 間", elapsedSeconds(lookupStart), existing.size());
-
-            long coordinateStart = System.nanoTime();
             List<CompletableFuture<CinemaResponse>> coordinateTasks = cinemas.stream()
                     .map(cinema -> CompletableFuture.supplyAsync(() -> {
                         CinemaResponse current = existing.get(cinema.sourceId()).orElse(null);
@@ -168,37 +167,26 @@ public class CrawlerCinemaService {
                     .toList();
 
             List<CinemaResponse> resolved = coordinateTasks.stream()
-                    .map(future -> future.join())
+                    .map(task -> task.join())
                     .toList();
 
-            long fetchedCoordinates = cinemas.stream().filter(cinema -> {
-                CinemaResponse current = existing.get(cinema.sourceId()).orElse(null);
-                return refreshCoordinates || current == null
-                        || current.latitude() == null || current.longitude() == null;
-            }).count();
-            log.info("座標階段耗時 {} 秒，需請求 {} 間，略過 {} 間",
-                    elapsedSeconds(coordinateStart), fetchedCoordinates, cinemas.size() - fetchedCoordinates);
-
-            long databaseStart = System.nanoTime();
+            SyncStats stats = new SyncStats();
+            stats.skipped = omitted;
             List<CinemaResponse> saved = resolved.stream()
-                    .map(cinema -> syncCinemaToDatabase(cinema, existing.get(cinema.sourceId())))
+                    .map(cinema -> syncCinemaToDatabase(cinema, existing.get(cinema.sourceId()), stats))
                     .filter(Objects::nonNull)
                     .toList();
-
-            log.info("資料庫比對及審核耗時 {} 秒", elapsedSeconds(databaseStart));
-
-            if (saved.size() < resolved.size()) {
-                log.warn("部分影城同步失敗：抓取 {} 間，成功 {} 間，失敗 {} 間",
-                        resolved.size(), saved.size(), resolved.size() - saved.size());
-            }
 
             if (saved.isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                         "影城資料抓取成功，但寫入資料庫失敗");
             }
 
-            log.info("影城爬蟲完成，共處理 {} 間，耗時 {} 秒", saved.size(), elapsedSeconds(startTime));
-            return saved;
+            CrawlerSyncResult<CinemaResponse> result = CrawlerSyncResult.of(
+                    cinemas.size(), stats.created, stats.skipped, stats.updated, stats.reviewed,
+                    elapsedSeconds(startTime), saved);
+            log.info("影城同步完成：{}", result.message());
+            return result;
 
         } catch (HttpStatusException e) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "影城來源網站連線異常", e);
@@ -241,29 +229,39 @@ public class CrawlerCinemaService {
     }
 
     /** 抓取單一縣市頁的影城連結；單一縣市失敗不影響其他縣市。 */
-    private Stream<CinemaResponse> getCinemasByAreaUrl(String areaUrl) {
+    private AreaCinemas getCinemasByAreaUrl(String areaUrl) {
         try {
             Document doc = connect(areaUrl);
             // 忽略空白連結與「網路訂票」等非影城項目。
-            return doc.select("a[href^=/showtime/t]")
+            List<Element> links = doc.select("a[href^=/showtime/t]")
                     .stream()
                     .filter(a -> !a.text().isBlank())
                     .filter(a -> !"網路訂票".equals(a.text().trim()))
-                    .map(this::toCinemaResponse)
-                    .filter(Objects::nonNull);
+                    .toList();
+            List<CinemaResponse> cinemas = new ArrayList<>();
+            int omitted = 0;
+            for (Element link : links) {
+                CinemaResponse cinema = toCinemaResponse(link);
+                if (cinema == null) {
+                    omitted++;
+                } else {
+                    cinemas.add(cinema);
+                }
+            }
+            return new AreaCinemas(cinemas, omitted);
         } catch (HttpStatusException e) {
             log.warn(
                     "縣市影城列表回傳 HTTP {}：{}",
                     e.getStatusCode(),
                     areaUrl,
                     e);
-            return Stream.empty();
+            return new AreaCinemas(List.of(), 0);
         } catch (IOException e) {
             log.warn(
                     "縣市影城列表抓取失敗：{}",
                     areaUrl,
                     e);
-            return Stream.empty();
+            return new AreaCinemas(List.of(), 0);
         }
     }
 
@@ -310,14 +308,23 @@ public class CrawlerCinemaService {
     }
 
     /** 將取得的單筆影城資料同步到資料庫。沒有資料才直接新增，已有資料只送差異去審核 */
-    private CinemaResponse syncCinemaToDatabase(CinemaResponse response, Optional<CinemaResponse> existing) {
+    private CinemaResponse syncCinemaToDatabase(
+            CinemaResponse response, Optional<CinemaResponse> existing, SyncStats stats) {
         try {
             return existing
                     .map(cinema -> {
-                        reviewChangedFields(cinema, response);
+                        int reviewed = reviewChangedFields(cinema, response);
+                        stats.reviewed += reviewed;
+                        if (reviewed > 0) {
+                            stats.updated++;
+                        }
                         return cinema;
                     })
-                    .orElseGet(() -> cinemaService.createCinema(toCinemaRequest(response)));
+                    .orElseGet(() -> {
+                        CinemaResponse created = cinemaService.createCinema(toCinemaRequest(response));
+                        stats.created++;
+                        return created;
+                    });
         } catch (DataIntegrityViolationException e) {
             log.warn(
                     "影城資料違反資料庫限制，略過同步：{} ({})",
@@ -342,53 +349,61 @@ public class CrawlerCinemaService {
                 response.isVisible());
     }
 
-    /** 只把實際抓到、且與正式資料不同的欄位送審 */
-    private void reviewChangedFields(CinemaResponse current, CinemaResponse crawled) {
-        reviewField(current.cinemaId(), CrawlerReviewsService.CINEMA_NAME,
-                crawled.cinemaName(), current.cinemaName());
+    /** 只把實際抓到、且與正式資料不同的欄位送審，回傳實際納入審核的筆數 */
+    private int reviewChangedFields(CinemaResponse current, CinemaResponse crawled) {
+        int reviewed = 0;
+        if (reviewField(current.cinemaId(), CrawlerReviewsService.CINEMA_NAME,
+                crawled.cinemaName(), current.cinemaName())) {
+            reviewed++;
+        }
 
         // 地址不存在時不比對縣市，避免誤判來源未提供地址為實際異動。
         if (crawled.cinemaAddress() != null && !crawled.cinemaAddress().isBlank()) {
-            reviewField(current.cinemaId(), CrawlerReviewsService.CINEMA_ADDRESS,
-                    crawled.cinemaAddress(), current.cinemaAddress());
+            if (reviewField(current.cinemaId(), CrawlerReviewsService.CINEMA_ADDRESS,
+                    crawled.cinemaAddress(), current.cinemaAddress())) {
+                reviewed++;
+            }
 
             // UNKNOWN 代表無法從地址辨識，不能當成新的有效縣市送審。
-            if (crawled.county() != null && crawled.county() != County.UNKNOWN) {
-                reviewField(current.cinemaId(), CrawlerReviewsService.COUNTY,
-                        crawled.county(), current.county());
+            if (crawled.county() != null && crawled.county() != County.UNKNOWN
+                    && reviewField(current.cinemaId(), CrawlerReviewsService.COUNTY,
+                            crawled.county(), current.county())) {
+                reviewed++;
             }
         }
 
-        if (crawled.latitude() != null) {
-            reviewField(current.cinemaId(), CrawlerReviewsService.LATITUDE,
-                    crawled.latitude(), current.latitude());
+        if (crawled.latitude() != null && reviewField(current.cinemaId(), CrawlerReviewsService.LATITUDE,
+                crawled.latitude(), current.latitude())) {
+            reviewed++;
         }
 
-        if (crawled.longitude() != null) {
-            reviewField(current.cinemaId(), CrawlerReviewsService.LONGITUDE,
-                    crawled.longitude(), current.longitude());
+        if (crawled.longitude() != null && reviewField(current.cinemaId(), CrawlerReviewsService.LONGITUDE,
+                crawled.longitude(), current.longitude())) {
+            reviewed++;
         }
 
-        if (crawled.officialWebsiteUrl() != null) {
-            reviewField(current.cinemaId(), CrawlerReviewsService.OFFICIAL_WEBSITE_URL,
-                    crawled.officialWebsiteUrl(), current.officialWebsiteUrl());
+        if (crawled.officialWebsiteUrl() != null
+                && reviewField(current.cinemaId(), CrawlerReviewsService.OFFICIAL_WEBSITE_URL,
+                        crawled.officialWebsiteUrl(), current.officialWebsiteUrl())) {
+            reviewed++;
         }
+        return reviewed;
     }
 
     /** 略過未抓到或與正式資料相同的值，其他差異交給審核Service去重複 */
-    private void reviewField(Integer entityId, String fieldName, Object crawled, Object current) {
+    private boolean reviewField(Integer entityId, String fieldName, Object crawled, Object current) {
         if (crawled == null || (crawled instanceof String value && value.isBlank())) {
-            return;
+            return false;
         }
 
         String crawlerValue = CrawlerReviewsService.formatValue(crawled);
         String previousValue = CrawlerReviewsService.formatValue(current);
 
         if (Objects.equals(crawlerValue, previousValue)) {
-            return;
+            return false;
         }
 
-        crawlerReviewsService.submitCrawlerChange(
+        return crawlerReviewsService.submitCrawlerChange(
                 CinemaResourceType.CINEMA,
                 entityId,
                 fieldName,
@@ -514,7 +529,14 @@ public class CrawlerCinemaService {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private static String elapsedSeconds(long startTime) {
-        return "%.2f".formatted((System.nanoTime() - startTime) / 1_000_000_000.0);
+    private static long elapsedSeconds(long startTime) {
+        return (System.nanoTime() - startTime) / 1_000_000_000L;
+    }
+
+    private static final class SyncStats {
+        private int created;
+        private int skipped;
+        private int updated;
+        private int reviewed;
     }
 }
