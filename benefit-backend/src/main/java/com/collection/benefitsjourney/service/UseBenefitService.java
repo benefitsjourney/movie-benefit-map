@@ -34,6 +34,14 @@ public class UseBenefitService {
     /** 一筆持有紀錄最多幾張照片（避免Cloudinary用量過大） */
     static final int MAX_PHOTOS = 5;
 
+    /**
+     * 允許的圖片格式：瀏覽器都能直接顯示的四種。
+     * 不開放heic（Chrome顯示不出來）、svg（可以夾帶程式碼）。
+     */
+    static final java.util.Set<String> ALLOWED_TYPES =
+            java.util.Set.of("image/jpeg", "image/png", "image/webp", "image/gif");
+
+
     private final UseBenefitRepository useBenefitRepository;
     private final BenefitRepository benefitRepository;
     private final UsersRepository usersRepository;
@@ -108,8 +116,8 @@ public class UseBenefitService {
             throw ExceptionUtils.badRequest("請選擇要上傳的照片");
         }
         String contentType = file.getContentType();
-        if (contentType == null || !contentType.startsWith("image/")) {
-            throw ExceptionUtils.badRequest("只能上傳圖片檔");
+        if (contentType == null || !ALLOWED_TYPES.contains(contentType)) {
+            throw ExceptionUtils.badRequest("只能上傳JPG、PNG、WEBP、GIF格式的圖片");
         }
         if (file.getSize() > CloudinaryClient.MAX_BYTES) {
             throw ExceptionUtils.badRequest("照片不可超過10MB");
@@ -178,7 +186,7 @@ public class UseBenefitService {
 
     /**
      * 刪Cloudinary檔案，失敗只寫log不丟例外。
-     * 資料庫已經刪掉了，不能因為Cloudinary連不上就讓使用者刪除失敗。
+     * 資料庫已經刪掉了，不能因為Cloudinary連不上就讓使用者刪除失敗（頂多Cloudinary多一個沒用的檔案）。
      */
     private void deleteCloudinaryQuietly(String publicId) {
         if (!cloudinaryClient.delete(publicId)) {

@@ -30,7 +30,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/use-benefits")
 @RequiredArgsConstructor
-@Tag(name = "收藏庫（會員）", description = "持有紀錄的新增、查詢、刪除")
+@Tag(name = "收藏庫（會員）", description = "持有紀錄和照片的新增、查詢、刪除")
 public class UseBenefitController {
 
     private final UseBenefitService useBenefitService;
@@ -56,7 +56,7 @@ public class UseBenefitController {
 
     @DeleteMapping("/{useBenefitId}")
     @Operation(summary = "刪除持有紀錄",
-            description = "只能刪自己的（否則403）。已建立交換刊登的不能刪（409）照片會一起從Cloudinary刪除")
+            description = "只能刪自己的（否則403）。已建立交換刊登的不能刪（409）。照片會一起從Cloudinary刪除")
     public ResponseEntity<Void> delete(
             @PathVariable Integer useBenefitId,
             HttpServletRequest httpRequest) {
@@ -68,7 +68,7 @@ public class UseBenefitController {
     
     @PostMapping(value = "/{useBenefitId}/photos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "上傳一張照片",
-            description = "一次上傳一張（要多張就呼叫多次）。只接受圖片、最大10MB、每筆收藏最多5張")
+            description = "一次上傳一張（要多張就呼叫多次）。只接受JPG、PNG、WEBP、GIF，最大10MB、每筆收藏最多5張")
     public ResponseEntity<UseBenefitPhotoResponse> addPhoto(
             @PathVariable Integer useBenefitId,
             @RequestParam("file") MultipartFile file,

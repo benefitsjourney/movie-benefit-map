@@ -42,7 +42,7 @@ springdoc:
   swagger-ui:
     doc-expansion: none
 
-#調整照片可上傳大小上限
+# 調整持有紀錄照片可上傳大小上限
   servlet:
     multipart:
       max-file-size: 10MB
