@@ -25,7 +25,7 @@ const crawlers = [
     key: "cinema",
     title: "影城同步",
     description: "更新影城名稱、地址及位置等資訊。",
-    endpoint: "/crawler/cinemas",
+    endpoint: "/cinema-movie/crawler/cinemas",
     stamp: "影城",
     icon: movieIcon,
     resultTo: "/admin/cinemas",
@@ -35,7 +35,7 @@ const crawlers = [
     key: "movie",
     title: "電影同步",
     description: "更新最新、上映中及即將上映的電影。",
-    endpoint: "/crawler/movies",
+    endpoint: "/cinema-movie/crawler/movies",
     stamp: "電影",
     icon: clapperboardIcon,
     resultTo: "/admin/movies",
@@ -53,7 +53,6 @@ function createJob() {
   return {
     status: "idle",
     error: "",
-    items: [],
     elapsedSeconds: 0,
   };
 }
@@ -64,6 +63,17 @@ function errorMessage(error) {
 
 function formatSeconds(seconds) {
   return String(Math.floor(seconds));
+}
+
+function summaryRows(summary) {
+  return [
+    { label: "本次抓到", value: `${summary?.fetchedCount ?? 0} 筆` },
+    { label: "新增", value: `${summary?.createdCount ?? 0} 筆` },
+    { label: "略過", value: `${summary?.skippedCount ?? 0} 筆` },
+    { label: "更新", value: `${summary?.updatedCount ?? 0} 筆` },
+    { label: "納入審核", value: `${summary?.reviewCount ?? 0} 筆` },
+    { label: "耗時", value: `${summary?.elapsedSeconds ?? 0} 秒` },
+  ];
 }
 
 function startElapsed(job, crawler) {
@@ -116,25 +126,22 @@ async function syncCrawler(crawler) {
   const job = jobs[crawler.key];
   job.status = "running";
   job.error = "";
-  job.items = [];
   startElapsed(job, crawler);
 
   try {
     const { data } = await http.get(crawler.endpoint);
-    job.items = Array.isArray(data) ? data : [];
+    stopElapsed(job);
     job.status = "success";
-    const seconds = formatSeconds(stopElapsed(job));
-    const countText = job.items.length
-      ? `共取得 ${job.items.length} 筆，耗時 ${seconds} 秒。`
-      : `執行完成，無回傳資料。耗時 ${seconds} 秒。`;
     const done = await openAppAlert({
       variant: "success",
       title: `${crawler.stamp}更新完成`,
-      text: countText,
+      rows: summaryRows(data),
       confirmText: crawler.resultLabel,
+      extraText: "前往爬蟲審核",
       cancelText: "關閉",
     });
     if (done.isConfirmed) router.push(crawler.resultTo);
+    else if (done.isExtra) router.push({ name: "admin-crawler-reviews" });
   } catch (error) {
     job.status = "error";
     job.error = errorMessage(error);

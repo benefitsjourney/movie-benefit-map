@@ -41,11 +41,9 @@ export function httpUrl(value) {
 </script>
 
 <script setup>
-/**
- * columns 定義欄位與 format；具名插槽 #cell-{key} 可取代單一儲存格。
- */
-import { computed, useSlots } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, useId, useSlots } from "vue";
 
+/** columns 定義欄位與 format；#cell-{key} 可覆寫儲存格。 */
 const props = defineProps({
   columns: { type: Array, required: true },
   rows: { type: Array, default: () => [] },
@@ -61,26 +59,23 @@ const props = defineProps({
 });
 
 const slots = useSlots();
-
 const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.coral);
 
-/** 所有欄位皆使用 rem 寬度時，計算表格總寬度。 */
+// ── 表格與儲存格 ───────────────────────────────────────────────
 const tableStyle = computed(() => {
-  let totalWidth = 0;
+  const widths = props.columns.map(({ minWidth }) =>
+    String(minWidth ?? "").match(/^(\d+(?:\.\d+)?)rem$/)?.[1],
+  );
+  if (widths.some((width) => width === undefined)) return undefined;
 
-  for (const { minWidth } of props.columns) {
-    const match = String(minWidth ?? "").match(/^(\d+(?:\.\d+)?)rem$/);
-    if (!match) return undefined;
-
-    totalWidth += Number(match[1]);
-  }
-
-  return totalWidth > 0 ? { width: `${totalWidth}rem` } : undefined;
+  const total = widths.reduce((sum, width) => sum + Number(width), 0);
+  return total > 0 ? { width: `${total}rem` } : undefined;
 });
 
-function columnStyle(column) {
-  return column.minWidth ? { width: column.minWidth } : undefined;
-}
+const columnStyle = (column) =>
+  column.minWidth ? { width: column.minWidth } : undefined;
+
+const hasCellSlot = (column) => Boolean(slots[`cell-${column.key}`]);
 
 function cellClass(column) {
   return {
@@ -92,34 +87,161 @@ function cellClass(column) {
   };
 }
 
-function hasCellSlot(column) {
-  return Boolean(slots[`cell-${column.key}`]);
-}
-
-/** 優先使用資料 ID，沒有 ID 時以索引建立備用 key。 */
 function rowKeyOf(row, index) {
   const id = row?.[props.rowKey];
   return id == null || id === "" ? `row-${index}` : id;
 }
 
-function cellValue(column, row) {
-  return row?.[column.key];
-}
+const cellValue = (column, row) => row?.[column.key];
 
-/** 格式化儲存格內容，統一處理空值與布林值。 */
 function cellText(column, row) {
   const value = cellValue(column, row);
-  const formatted =
-    typeof column.format === "function"
-      ? column.format(value, row)
-      : value;
+  const formatted = typeof column.format === "function"
+    ? column.format(value, row)
+    : value;
 
   if (formatted == null || formatted === "") return "—";
   if (typeof formatted === "boolean") return formatted ? "是" : "否";
-
   return String(formatted);
 }
 
+// ── 裁切文字提示 ───────────────────────────────────────────────
+const TIP_MOTION_MS = 200;
+const TIP_MARGIN = 10;
+const TIP_ARROW_INSET = 16;
+
+const tipId = useId();
+const tipEl = ref(null);
+const tip = ref(null);
+let anchor = null;
+let listening = false;
+let hideTimer = 0;
+
+const isClipped = (el) => el.scrollWidth - el.clientWidth > 1;
+const motionMs = () =>
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : TIP_MOTION_MS;
+
+function startListening() {
+  if (listening) return;
+  listening = true;
+  window.addEventListener("scroll", placeTip, true);
+  window.addEventListener("resize", placeTip);
+  window.addEventListener("keydown", onKeydown);
+}
+
+function stopListening() {
+  if (!listening) return;
+  listening = false;
+  window.removeEventListener("scroll", placeTip, true);
+  window.removeEventListener("resize", placeTip);
+  window.removeEventListener("keydown", onKeydown);
+}
+
+function openTip(event) {
+  const el = event.currentTarget;
+  if (!(el instanceof HTMLElement) || !isClipped(el)) return;
+
+  const text = el.textContent?.replace(/\s+/g, " ").trim() ?? "";
+  if (!text || text === "—") return;
+
+  window.clearTimeout(hideTimer);
+  if (anchor && anchor !== el) anchor.removeAttribute("aria-describedby");
+  anchor = el;
+  el.setAttribute("aria-describedby", tipId);
+
+  const previous = tip.value;
+  const ready = Boolean(previous?.ready);
+  tip.value = {
+    text,
+    top: ready ? previous.top : -9999,
+    left: ready ? previous.left : 0,
+    arrow: ready ? previous.arrow : TIP_ARROW_INSET,
+    placement: ready ? previous.placement : "top",
+    ready,
+    phase: ready && previous.phase === "in" ? "in" : "",
+  };
+
+  startListening();
+  nextTick(placeTip);
+}
+
+function closeTip() {
+  anchor?.removeAttribute("aria-describedby");
+  anchor = null;
+  stopListening();
+  window.clearTimeout(hideTimer);
+
+  if (tip.value?.phase !== "in") {
+    tip.value = null;
+    return;
+  }
+
+  tip.value = { ...tip.value, phase: "out" };
+  hideTimer = window.setTimeout(() => { tip.value = null; }, motionMs());
+}
+
+function onKeydown(event) {
+  if (event.key === "Escape") closeTip();
+}
+
+function placeTip() {
+  const el = anchor;
+  const bubble = tipEl.value;
+  if (!el || !bubble || !tip.value) return;
+
+  const rect = el.getBoundingClientRect();
+  const outside = rect.bottom <= 0 || rect.top >= window.innerHeight ||
+    rect.right <= 0 || rect.left >= window.innerWidth;
+  if (!isClipped(el) || outside) {
+    closeTip();
+    return;
+  }
+
+  const { width, height } = bubble.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const left = Math.min(
+    Math.max(centerX - width / 2, TIP_MARGIN),
+    Math.max(TIP_MARGIN, window.innerWidth - width - TIP_MARGIN),
+  );
+  const above = rect.top - height - TIP_MARGIN;
+  const placement = above < TIP_MARGIN ? "bottom" : "top";
+  const top = placement === "top" ? above : rect.bottom + TIP_MARGIN;
+  const arrow = Math.min(
+    Math.max(centerX - left, TIP_ARROW_INSET),
+    Math.max(width - TIP_ARROW_INSET, TIP_ARROW_INSET),
+  );
+
+  const replay = tip.value.phase !== "in";
+  tip.value = {
+    ...tip.value, top, left, arrow, placement,
+    ready: true,
+    phase: replay ? "set" : "in",
+  };
+  if (!replay) return;
+
+  nextTick(() => {
+    tipEl.value?.getBoundingClientRect();
+    if (tip.value?.phase === "set" && anchor) {
+      tip.value = { ...tip.value, phase: "in" };
+    }
+  });
+}
+
+// 維持文字與連結各自原有的觸發行為。
+const tooltipHoverEvents = { mouseenter: openTip, mouseleave: closeTip };
+const tooltipLinkEvents = {
+  ...tooltipHoverEvents,
+  focus: openTip,
+  blur: closeTip,
+};
+
+onBeforeUnmount(() => {
+  window.clearTimeout(hideTimer);
+  anchor?.removeAttribute("aria-describedby");
+  anchor = null;
+  tip.value = null;
+  stopListening();
+});
 </script>
 
 <template>
@@ -154,20 +276,34 @@ function cellText(column, row) {
 
             <!-- 網址欄位 -->
             <a v-else-if="column.type === 'link' && httpUrl(cellValue(column, row))" class="sheet-link"
-              :href="httpUrl(cellValue(column, row))" :title="cellText(column, row)" target="_blank"
-              rel="noopener noreferrer">
+              :href="httpUrl(cellValue(column, row))" target="_blank" rel="noopener noreferrer"
+              v-on="tooltipLinkEvents">
               {{ cellText(column, row) }}
             </a>
 
             <!-- 一般文字欄位 -->
-            <span v-else class="sheet-clip"
-              :title="cellText(column, row) === '—' ? undefined : cellText(column, row)">
+            <span v-else class="sheet-clip" v-on="tooltipHoverEvents">
               {{ cellText(column, row) }}
             </span>
           </td>
         </tr>
       </tbody>
     </table>
+
+    <Teleport to="body">
+      <div v-if="tip" :id="tipId" ref="tipEl" class="sheet-bubble" :class="{
+        'is-set': tip.phase === 'set' || tip.phase === 'in' || tip.phase === 'out',
+        'is-in': tip.phase === 'in',
+        'is-out': tip.phase === 'out',
+      }" role="tooltip" :data-placement="tip.placement" :style="{
+        ...themeStyle,
+        top: `${tip.top}px`,
+        left: `${tip.left}px`,
+        '--arrow-x': `${tip.arrow}px`,
+      }">
+        {{ tip.text }}
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -305,5 +441,69 @@ tbody tr:hover td.is-empty {
   outline: 2px solid var(--sheet-accent);
   outline-offset: 3px;
   border-radius: 4px;
+}
+
+/* 被裁切內容的完整文字泡泡 */
+.sheet-bubble {
+  position: fixed;
+  z-index: 40;
+  max-width: min(22rem, calc(100vw - 1.25rem));
+  padding: 0.5rem 0.75rem;
+  border: 1.5px solid var(--sheet-accent);
+  border-radius: 14px;
+  background: var(--sheet-head);
+  color: var(--sheet-head-text);
+  font-size: var(--text-min);
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  box-shadow: 0 12px 28px rgb(41 43 53 / 14%);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(0.75rem);
+  transition: opacity 0.2s ease-out, transform 0.2s ease-out;
+}
+
+.sheet-bubble.is-set {
+  visibility: visible;
+}
+
+.sheet-bubble.is-in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.sheet-bubble.is-out {
+  transition-timing-function: ease-in;
+}
+
+.sheet-bubble::before,
+.sheet-bubble::after {
+  content: "";
+  position: absolute;
+  left: var(--arrow-x);
+  transform: translateX(-50%);
+  border: 0.5rem solid transparent;
+}
+
+.sheet-bubble[data-placement="top"]::before {
+  top: 100%;
+  border-top-color: var(--sheet-accent);
+}
+
+.sheet-bubble[data-placement="top"]::after {
+  top: calc(100% - 3px);
+  border-top-color: var(--sheet-head);
+}
+
+.sheet-bubble[data-placement="bottom"]::before {
+  bottom: 100%;
+  border-bottom-color: var(--sheet-accent);
+}
+
+.sheet-bubble[data-placement="bottom"]::after {
+  bottom: calc(100% - 3px);
+  border-bottom-color: var(--sheet-head);
 }
 </style>
