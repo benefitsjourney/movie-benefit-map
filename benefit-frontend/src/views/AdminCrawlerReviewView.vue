@@ -208,7 +208,7 @@ const {
   loading,
   error,
   retry,
-} = useApiCollection("/crawler-reviews", requestParams, { page });
+} = useApiCollection("/cinema-movie/crawler-reviews", requestParams, { page });
 
 const hasFilters = computed(
   () => Boolean(filters.value.crawlerType) || Boolean(filters.value.reviewStatus),
@@ -264,7 +264,7 @@ async function changeStatus(row, reviewStatus) {
 
   actingId.value = row.crawlerReviewId;
   try {
-    await http.patch(`/crawler-reviews/${row.crawlerReviewId}`, { reviewStatus });
+    await http.patch(`/cinema-movie/crawler-reviews/${row.crawlerReviewId}`, { reviewStatus });
     row.reviewStatus = reviewStatus;
     await openAppAlert({
       variant: "success",
