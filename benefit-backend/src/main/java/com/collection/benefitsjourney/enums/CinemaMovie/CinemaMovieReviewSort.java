@@ -1,9 +1,9 @@
 package com.collection.benefitsjourney.enums.CinemaMovie;
 
-public class CinemaMovieCrawlerReviewSort {
+public class CinemaMovieReviewSort {
 
     public enum SortBy {
-        CRAWLER_REVIEW_ID("crawlerReviewId"),
+        CINEMA_MOVIE_REVIEW_ID("cinemaMovieReviewId"),
         CRAWLER_TYPE("crawlerType"),
         ENTITY_ID("entityId"),
         REVIEW_STATUS("reviewStatus"),

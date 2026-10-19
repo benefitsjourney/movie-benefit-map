@@ -2,7 +2,6 @@ package com.collection.benefitsjourney.controller.CinemaMovie;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,39 +11,38 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieCrawlerReviewRequest;
-import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieCrawlerReviewResponse;
+import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieReviewRequest;
+import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieReviewResponse;
 import com.collection.benefitsjourney.dto.PageResponse;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaResourceType;
-import com.collection.benefitsjourney.enums.CinemaMovie.CinemaMovieCrawlerReviewSort;
+import com.collection.benefitsjourney.enums.CinemaMovie.CinemaMovieReviewSort;
 import com.collection.benefitsjourney.enums.ReviewStatus;
 import com.collection.benefitsjourney.enums.SortOrder;
-import com.collection.benefitsjourney.service.CinemaMovie.CinemaMovieCrawlerReviewsService;
+import com.collection.benefitsjourney.service.CinemaMovie.CinemaMovieReviewsService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import jakarta.validation.groups.Default;
 
 @RestController
-@RequestMapping("/cinema-movie/crawler-reviews")
+@RequestMapping("/cinema-movie/reviews")
 @Tag(name = "影城電影爬蟲審核")
-public class CinemaMovieCrawlerReviewsController {
-    private final CinemaMovieCrawlerReviewsService crawlerReviewsService;
+public class CinemaMovieReviewsController {
+    private final CinemaMovieReviewsService cinemaMovieReviewsService;
 
-    public CinemaMovieCrawlerReviewsController(CinemaMovieCrawlerReviewsService crawlerReviewsService) {
-        this.crawlerReviewsService = crawlerReviewsService;
+    public CinemaMovieReviewsController(CinemaMovieReviewsService cinemaMovieReviewsService) {
+        this.cinemaMovieReviewsService = cinemaMovieReviewsService;
     }
 
     @GetMapping
     @Operation(summary = "取得爬蟲審核資料")
-    public ResponseEntity<PageResponse<CinemaMovieCrawlerReviewResponse>> findAll(
+    public ResponseEntity<PageResponse<CinemaMovieReviewResponse>> findAll(
             @Parameter(description = "爬蟲類型") @RequestParam(required = false) CinemaResourceType crawlerType,
 
             @Parameter(description = "審查狀態") @RequestParam(required = false) ReviewStatus reviewStatus,
 
-            @Parameter(description = "排序欄位") @RequestParam(defaultValue = "CRAWLER_REVIEW_ID") CinemaMovieCrawlerReviewSort.SortBy orderBy,
+            @Parameter(description = "排序欄位") @RequestParam(defaultValue = "CINEMA_MOVIE_REVIEW_ID") CinemaMovieReviewSort.SortBy orderBy,
 
             @Parameter(description = "排序方向") @RequestParam(defaultValue = "ASC") SortOrder sort,
 
@@ -53,7 +51,7 @@ public class CinemaMovieCrawlerReviewsController {
             @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "20") int size) {
 
         return ResponseEntity.ok(
-                crawlerReviewsService.findAll(
+                cinemaMovieReviewsService.findAll(
                         crawlerType,
                         reviewStatus,
                         page,
@@ -64,27 +62,22 @@ public class CinemaMovieCrawlerReviewsController {
 
     @PostMapping("")
     @Operation(summary = "新增爬蟲審核")
-    public ResponseEntity<CinemaMovieCrawlerReviewResponse> createCrawlerReview(
+    public ResponseEntity<CinemaMovieReviewResponse> createCinemaMovieReview(
             @Validated({ Default.class,
-                    CinemaMovieCrawlerReviewRequest.OnCreate.class }) @RequestBody CinemaMovieCrawlerReviewRequest request) {
+                    CinemaMovieReviewRequest.OnCreate.class }) @RequestBody CinemaMovieReviewRequest request) {
 
-        return ResponseEntity.ok(crawlerReviewsService.createCrawlerReview(request));
+        return ResponseEntity.ok(cinemaMovieReviewsService.createCinemaMovieReview(request));
     }
 
-    @PatchMapping("/{id}")
-    @Operation(summary = "修改爬蟲審核")
-    public ResponseEntity<CinemaMovieCrawlerReviewResponse> updateCrawlerReview(
-            @PathVariable Integer id,
-            @Valid @RequestBody CinemaMovieCrawlerReviewRequest request) {
-
-        return ResponseEntity.ok(crawlerReviewsService.updateCrawlerReview(id, request));
+    @PatchMapping("/{id}/approve")
+    @Operation(summary = "審核通過", description = "僅待審核可通過。通過後爬蟲值寫入正式影城或電影；已審核則回傳你已審核過")
+    public ResponseEntity<CinemaMovieReviewResponse> approveCinemaMovieReview(@PathVariable Integer id) {
+        return ResponseEntity.ok(cinemaMovieReviewsService.approveCinemaMovieReview(id));
     }
 
-    @DeleteMapping("/{id}")
-    @Operation(summary = "刪除爬蟲審核")
-    public ResponseEntity<Void> deleteCrawlerReview(@PathVariable Integer id) {
-        crawlerReviewsService.deleteCrawlerReview(id);
-
-        return ResponseEntity.noContent().build();
+    @PatchMapping("/{id}/reject")
+    @Operation(summary = "審核拒絕", description = "僅待審核可拒絕。只把狀態改成 REJECTED，不寫入正式影城或電影")
+    public ResponseEntity<CinemaMovieReviewResponse> rejectCinemaMovieReview(@PathVariable Integer id) {
+        return ResponseEntity.ok(cinemaMovieReviewsService.rejectCinemaMovieReview(id));
     }
 }

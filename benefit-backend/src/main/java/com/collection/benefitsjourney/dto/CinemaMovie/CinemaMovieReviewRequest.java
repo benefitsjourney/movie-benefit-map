@@ -10,7 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-public record CinemaMovieCrawlerReviewRequest(
+public record CinemaMovieReviewRequest(
 
         @NotNull(groups = OnCreate.class, message = "爬蟲類型不能為空") CinemaResourceType crawlerType,
 

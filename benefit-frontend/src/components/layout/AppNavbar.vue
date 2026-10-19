@@ -517,19 +517,6 @@ button.nav-pill {
     display: flex;
     flex-wrap: wrap;
   }
-
-  .nav-dropdown {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .nav-dropdown-menu {
-    position: static;
-    min-width: 0;
-    margin: 0 0.35rem 0.25rem;
-    box-shadow: none;
-  }
 }
 
 @keyframes twinkle {

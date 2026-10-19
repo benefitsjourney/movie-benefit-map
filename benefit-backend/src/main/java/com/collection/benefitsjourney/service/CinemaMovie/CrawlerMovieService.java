@@ -83,14 +83,14 @@ public class CrawlerMovieService {
     }
 
     private final MovieService movieService;
-    private final CinemaMovieCrawlerReviewsService crawlerReviewsService;
+    private final CinemaMovieReviewsService cinemaMovieReviewsService;
     private final JdbcTemplate jdbcTemplate;
 
     public CrawlerMovieService(MovieService movieService,
-            CinemaMovieCrawlerReviewsService crawlerReviewsService,
+            CinemaMovieReviewsService cinemaMovieReviewsService,
             JdbcTemplate jdbcTemplate) {
         this.movieService = movieService;
-        this.crawlerReviewsService = crawlerReviewsService;
+        this.cinemaMovieReviewsService = cinemaMovieReviewsService;
         this.jdbcTemplate = jdbcTemplate;
     }
 
@@ -362,22 +362,22 @@ public class CrawlerMovieService {
     private boolean submitDuplicateReview(MovieInfo info, StoredMovie duplicate) {
         log.warn("同名電影待審核：{}，現有sourceId={}，新sourceId={}",
                 info.movieName(), duplicate.sourceId(), info.sourceId());
-        return crawlerReviewsService.submitCrawlerChange(CinemaResourceType.MOVIE, duplicate.id(),
-                CinemaMovieCrawlerReviewsService.SOURCE_ID, info.sourceId(), duplicate.sourceId());
+        return cinemaMovieReviewsService.submitCrawlerChange(CinemaResourceType.MOVIE, duplicate.id(),
+                CinemaMovieReviewsService.SOURCE_ID, info.sourceId(), duplicate.sourceId());
     }
 
     private int reviewExisting(MovieInfo info, MovieResponse existing) {
         int reviewed = 0;
         if (!sameTitleIgnoringEdition(info.movieName(), existing.movieName())
-                && reviewField(existing.movieId(), CinemaMovieCrawlerReviewsService.MOVIE_NAME,
+                && reviewField(existing.movieId(), CinemaMovieReviewsService.MOVIE_NAME,
                         info.movieName(), existing.movieName())) {
             reviewed++;
         }
-        if (reviewField(existing.movieId(), CinemaMovieCrawlerReviewsService.IMAGE_URL,
+        if (reviewField(existing.movieId(), CinemaMovieReviewsService.IMAGE_URL,
                 info.imageUrl(), existing.imageUrl())) {
             reviewed++;
         }
-        if (reviewField(existing.movieId(), CinemaMovieCrawlerReviewsService.RELEASE_DATE,
+        if (reviewField(existing.movieId(), CinemaMovieReviewsService.RELEASE_DATE,
                 info.releaseDate(), existing.releaseDate())) {
             reviewed++;
         }
@@ -387,11 +387,11 @@ public class CrawlerMovieService {
     private boolean reviewField(Integer id, String field, Object crawled, Object current) {
         if (crawled == null)
             return false;
-        String after = CinemaMovieCrawlerReviewsService.formatValue(crawled);
-        String before = CinemaMovieCrawlerReviewsService.formatValue(current);
+        String after = CinemaMovieReviewsService.formatValue(crawled);
+        String before = CinemaMovieReviewsService.formatValue(current);
         if (Objects.equals(after, before))
             return false;
-        return crawlerReviewsService.submitCrawlerChange(CinemaResourceType.MOVIE, id, field, after, before);
+        return cinemaMovieReviewsService.submitCrawlerChange(CinemaResourceType.MOVIE, id, field, after, before);
     }
 
     private static long elapsedSeconds(long started) {

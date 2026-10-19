@@ -75,20 +75,20 @@ class CrawlerCinemaServiceTest {
     private CinemaService cinemaService;
 
     @Mock
-    private CinemaMovieCrawlerReviewsService crawlerReviewsService;
+    private CinemaMovieReviewsService cinemaMovieReviewsService;
 
-    private CrawlerCinemaService crawler;
+    private CrawlerCinemaService crawlerCinemaService;
     private Logger logger;
     private ListAppender<ILoggingEvent> logs;
 
     @BeforeEach
     void setUp() {
-        crawler = spy(new CrawlerCinemaService(cinemaService, crawlerReviewsService));
+        crawlerCinemaService = spy(new CrawlerCinemaService(cinemaService, cinemaMovieReviewsService));
         logger = (Logger) LoggerFactory.getLogger(CrawlerCinemaService.class);
         logs = new ListAppender<>();
         logs.start();
         logger.addAppender(logs);
-        lenient().when(crawlerReviewsService.submitCrawlerChange(any(), any(), any(), any(), any()))
+        lenient().when(cinemaMovieReviewsService.submitCrawlerChange(any(), any(), any(), any(), any()))
                 .thenReturn(true);
     }
 
@@ -130,20 +130,20 @@ class CrawlerCinemaServiceTest {
     }
 
     private void index(String html) throws IOException {
-        doReturn(page(INDEX, html)).when(crawler).connect(INDEX);
+        doReturn(page(INDEX, html)).when(crawlerCinemaService).connect(INDEX);
     }
 
     private void area(String url, String html) throws IOException {
-        doReturn(page(url, html)).when(crawler).connect(url);
+        doReturn(page(url, html)).when(crawlerCinemaService).connect(url);
     }
 
     private void map(String url, String html) throws IOException {
-        doReturn(page(url, html)).when(crawler).connect(url);
+        doReturn(page(url, html)).when(crawlerCinemaService).connect(url);
     }
 
     /** 預期不會打到的地圖頁。若真的被呼叫，後續 verify(never) 會失敗。 */
     private void mapNotExpected(String url) throws IOException {
-        lenient().doReturn(page(url, "<p>不應被讀取</p>")).when(crawler).connect(url);
+        lenient().doReturn(page(url, "<p>不應被讀取</p>")).when(crawlerCinemaService).connect(url);
     }
 
     private void oneArea() throws IOException {
@@ -194,7 +194,7 @@ class CrawlerCinemaServiceTest {
             CinemaResponse saved = saved(100, "t02a01", "信義威秀");
             when(cinemaService.createCinema(any(CinemaRequest.class))).thenReturn(saved);
 
-            CinemaMovieCrawlerSyncResult<CinemaResponse> result = crawler.syncCinemas();
+            CinemaMovieCrawlerSyncResult<CinemaResponse> result = crawlerCinemaService.syncCinemas();
 
             assertEquals(List.of(saved), result.items());
             assertSummary(result, 1, 1, 0, 0, 0);
@@ -225,17 +225,17 @@ class CrawlerCinemaServiceTest {
             CinemaResponse existing = saved(100, "t02a01", "舊名稱");
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(existing));
 
-            CinemaMovieCrawlerSyncResult<CinemaResponse> result = crawler.syncCinemas();
+            CinemaMovieCrawlerSyncResult<CinemaResponse> result = crawlerCinemaService.syncCinemas();
 
             assertEquals(List.of(existing), result.items());
             assertSummary(result, 1, 0, 0, 1, 1);
-            verify(crawlerReviewsService).submitCrawlerChange(
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
                     CinemaResourceType.CINEMA,
                     100,
-                    CinemaMovieCrawlerReviewsService.CINEMA_NAME,
+                    CinemaMovieReviewsService.CINEMA_NAME,
                     "信義威秀新名稱",
                     "舊名稱");
-            verifyNoMoreInteractions(crawlerReviewsService);
+            verifyNoMoreInteractions(cinemaMovieReviewsService);
             verify(cinemaService, never()).updateCinema(anyInt(), any());
             verify(cinemaService, never()).createCinema(any());
         }
@@ -252,11 +252,11 @@ class CrawlerCinemaServiceTest {
                     "25.0000000", "121.0000000", "https://www.example.com/");
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(existing));
 
-            assertEquals(List.of(existing), crawler.syncCinemas().items());
-            assertEquals(List.of(existing), crawler.syncCinemas(false).items());
+            assertEquals(List.of(existing), crawlerCinemaService.syncCinemas().items());
+            assertEquals(List.of(existing), crawlerCinemaService.syncCinemas(false).items());
 
-            verify(crawler, never()).connect(MAP_01);
-            verifyNoInteractions(crawlerReviewsService);
+            verify(crawlerCinemaService, never()).connect(MAP_01);
+            verifyNoInteractions(cinemaMovieReviewsService);
             verify(cinemaService, never()).createCinema(any());
             verify(cinemaService, never()).updateCinema(anyInt(), any());
         }
@@ -273,18 +273,18 @@ class CrawlerCinemaServiceTest {
                     "25.0000000", "121.0000000", "https://www.example.com/");
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(existing));
 
-            CinemaMovieCrawlerSyncResult<CinemaResponse> result = crawler.syncCinemas(true);
+            CinemaMovieCrawlerSyncResult<CinemaResponse> result = crawlerCinemaService.syncCinemas(true);
             assertEquals(List.of(existing), result.items());
             assertSummary(result, 1, 0, 0, 1, 2);
 
-            verify(crawler).connect(MAP_01);
-            verify(crawlerReviewsService).submitCrawlerChange(
-                    CinemaResourceType.CINEMA, 100, CinemaMovieCrawlerReviewsService.LATITUDE,
+            verify(crawlerCinemaService).connect(MAP_01);
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
+                    CinemaResourceType.CINEMA, 100, CinemaMovieReviewsService.LATITUDE,
                     "25.0356840", "25.0000000");
-            verify(crawlerReviewsService).submitCrawlerChange(
-                    CinemaResourceType.CINEMA, 100, CinemaMovieCrawlerReviewsService.LONGITUDE,
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
+                    CinemaResourceType.CINEMA, 100, CinemaMovieReviewsService.LONGITUDE,
                     "121.5665420", "121.0000000");
-            verifyNoMoreInteractions(crawlerReviewsService);
+            verifyNoMoreInteractions(cinemaMovieReviewsService);
             verify(cinemaService, never()).createCinema(any());
             verify(cinemaService, never()).updateCinema(anyInt(), any());
         }
@@ -301,9 +301,9 @@ class CrawlerCinemaServiceTest {
                     "25.0356840", "121.5665420", "https://www.example.com/");
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(existing));
 
-            assertEquals(List.of(existing), crawler.syncCinemas(true).items());
-            verify(crawler).connect(MAP_01);
-            verifyNoInteractions(crawlerReviewsService);
+            assertEquals(List.of(existing), crawlerCinemaService.syncCinemas(true).items());
+            verify(crawlerCinemaService).connect(MAP_01);
+            verifyNoInteractions(cinemaMovieReviewsService);
         }
 
         @Test
@@ -318,15 +318,15 @@ class CrawlerCinemaServiceTest {
                     "25.0356840", null, "https://www.example.com/");
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(existing));
 
-            assertEquals(List.of(existing), crawler.syncCinemas().items());
+            assertEquals(List.of(existing), crawlerCinemaService.syncCinemas().items());
 
-            verify(crawler).connect(MAP_01);
-            verify(crawlerReviewsService).submitCrawlerChange(
-                    CinemaResourceType.CINEMA, 100, CinemaMovieCrawlerReviewsService.LONGITUDE,
+            verify(crawlerCinemaService).connect(MAP_01);
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
+                    CinemaResourceType.CINEMA, 100, CinemaMovieReviewsService.LONGITUDE,
                     "121.5665420", null);
-            verify(crawlerReviewsService, never()).submitCrawlerChange(
-                    any(), any(), eq(CinemaMovieCrawlerReviewsService.LATITUDE), any(), any());
-            verifyNoMoreInteractions(crawlerReviewsService);
+            verify(cinemaMovieReviewsService, never()).submitCrawlerChange(
+                    any(), any(), eq(CinemaMovieReviewsService.LATITUDE), any(), any());
+            verifyNoMoreInteractions(cinemaMovieReviewsService);
         }
 
         @Test
@@ -347,11 +347,11 @@ class CrawlerCinemaServiceTest {
             when(cinemaService.createCinema(any(CinemaRequest.class)))
                     .thenReturn(saved(200, "t02a02", "第二間影城"));
 
-            List<CinemaResponse> result = crawler.syncCinemas().items();
+            List<CinemaResponse> result = crawlerCinemaService.syncCinemas().items();
 
             assertEquals(2, result.size());
-            verify(crawler, never()).connect(MAP_01);
-            verify(crawler).connect(MAP_02);
+            verify(crawlerCinemaService, never()).connect(MAP_01);
+            verify(crawlerCinemaService).connect(MAP_02);
 
             ArgumentCaptor<CinemaRequest> captor = ArgumentCaptor.forClass(CinemaRequest.class);
             verify(cinemaService).createCinema(captor.capture());
@@ -380,13 +380,13 @@ class CrawlerCinemaServiceTest {
             when(cinemaService.createCinema(any(CinemaRequest.class)))
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
-            List<CinemaResponse> result = crawler.syncCinemas().items();
+            List<CinemaResponse> result = crawlerCinemaService.syncCinemas().items();
 
             assertEquals(1, result.size());
             verify(cinemaService).findBySourceId("t02a01");
             verify(cinemaService).createCinema(any(CinemaRequest.class));
-            verify(crawler, never()).connect(MAP_02);
-            verify(crawler, never()).connect(MAP_03);
+            verify(crawlerCinemaService, never()).connect(MAP_02);
+            verify(crawlerCinemaService, never()).connect(MAP_03);
         }
 
         @Test
@@ -394,13 +394,13 @@ class CrawlerCinemaServiceTest {
         void mapUnavailable() throws Exception {
             oneArea();
             area(AREA_01, cinemaHtml("t02a01", "信義威秀", "台北市信義區松壽路20號"));
-            doThrow(new IOException("map unavailable")).when(crawler).connect(MAP_01);
+            doThrow(new IOException("map unavailable")).when(crawlerCinemaService).connect(MAP_01);
 
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.empty());
             when(cinemaService.createCinema(any(CinemaRequest.class)))
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
-            assertEquals(1, crawler.syncCinemas().items().size());
+            assertEquals(1, crawlerCinemaService.syncCinemas().items().size());
 
             ArgumentCaptor<CinemaRequest> captor = ArgumentCaptor.forClass(CinemaRequest.class);
             verify(cinemaService).createCinema(captor.capture());
@@ -428,7 +428,7 @@ class CrawlerCinemaServiceTest {
                         return saved(100, "t02a01", "信義威秀");
                     });
 
-            CinemaMovieCrawlerSyncResult<CinemaResponse> result = crawler.syncCinemas();
+            CinemaMovieCrawlerSyncResult<CinemaResponse> result = crawlerCinemaService.syncCinemas();
 
             assertEquals(1, result.items().size());
             assertEquals("t02a01", result.items().get(0).sourceId());
@@ -459,7 +459,7 @@ class CrawlerCinemaServiceTest {
                         return saved(100, request.sourceId(), request.cinemaName());
                     });
 
-            assertEquals(5, crawler.syncCinemas().items().size());
+            assertEquals(5, crawlerCinemaService.syncCinemas().items().size());
 
             ArgumentCaptor<CinemaRequest> captor = ArgumentCaptor.forClass(CinemaRequest.class);
             verify(cinemaService, times(5)).createCinema(captor.capture());
@@ -489,9 +489,9 @@ class CrawlerCinemaServiceTest {
             when(cinemaService.createCinema(any(CinemaRequest.class)))
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
-            assertEquals(1, crawler.syncCinemas().items().size());
-            verify(crawler, never()).connect(INDEX + "a1/");
-            verify(crawler, never()).connect(INDEX + "about/");
+            assertEquals(1, crawlerCinemaService.syncCinemas().items().size());
+            verify(crawlerCinemaService, never()).connect(INDEX + "a1/");
+            verify(crawlerCinemaService, never()).connect(INDEX + "about/");
         }
 
         @Test
@@ -509,7 +509,7 @@ class CrawlerCinemaServiceTest {
             when(cinemaService.createCinema(any(CinemaRequest.class)))
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
-            assertEquals(1, crawler.syncCinemas().items().size());
+            assertEquals(1, crawlerCinemaService.syncCinemas().items().size());
             verify(cinemaService).findBySourceId("t02a01");
             verify(cinemaService).createCinema(any(CinemaRequest.class));
         }
@@ -525,7 +525,7 @@ class CrawlerCinemaServiceTest {
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
             ArgumentCaptor<CinemaRequest> captor = ArgumentCaptor.forClass(CinemaRequest.class);
-            assertEquals(1, crawler.syncCinemas().items().size());
+            assertEquals(1, crawlerCinemaService.syncCinemas().items().size());
             verify(cinemaService).createCinema(captor.capture());
             assertEquals(0, new BigDecimal("25.0356842").compareTo(captor.getValue().latitude()));
             assertEquals(0, new BigDecimal("121.5665416").compareTo(captor.getValue().longitude()));
@@ -542,7 +542,7 @@ class CrawlerCinemaServiceTest {
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
             ArgumentCaptor<CinemaRequest> captor = ArgumentCaptor.forClass(CinemaRequest.class);
-            assertEquals(1, crawler.syncCinemas().items().size());
+            assertEquals(1, crawlerCinemaService.syncCinemas().items().size());
             verify(cinemaService).createCinema(captor.capture());
             assertNull(captor.getValue().latitude());
             assertNull(captor.getValue().longitude());
@@ -554,13 +554,13 @@ class CrawlerCinemaServiceTest {
             oneArea();
             area(AREA_01, cinemaHtml("t02a01", "信義威秀", "台北市信義區松壽路20號"));
             doThrow(new HttpStatusException("map failed", 404, MAP_01))
-                    .when(crawler).connect(MAP_01);
+                    .when(crawlerCinemaService).connect(MAP_01);
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.empty());
             when(cinemaService.createCinema(any(CinemaRequest.class)))
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
             ArgumentCaptor<CinemaRequest> captor = ArgumentCaptor.forClass(CinemaRequest.class);
-            assertEquals(1, crawler.syncCinemas().items().size());
+            assertEquals(1, crawlerCinemaService.syncCinemas().items().size());
             verify(cinemaService).createCinema(captor.capture());
             assertNull(captor.getValue().latitude());
             assertNull(captor.getValue().longitude());
@@ -596,34 +596,34 @@ class CrawlerCinemaServiceTest {
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(taipei));
             when(cinemaService.findBySourceId("t02a02")).thenReturn(Optional.of(unknown));
 
-            CinemaMovieCrawlerSyncResult<CinemaResponse> result = crawler.syncCinemas();
+            CinemaMovieCrawlerSyncResult<CinemaResponse> result = crawlerCinemaService.syncCinemas();
 
             assertEquals(2, result.items().size());
             assertSummary(result, 2, 0, 0, 2, 4);
-            verify(crawler, never()).connect(MAP_01);
-            verify(crawler).connect(MAP_02);
-            verify(crawlerReviewsService).submitCrawlerChange(
+            verify(crawlerCinemaService, never()).connect(MAP_01);
+            verify(crawlerCinemaService).connect(MAP_02);
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
                     CinemaResourceType.CINEMA,
-                    100, CinemaMovieCrawlerReviewsService.CINEMA_ADDRESS,
+                    100, CinemaMovieReviewsService.CINEMA_ADDRESS,
                     "臺北市信義區松壽路20號", "新北市板橋區文化路1號");
-            verify(crawlerReviewsService).submitCrawlerChange(
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
                     CinemaResourceType.CINEMA,
-                    100, CinemaMovieCrawlerReviewsService.COUNTY,
+                    100, CinemaMovieReviewsService.COUNTY,
                     County.TAIPEI.name(), County.NEW_TAIPEI.name());
-            verify(crawlerReviewsService).submitCrawlerChange(
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
                     CinemaResourceType.CINEMA,
-                    200, CinemaMovieCrawlerReviewsService.CINEMA_ADDRESS,
+                    200, CinemaMovieReviewsService.CINEMA_ADDRESS,
                     "海外市中心1號", "台北市中正區重慶南路1號");
-            verify(crawlerReviewsService).submitCrawlerChange(
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
                     CinemaResourceType.CINEMA,
-                    200, CinemaMovieCrawlerReviewsService.OFFICIAL_WEBSITE_URL,
+                    200, CinemaMovieReviewsService.OFFICIAL_WEBSITE_URL,
                     "https://www.other.example/", "https://www.old.example/");
-            verify(crawlerReviewsService, never()).submitCrawlerChange(
-                    any(), eq(100), eq(CinemaMovieCrawlerReviewsService.LATITUDE), any(), any());
-            verify(crawlerReviewsService, never()).submitCrawlerChange(
-                    any(), eq(100), eq(CinemaMovieCrawlerReviewsService.LONGITUDE), any(), any());
-            verify(crawlerReviewsService, never()).submitCrawlerChange(
-                    any(), eq(200), eq(CinemaMovieCrawlerReviewsService.COUNTY), any(), any());
+            verify(cinemaMovieReviewsService, never()).submitCrawlerChange(
+                    any(), eq(100), eq(CinemaMovieReviewsService.LATITUDE), any(), any());
+            verify(cinemaMovieReviewsService, never()).submitCrawlerChange(
+                    any(), eq(100), eq(CinemaMovieReviewsService.LONGITUDE), any(), any());
+            verify(cinemaMovieReviewsService, never()).submitCrawlerChange(
+                    any(), eq(200), eq(CinemaMovieReviewsService.COUNTY), any(), any());
             verify(cinemaService, never()).updateCinema(anyInt(), any());
             verify(cinemaService, never()).createCinema(any());
         }
@@ -641,8 +641,8 @@ class CrawlerCinemaServiceTest {
             CinemaResponse existing = saved(100, "t02a01", "信義威秀");
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(existing));
 
-            assertEquals(List.of(existing), crawler.syncCinemas().items());
-            verifyNoInteractions(crawlerReviewsService);
+            assertEquals(List.of(existing), crawlerCinemaService.syncCinemas().items());
+            verifyNoInteractions(cinemaMovieReviewsService);
             verify(cinemaService, never()).updateCinema(anyInt(), any());
             verify(cinemaService, never()).createCinema(any());
         }
@@ -658,7 +658,7 @@ class CrawlerCinemaServiceTest {
             index("<div>來源網站版型更改</div>");
 
             ResponseStatusException error = assertThrows(
-                    ResponseStatusException.class, crawler::syncCinemas);
+                    ResponseStatusException.class, crawlerCinemaService::syncCinemas);
 
             assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode());
             assertEquals("找不到影城縣市資料，來源網站結構可能已變更", error.getReason());
@@ -673,7 +673,7 @@ class CrawlerCinemaServiceTest {
             area(AREA_01, "<a href='/showtime/t02a01/'>網路訂票</a>");
 
             ResponseStatusException error = assertThrows(
-                    ResponseStatusException.class, crawler::syncCinemas);
+                    ResponseStatusException.class, crawlerCinemaService::syncCinemas);
 
             assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode());
             assertEquals("未取得任何影城資料，來源網站可能異常", error.getReason());
@@ -683,10 +683,10 @@ class CrawlerCinemaServiceTest {
         @Test
         @DisplayName("首頁 IOException 應轉成 502")
         void indexConnectionFailed() throws Exception {
-            doThrow(new IOException("timeout")).when(crawler).connect(INDEX);
+            doThrow(new IOException("timeout")).when(crawlerCinemaService).connect(INDEX);
 
             ResponseStatusException error = assertThrows(
-                    ResponseStatusException.class, crawler::syncCinemas);
+                    ResponseStatusException.class, crawlerCinemaService::syncCinemas);
 
             assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode());
             assertEquals("無法連線至影城來源網站", error.getReason());
@@ -698,10 +698,10 @@ class CrawlerCinemaServiceTest {
         @DisplayName("首頁來源網站回傳 HTTP 錯誤應轉成 502")
         void indexHttpStatusError() throws Exception {
             doThrow(new HttpStatusException("upstream failed", 503, INDEX))
-                    .when(crawler).connect(INDEX);
+                    .when(crawlerCinemaService).connect(INDEX);
 
             ResponseStatusException error = assertThrows(
-                    ResponseStatusException.class, crawler::syncCinemas);
+                    ResponseStatusException.class, crawlerCinemaService::syncCinemas);
 
             assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode());
             assertEquals("影城來源網站連線異常", error.getReason());
@@ -712,10 +712,10 @@ class CrawlerCinemaServiceTest {
         @DisplayName("縣市頁連線失敗且沒有影城時應回傳 502")
         void areaConnectionFailed() throws Exception {
             oneArea();
-            doThrow(new IOException("area unavailable")).when(crawler).connect(AREA_01);
+            doThrow(new IOException("area unavailable")).when(crawlerCinemaService).connect(AREA_01);
 
             ResponseStatusException error = assertThrows(
-                    ResponseStatusException.class, crawler::syncCinemas);
+                    ResponseStatusException.class, crawlerCinemaService::syncCinemas);
 
             assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode());
             assertEquals("未取得任何影城資料，來源網站可能異常", error.getReason());
@@ -733,7 +733,7 @@ class CrawlerCinemaServiceTest {
                     .thenThrow(new DataIntegrityViolationException("duplicate"));
 
             ResponseStatusException error = assertThrows(
-                    ResponseStatusException.class, crawler::syncCinemas);
+                    ResponseStatusException.class, crawlerCinemaService::syncCinemas);
 
             assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, error.getStatusCode());
             assertEquals("影城資料抓取成功，但寫入資料庫失敗", error.getReason());
@@ -747,13 +747,13 @@ class CrawlerCinemaServiceTest {
                     <a href='/showtime/a02/'>新北</a>
                     """);
             area(AREA_01, cinemaHtml("t02a01", "信義威秀", "台北市信義區松壽路20號"));
-            doThrow(new IOException("failed")).when(crawler).connect(AREA_02);
+            doThrow(new IOException("failed")).when(crawlerCinemaService).connect(AREA_02);
             map(MAP_01, "<p>無座標</p>");
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.empty());
             when(cinemaService.createCinema(any(CinemaRequest.class)))
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
-            List<CinemaResponse> result = crawler.syncCinemas().items();
+            List<CinemaResponse> result = crawlerCinemaService.syncCinemas().items();
 
             assertEquals(1, result.size());
             assertTrue(result.stream().anyMatch(c -> "t02a01".equals(c.sourceId())));
@@ -768,13 +768,13 @@ class CrawlerCinemaServiceTest {
                     """);
             area(AREA_01, cinemaHtml("t02a01", "信義威秀", "台北市信義區松壽路20號"));
             doThrow(new HttpStatusException("area failed", 503, AREA_02))
-                    .when(crawler).connect(AREA_02);
+                    .when(crawlerCinemaService).connect(AREA_02);
             map(MAP_01, "<p>無座標</p>");
             when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.empty());
             when(cinemaService.createCinema(any(CinemaRequest.class)))
                     .thenReturn(saved(100, "t02a01", "信義威秀"));
 
-            List<CinemaResponse> result = crawler.syncCinemas().items();
+            List<CinemaResponse> result = crawlerCinemaService.syncCinemas().items();
 
             assertEquals(1, result.size());
             assertEquals("t02a01", result.get(0).sourceId());

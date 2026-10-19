@@ -18,23 +18,21 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.collection.benefitsjourney.domain.CinemaMovieCrawlerReviewBean;
+import com.collection.benefitsjourney.domain.CinemaMovieReviewBean;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaRequest;
-import com.collection.benefitsjourney.dto.CinemaMovie.CinemaResponse;
-import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieCrawlerReviewRequest;
-import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieCrawlerReviewResponse;
+import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieReviewRequest;
+import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieReviewResponse;
 import com.collection.benefitsjourney.dto.CinemaMovie.MovieRequest;
-import com.collection.benefitsjourney.dto.CinemaMovie.MovieResponse;
 import com.collection.benefitsjourney.dto.PageResponse;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaResourceType;
-import com.collection.benefitsjourney.repository.CinemaMovieCrawlerReviewsRepository;
+import com.collection.benefitsjourney.repository.CinemaMovieReviewsRepository;
 import com.collection.benefitsjourney.enums.County;
-import com.collection.benefitsjourney.enums.CinemaMovie.CinemaMovieCrawlerReviewSort;
+import com.collection.benefitsjourney.enums.CinemaMovie.CinemaMovieReviewSort;
 import com.collection.benefitsjourney.enums.ReviewStatus;
 import com.collection.benefitsjourney.enums.SortOrder;
 
 @Service
-public class CinemaMovieCrawlerReviewsService {
+public class CinemaMovieReviewsService {
     public static final String CINEMA_NAME = "cinema_name";
     public static final String CINEMA_ADDRESS = "cinema_address";
     public static final String COUNTY = "county";
@@ -51,26 +49,26 @@ public class CinemaMovieCrawlerReviewsService {
 
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    private final CinemaMovieCrawlerReviewsRepository crawlerReviewsRepository;
+    private final CinemaMovieReviewsRepository cinemaMovieReviewsRepository;
     private final CinemaService cinemaService;
     private final MovieService movieService;
 
-    public CinemaMovieCrawlerReviewsService(
-            CinemaMovieCrawlerReviewsRepository crawlerReviewsRepository,
+    public CinemaMovieReviewsService(
+            CinemaMovieReviewsRepository cinemaMovieReviewsRepository,
             CinemaService cinemaService,
             MovieService movieService) {
-        this.crawlerReviewsRepository = crawlerReviewsRepository;
+        this.cinemaMovieReviewsRepository = cinemaMovieReviewsRepository;
         this.cinemaService = cinemaService;
         this.movieService = movieService;
     }
 
     /** 依條件查詢爬蟲審核 */
-    public PageResponse<CinemaMovieCrawlerReviewResponse> findAll(
+    public PageResponse<CinemaMovieReviewResponse> findAll(
             CinemaResourceType crawlerType,
             ReviewStatus reviewStatus,
             int page,
             int size,
-            CinemaMovieCrawlerReviewSort.SortBy orderBy,
+            CinemaMovieReviewSort.SortBy orderBy,
             SortOrder sort) {
 
         Sort.Direction direction = sort == SortOrder.DESC
@@ -80,19 +78,19 @@ public class CinemaMovieCrawlerReviewsService {
         Sort order = Sort.by(direction, orderBy.getProperty());
 
         // 相同排序值以審核 ID 排序
-        if (orderBy != CinemaMovieCrawlerReviewSort.SortBy.CRAWLER_REVIEW_ID) {
+        if (orderBy != CinemaMovieReviewSort.SortBy.CINEMA_MOVIE_REVIEW_ID) {
             order = order.and(Sort.by(
                     Sort.Direction.ASC,
-                    TypedPropertyPath.path((CinemaMovieCrawlerReviewBean review) -> review.getCrawlerReviewId())));
+                    TypedPropertyPath.path((CinemaMovieReviewBean review) -> review.getCinemaMovieReviewId())));
         }
 
         PageRequest pageable = PageRequest.of(page - 1, size, order);
 
-        Page<CinemaMovieCrawlerReviewResponse> result = crawlerReviewsRepository.findAllByFilters(
+        Page<CinemaMovieReviewResponse> result = cinemaMovieReviewsRepository.findAllByFilters(
                 crawlerType,
                 reviewStatus,
                 pageable)
-                .map(CinemaMovieCrawlerReviewResponse::from);
+                .map(CinemaMovieReviewResponse::from);
 
         return PageResponse.from(result);
     }
@@ -111,7 +109,7 @@ public class CinemaMovieCrawlerReviewsService {
 
     /** 新增待審核資料 */
     @Transactional
-    public CinemaMovieCrawlerReviewResponse createCrawlerReview(CinemaMovieCrawlerReviewRequest request) {
+    public CinemaMovieReviewResponse createCinemaMovieReview(CinemaMovieReviewRequest request) {
         if (request == null) {
             throw badRequest("請求內容不可為空");
         }
@@ -144,39 +142,58 @@ public class CinemaMovieCrawlerReviewsService {
                 request.fieldName().trim(),
                 request.crawlerValue(),
                 request.previousValue())
-                .map(CinemaMovieCrawlerReviewResponse::from)
+                .map(CinemaMovieReviewResponse::from)
                 .orElseThrow(() -> badRequest("已有相同差異的審核紀錄，不重複新增"));
     }
 
-    /** 審核差異；電影來源ID衝突僅確認重複，不覆蓋來源 */
+    /** 審核通過：待審核寫入正式資料；已審核則拒絕 */
     @Transactional
-    public CinemaMovieCrawlerReviewResponse updateCrawlerReview(Integer id, CinemaMovieCrawlerReviewRequest request) {
-        if (request == null) {
-            throw badRequest("請求內容不可為空");
-        }
-
-        if (request.reviewStatus() == null) {
-            throw badRequest("審查狀態不可為空");
-        }
-
-        CinemaMovieCrawlerReviewBean review = crawlerReviewsRepository.findById(id)
+    public CinemaMovieReviewResponse approveCinemaMovieReview(Integer id) {
+        CinemaMovieReviewBean review = cinemaMovieReviewsRepository.findById(id)
                 .orElseThrow(() -> notFound("找不到爬蟲審核ID：" + id));
 
-        return switch (request.reviewStatus()) {
-            case APPROVED -> CinemaMovieCrawlerReviewResponse.from(approve(review));
-            case REJECTED -> CinemaMovieCrawlerReviewResponse.from(reject(review));
-            case PENDING -> CinemaMovieCrawlerReviewResponse.from(reopen(review));
-        };
-    }
-
-    /** 刪除爬蟲審核 */
-    @Transactional
-    public void deleteCrawlerReview(Integer id) {
-        if (!crawlerReviewsRepository.existsById(id)) {
-            throw notFound("找不到爬蟲審核ID：" + id);
+        if (review.getReviewStatus() != ReviewStatus.PENDING) {
+            throw badRequest("你已審核過");
         }
 
-        crawlerReviewsRepository.deleteById(id);
+        // 來源衝突只確認重複，不修改電影
+        if (review.getCrawlerType() == CinemaResourceType.MOVIE
+                && SOURCE_ID.equals(review.getFieldName())) {
+            requireText(review.getCrawlerValue());
+            movieService.findById(review.getEntityId());
+        } else {
+            try {
+                switch (review.getCrawlerType()) {
+                    case CINEMA -> cinemaService.updateCinema(
+                            review.getEntityId(),
+                            cinemaRequest(review.getFieldName(), review.getCrawlerValue()));
+                    case MOVIE -> movieService.updateMovie(
+                            review.getEntityId(),
+                            movieRequest(review.getFieldName(), review.getCrawlerValue()));
+                }
+            } catch (IllegalArgumentException | DateTimeParseException exception) {
+                throw badRequest("爬蟲值無法寫入正式資料：" + review.getFieldName());
+            }
+        }
+
+        review.setReviewStatus(ReviewStatus.APPROVED);
+        review.setReviewedAt(LocalDateTime.now().withNano(0));
+        return CinemaMovieReviewResponse.from(cinemaMovieReviewsRepository.save(review));
+    }
+
+    /** 審核拒絕：只改成已拒絕，不寫入正式資料 */
+    @Transactional
+    public CinemaMovieReviewResponse rejectCinemaMovieReview(Integer id) {
+        CinemaMovieReviewBean review = cinemaMovieReviewsRepository.findById(id)
+                .orElseThrow(() -> notFound("找不到爬蟲審核ID：" + id));
+
+        if (review.getReviewStatus() != ReviewStatus.PENDING) {
+            throw badRequest("只有待審核資料可以拒絕");
+        }
+
+        review.setReviewStatus(ReviewStatus.REJECTED);
+        review.setReviewedAt(LocalDateTime.now().withNano(0));
+        return CinemaMovieReviewResponse.from(cinemaMovieReviewsRepository.save(review));
     }
 
     /** 統一欄位值格式 */
@@ -205,7 +222,7 @@ public class CinemaMovieCrawlerReviewsService {
         return value.toString();
     }
 
-    private Optional<CinemaMovieCrawlerReviewBean> saveCrawlerChange(
+    private Optional<CinemaMovieReviewBean> saveCrawlerChange(
             CinemaResourceType crawlerType,
             Integer entityId,
             String fieldName,
@@ -215,10 +232,10 @@ public class CinemaMovieCrawlerReviewsService {
             return Optional.empty();
         }
 
-        List<CinemaMovieCrawlerReviewBean> reviews = crawlerReviewsRepository
+        List<CinemaMovieReviewBean> reviews = cinemaMovieReviewsRepository
                 .findByCrawlerTypeAndEntityIdAndFieldName(crawlerType, entityId, fieldName);
 
-        CinemaMovieCrawlerReviewBean pending = reviews.stream()
+        CinemaMovieReviewBean pending = reviews.stream()
                 .filter(review -> review.getReviewStatus() == ReviewStatus.PENDING)
                 .findFirst()
                 .orElse(null);
@@ -230,7 +247,7 @@ public class CinemaMovieCrawlerReviewsService {
 
             pending.setCrawlerValue(crawlerValue);
             pending.setPreviousValue(previousValue);
-            return Optional.of(crawlerReviewsRepository.save(pending));
+            return Optional.of(cinemaMovieReviewsRepository.save(pending));
         }
 
         // 已拒絕或已確認的來源衝突不再送審
@@ -245,7 +262,7 @@ public class CinemaMovieCrawlerReviewsService {
             return Optional.empty();
         }
 
-        CinemaMovieCrawlerReviewBean review = new CinemaMovieCrawlerReviewBean();
+        CinemaMovieReviewBean review = new CinemaMovieReviewBean();
         review.setCrawlerType(crawlerType);
         review.setEntityId(entityId);
         review.setFieldName(fieldName);
@@ -253,98 +270,7 @@ public class CinemaMovieCrawlerReviewsService {
         review.setPreviousValue(previousValue);
         review.setReviewStatus(ReviewStatus.PENDING);
 
-        return Optional.of(crawlerReviewsRepository.save(review));
-    }
-
-    private CinemaMovieCrawlerReviewBean approve(CinemaMovieCrawlerReviewBean review) {
-        if (review.getReviewStatus() != ReviewStatus.PENDING) {
-            throw badRequest("只有待審核資料可以接受");
-        }
-
-        // 來源衝突只確認重複，不修改電影
-        if (isMovieSourceConflict(review)) {
-            requireText(review.getCrawlerValue());
-            movieService.findById(review.getEntityId()); // 確認被比對的既有電影仍存在
-        } else {
-            applyOfficialValue(review);
-        }
-        review.setReviewStatus(ReviewStatus.APPROVED);
-        review.setReviewedAt(now());
-        return crawlerReviewsRepository.save(review);
-    }
-
-    private CinemaMovieCrawlerReviewBean reject(CinemaMovieCrawlerReviewBean review) {
-        if (review.getReviewStatus() != ReviewStatus.PENDING) {
-            throw badRequest("只有待審核資料可以拒絕");
-        }
-
-        review.setReviewStatus(ReviewStatus.REJECTED);
-        review.setReviewedAt(now());
-        return crawlerReviewsRepository.save(review);
-    }
-
-    private CinemaMovieCrawlerReviewBean reopen(CinemaMovieCrawlerReviewBean review) {
-        if (review.getReviewStatus() == ReviewStatus.PENDING) {
-            throw badRequest("此資料已是待審核");
-        }
-
-        boolean hasPending = crawlerReviewsRepository
-                .findByCrawlerTypeAndEntityIdAndFieldName(
-                        review.getCrawlerType(),
-                        review.getEntityId(),
-                        review.getFieldName())
-                .stream()
-                .anyMatch(existing -> existing.getReviewStatus() == ReviewStatus.PENDING);
-
-        if (hasPending) {
-            throw badRequest("此欄位已有待審核資料");
-        }
-
-        String currentValue = currentOfficialValue(review);
-
-        if (Objects.equals(currentValue, review.getCrawlerValue())) {
-            throw badRequest("正式資料已與爬蟲值相同，無需重新審核");
-        }
-
-        CinemaMovieCrawlerReviewBean pending = new CinemaMovieCrawlerReviewBean();
-        pending.setCrawlerType(review.getCrawlerType());
-        pending.setEntityId(review.getEntityId());
-        pending.setFieldName(review.getFieldName());
-        pending.setCrawlerValue(review.getCrawlerValue());
-        pending.setPreviousValue(currentValue);
-        pending.setReviewStatus(ReviewStatus.PENDING);
-        return crawlerReviewsRepository.save(pending);
-    }
-
-    private void applyOfficialValue(CinemaMovieCrawlerReviewBean review) {
-        try {
-            switch (review.getCrawlerType()) {
-                case CINEMA -> cinemaService.updateCinema(
-                        review.getEntityId(),
-                        cinemaRequest(review.getFieldName(), review.getCrawlerValue()));
-                case MOVIE -> movieService.updateMovie(
-                        review.getEntityId(),
-                        movieRequest(review.getFieldName(), review.getCrawlerValue()));
-            }
-        } catch (IllegalArgumentException | DateTimeParseException exception) {
-            throw badRequest("爬蟲值無法寫入正式資料：" + review.getFieldName());
-        }
-    }
-
-    private boolean isMovieSourceConflict(CinemaMovieCrawlerReviewBean review) {
-        return review.getCrawlerType() == CinemaResourceType.MOVIE
-                && SOURCE_ID.equals(review.getFieldName());
-    }
-
-    private String currentOfficialValue(CinemaMovieCrawlerReviewBean review) {
-        return switch (review.getCrawlerType()) {
-            case CINEMA -> cinemaField(
-                    cinemaService.findById(review.getEntityId()),
-                    review.getFieldName());
-            case MOVIE -> movieField(
-                    movieService.findById(review.getEntityId()),
-                    review.getFieldName());
-        };
+        return Optional.of(cinemaMovieReviewsRepository.save(review));
     }
 
     private CinemaRequest cinemaRequest(String fieldName, String crawlerValue) {
@@ -380,31 +306,6 @@ public class CinemaMovieCrawlerReviewsService {
         };
     }
 
-    private String cinemaField(CinemaResponse cinema, String fieldName) {
-        return switch (fieldName) {
-            case CINEMA_NAME -> formatValue(cinema.cinemaName());
-            case CINEMA_ADDRESS -> formatValue(cinema.cinemaAddress());
-            case COUNTY -> formatValue(cinema.county());
-            case LATITUDE -> formatValue(cinema.latitude());
-            case LONGITUDE -> formatValue(cinema.longitude());
-            case OFFICIAL_WEBSITE_URL -> formatValue(cinema.officialWebsiteUrl());
-            case IS_ACTIVE -> formatValue(cinema.isActive());
-            case IS_VISIBLE -> formatValue(cinema.isVisible());
-            default -> throw badRequest("不支援的影城欄位：" + fieldName);
-        };
-    }
-
-    private String movieField(MovieResponse movie, String fieldName) {
-        return switch (fieldName) {
-            case SOURCE_ID -> formatValue(movie.sourceId());
-            case MOVIE_NAME -> formatValue(movie.movieName());
-            case IMAGE_URL -> formatValue(movie.imageUrl());
-            case RELEASE_DATE -> formatValue(movie.releaseDate());
-            case IS_VISIBLE -> formatValue(movie.isVisible());
-            default -> throw badRequest("不支援的電影欄位：" + fieldName);
-        };
-    }
-
     private String requireText(String value) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException("空值");
@@ -421,12 +322,8 @@ public class CinemaMovieCrawlerReviewsService {
         return Boolean.valueOf(value);
     }
 
-    private boolean sameDifference(CinemaMovieCrawlerReviewBean review, String crawlerValue, String previousValue) {
+    private boolean sameDifference(CinemaMovieReviewBean review, String crawlerValue, String previousValue) {
         return Objects.equals(review.getCrawlerValue(), crawlerValue)
                 && Objects.equals(review.getPreviousValue(), previousValue);
-    }
-
-    private LocalDateTime now() {
-        return LocalDateTime.now().withNano(0);
     }
 }

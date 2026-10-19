@@ -97,13 +97,13 @@ public class CrawlerCinemaService {
     private final CinemaService cinemaService;
 
     /** 比對既有影城欄位差異並建立審核紀錄。 */
-    private final CinemaMovieCrawlerReviewsService crawlerReviewsService;
+    private final CinemaMovieReviewsService cinemaMovieReviewsService;
 
     public CrawlerCinemaService(
             CinemaService cinemaService,
-            CinemaMovieCrawlerReviewsService crawlerReviewsService) {
+            CinemaMovieReviewsService cinemaMovieReviewsService) {
         this.cinemaService = cinemaService;
-        this.crawlerReviewsService = crawlerReviewsService;
+        this.cinemaMovieReviewsService = cinemaMovieReviewsService;
     }
 
     /** 一般同步：已有完整座標就不重新抓取地圖頁。 */
@@ -352,38 +352,38 @@ public class CrawlerCinemaService {
     /** 只把實際抓到、且與正式資料不同的欄位送審，回傳實際納入審核的筆數 */
     private int reviewChangedFields(CinemaResponse current, CinemaResponse crawled) {
         int reviewed = 0;
-        if (reviewField(current.cinemaId(), CinemaMovieCrawlerReviewsService.CINEMA_NAME,
+        if (reviewField(current.cinemaId(), CinemaMovieReviewsService.CINEMA_NAME,
                 crawled.cinemaName(), current.cinemaName())) {
             reviewed++;
         }
 
         // 地址不存在時不比對縣市，避免誤判來源未提供地址為實際異動。
         if (crawled.cinemaAddress() != null && !crawled.cinemaAddress().isBlank()) {
-            if (reviewField(current.cinemaId(), CinemaMovieCrawlerReviewsService.CINEMA_ADDRESS,
+            if (reviewField(current.cinemaId(), CinemaMovieReviewsService.CINEMA_ADDRESS,
                     crawled.cinemaAddress(), current.cinemaAddress())) {
                 reviewed++;
             }
 
             // UNKNOWN 代表無法從地址辨識，不能當成新的有效縣市送審。
             if (crawled.county() != null && crawled.county() != County.UNKNOWN
-                    && reviewField(current.cinemaId(), CinemaMovieCrawlerReviewsService.COUNTY,
+                    && reviewField(current.cinemaId(), CinemaMovieReviewsService.COUNTY,
                             crawled.county(), current.county())) {
                 reviewed++;
             }
         }
 
-        if (crawled.latitude() != null && reviewField(current.cinemaId(), CinemaMovieCrawlerReviewsService.LATITUDE,
+        if (crawled.latitude() != null && reviewField(current.cinemaId(), CinemaMovieReviewsService.LATITUDE,
                 crawled.latitude(), current.latitude())) {
             reviewed++;
         }
 
-        if (crawled.longitude() != null && reviewField(current.cinemaId(), CinemaMovieCrawlerReviewsService.LONGITUDE,
+        if (crawled.longitude() != null && reviewField(current.cinemaId(), CinemaMovieReviewsService.LONGITUDE,
                 crawled.longitude(), current.longitude())) {
             reviewed++;
         }
 
         if (crawled.officialWebsiteUrl() != null
-                && reviewField(current.cinemaId(), CinemaMovieCrawlerReviewsService.OFFICIAL_WEBSITE_URL,
+                && reviewField(current.cinemaId(), CinemaMovieReviewsService.OFFICIAL_WEBSITE_URL,
                         crawled.officialWebsiteUrl(), current.officialWebsiteUrl())) {
             reviewed++;
         }
@@ -396,14 +396,14 @@ public class CrawlerCinemaService {
             return false;
         }
 
-        String crawlerValue = CinemaMovieCrawlerReviewsService.formatValue(crawled);
-        String previousValue = CinemaMovieCrawlerReviewsService.formatValue(current);
+        String crawlerValue = CinemaMovieReviewsService.formatValue(crawled);
+        String previousValue = CinemaMovieReviewsService.formatValue(current);
 
         if (Objects.equals(crawlerValue, previousValue)) {
             return false;
         }
 
-        return crawlerReviewsService.submitCrawlerChange(
+        return cinemaMovieReviewsService.submitCrawlerChange(
                 CinemaResourceType.CINEMA,
                 entityId,
                 fieldName,
