@@ -262,10 +262,13 @@ async function changeStatus(row, reviewStatus) {
   });
   if (!confirmed.isConfirmed || choiceDisabled(row)) return;
 
+  const action = reviewStatus === "APPROVED" ? "approve" : "reject";
   actingId.value = row.crawlerReviewId;
   try {
-    await http.patch(`/cinema-movie/crawler-reviews/${row.crawlerReviewId}`, { reviewStatus });
-    row.reviewStatus = reviewStatus;
+    const { data } = await http.patch(
+      `/cinema-movie/crawler-reviews/${row.crawlerReviewId}/${action}`,
+    );
+    row.reviewStatus = data?.reviewStatus ?? reviewStatus;
     await openAppAlert({
       variant: "success",
       title: prompt.successTitle,

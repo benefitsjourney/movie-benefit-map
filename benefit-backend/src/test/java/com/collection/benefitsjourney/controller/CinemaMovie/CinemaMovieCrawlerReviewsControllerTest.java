@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -445,217 +444,102 @@ class CinemaMovieCrawlerReviewsControllerTest {
     }
 
     @Nested
-    @DisplayName("PATCH /cinema-movie/crawler-reviews/{id}")
-    class UpdateCrawlerReviewTests {
+    @DisplayName("PATCH /cinema-movie/crawler-reviews/{id}/approve")
+    class ApproveCrawlerReviewTests {
 
         @Test
-        @DisplayName("完整修改資料應正確傳入 Service")
-        void validRequest() throws Exception {
-            String json = """
-                    {
-                      "crawlerType": "MOVIE",
-                      "entityId": 88,
-                      "fieldName": "movieName",
-                      "crawlerValue": "新片名",
-                      "previousValue": "舊片名",
-                      "reviewStatus": "REJECTED",
-                      "reviewedAt": "2026-11-02T04:05:06"
-                    }
-                    """;
+        @DisplayName("待審核通過時應傳入審核 ID 並回傳 APPROVED")
+        void approve() throws Exception {
+            when(crawlerReviewsService.approveCrawlerReview(7)).thenReturn(new CinemaMovieCrawlerReviewResponse(
+                    7,
+                    CinemaResourceType.MOVIE,
+                    12,
+                    "movieName",
+                    "新片名",
+                    "舊片名",
+                    ReviewStatus.APPROVED,
+                    LocalDateTime.of(2026, 10, 19, 18, 0),
+                    null,
+                    null));
 
-            mockMvc.perform(patch("/cinema-movie/crawler-reviews/7")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(json))
-                    .andExpect(status().isOk());
+            mockMvc.perform(patch("/cinema-movie/crawler-reviews/7/approve"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.crawlerReviewId").value(7))
+                    .andExpect(jsonPath("$.reviewStatus").value("APPROVED"));
 
-            ArgumentCaptor<CinemaMovieCrawlerReviewRequest> captor = ArgumentCaptor.forClass(CinemaMovieCrawlerReviewRequest.class);
-            verify(crawlerReviewsService).updateCrawlerReview(eq(7), captor.capture());
-            CinemaMovieCrawlerReviewRequest request = captor.getValue();
-
-            assertEquals(CinemaResourceType.MOVIE, request.crawlerType());
-            assertEquals(88, request.entityId());
-            assertEquals("movieName", request.fieldName());
-            assertEquals("新片名", request.crawlerValue());
-            assertEquals("舊片名", request.previousValue());
-            assertEquals(ReviewStatus.REJECTED, request.reviewStatus());
-            assertEquals(LocalDateTime.of(2026, 11, 2, 4, 5, 6), request.reviewedAt());
+            verify(crawlerReviewsService).approveCrawlerReview(7);
         }
 
         @Test
-        @DisplayName("只修改單一欄位時，其餘欄位應為 null")
-        void partialRequest() throws Exception {
-            mockMvc.perform(patch("/cinema-movie/crawler-reviews/10")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"crawlerValue\":\"只有爬蟲值改掉\"}"))
-                    .andExpect(status().isOk());
+        @DisplayName("不是待審核時應回傳 400")
+        void alreadyReviewed() throws Exception {
+            when(crawlerReviewsService.approveCrawlerReview(7))
+                    .thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "你已審核過"));
 
-            ArgumentCaptor<CinemaMovieCrawlerReviewRequest> captor = ArgumentCaptor.forClass(CinemaMovieCrawlerReviewRequest.class);
-            verify(crawlerReviewsService).updateCrawlerReview(eq(10), captor.capture());
-            CinemaMovieCrawlerReviewRequest request = captor.getValue();
-
-            assertEquals("只有爬蟲值改掉", request.crawlerValue());
-            assertNull(request.crawlerType());
-            assertNull(request.entityId());
-            assertNull(request.fieldName());
-            assertNull(request.previousValue());
-            assertNull(request.reviewStatus());
-            assertNull(request.reviewedAt());
-        }
-
-        @Test
-        @DisplayName("空物件應允許部分修改")
-        void emptyBody() throws Exception {
-            mockMvc.perform(patch("/cinema-movie/crawler-reviews/10")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("{}"))
-                    .andExpect(status().isOk());
-
-            verify(crawlerReviewsService).updateCrawlerReview(eq(10), any(CinemaMovieCrawlerReviewRequest.class));
-        }
-
-        @Test
-        @DisplayName("不存在的審核應回傳 404")
-        void notFound() throws Exception {
-            when(crawlerReviewsService.updateCrawlerReview(eq(999), any(CinemaMovieCrawlerReviewRequest.class)))
-                    .thenThrow(new ResponseStatusException(
-                            HttpStatus.NOT_FOUND, "找不到爬蟲審核 ID：999"));
-
-            mockMvc.perform(patch("/cinema-movie/crawler-reviews/999")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"crawlerValue\":\"修改\"}"))
-                    .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.status").value(404))
-                    .andExpect(jsonPath("$.error").value("Not Found"))
-                    .andExpect(jsonPath("$.message").value("找不到爬蟲審核 ID：999"));
-        }
-
-        @Test
-        @DisplayName("Service 拒絕已接受時應回傳 400")
-        void lockedStatus() throws Exception {
-            when(crawlerReviewsService.updateCrawlerReview(eq(10), any(CinemaMovieCrawlerReviewRequest.class)))
-                    .thenThrow(new ResponseStatusException(
-                            HttpStatus.BAD_REQUEST, "已接受的審核無法修改"));
-
-            mockMvc.perform(patch("/cinema-movie/crawler-reviews/10")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"reviewStatus\":\"APPROVED\"}"))
+            mockMvc.perform(patch("/cinema-movie/crawler-reviews/7/approve"))
                     .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value("已接受的審核無法修改"));
-
-            ArgumentCaptor<CinemaMovieCrawlerReviewRequest> captor = ArgumentCaptor.forClass(CinemaMovieCrawlerReviewRequest.class);
-            verify(crawlerReviewsService).updateCrawlerReview(eq(10), captor.capture());
-            assertEquals(ReviewStatus.APPROVED, captor.getValue().reviewStatus());
-        }
-
-        @Test
-        @DisplayName("ID 不是整數應回傳 400")
-        void invalidId() throws Exception {
-            mockMvc.perform(patch("/cinema-movie/crawler-reviews/abc")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"crawlerValue\":\"測試\"}"))
-                    .andExpect(status().isBadRequest());
-
-            verifyNoInteractions(crawlerReviewsService);
-        }
-
-        @Test
-        @DisplayName("未提供 RequestBody 應回傳 400")
-        void noBody() throws Exception {
-            mockMvc.perform(patch("/cinema-movie/crawler-reviews/10")
-                    .contentType(MediaType.APPLICATION_JSON))
-                    .andExpect(status().isBadRequest());
-
-            verify(crawlerReviewsService, never()).updateCrawlerReview(any(), any());
-        }
-
-        @Test
-        @DisplayName("不完整 JSON 應回傳 400")
-        void invalidJson() throws Exception {
-            mockMvc.perform(patch("/cinema-movie/crawler-reviews/10")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"crawlerValue\":\"測試\","))
-                    .andExpect(status().isBadRequest());
-
-            verify(crawlerReviewsService, never()).updateCrawlerReview(any(), any());
-        }
-
-        @Test
-        @DisplayName("Service 拒絕空白欄位名稱時應回傳 400")
-        void blankFieldName() throws Exception {
-            when(crawlerReviewsService.updateCrawlerReview(eq(10), any(CinemaMovieCrawlerReviewRequest.class)))
-                    .thenThrow(new ResponseStatusException(
-                            HttpStatus.BAD_REQUEST, "欄位名稱不可為空"));
-
-            mockMvc.perform(patch("/cinema-movie/crawler-reviews/10")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"fieldName\":\" \"}"))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value("欄位名稱不可為空"));
-
-            verify(crawlerReviewsService).updateCrawlerReview(eq(10), any(CinemaMovieCrawlerReviewRequest.class));
-        }
-
-        @Test
-        @DisplayName("原值超過 512 字元應回傳 400")
-        void previousValueTooLong() throws Exception {
-            String json = """
-                    {"previousValue":"%s"}
-                    """.formatted("a".repeat(513));
-
-            mockMvc.perform(patch("/cinema-movie/crawler-reviews/10")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(json))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value("原值長度不可超過512字元"));
-
-            verify(crawlerReviewsService, never()).updateCrawlerReview(any(), any());
-        }
-
-        @Test
-        @DisplayName("日期時間格式無效應回傳 400")
-        void invalidDateTime() throws Exception {
-            mockMvc.perform(patch("/cinema-movie/crawler-reviews/10")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"reviewedAt\":\"ABC\"}"))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value("日期時間格式錯誤，應為 yyyy-MM-dd HH:mm:ss"));
-
-            verify(crawlerReviewsService, never()).updateCrawlerReview(any(), any());
-        }
-    }
-
-    @Nested
-    @DisplayName("DELETE /cinema-movie/crawler-reviews/{id}")
-    class DeleteCrawlerReviewTests {
-
-        @Test
-        @DisplayName("正常 ID 應傳入 Service 並回傳 204")
-        void validId() throws Exception {
-            mockMvc.perform(delete("/cinema-movie/crawler-reviews/7"))
-                    .andExpect(status().isNoContent());
-
-            verify(crawlerReviewsService).deleteCrawlerReview(7);
+                    .andExpect(jsonPath("$.message").value("你已審核過"));
         }
 
         @Test
         @DisplayName("找不到審核應回傳 404")
         void notFound() throws Exception {
-            doThrow(new ResponseStatusException(
-                    HttpStatus.NOT_FOUND, "找不到爬蟲審核 ID：999"))
-                    .when(crawlerReviewsService).deleteCrawlerReview(999);
+            when(crawlerReviewsService.approveCrawlerReview(999))
+                    .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到爬蟲審核ID：999"));
 
-            mockMvc.perform(delete("/cinema-movie/crawler-reviews/999"))
+            mockMvc.perform(patch("/cinema-movie/crawler-reviews/999/approve"))
                     .andExpect(status().isNotFound())
-                    .andExpect(jsonPath("$.message").value("找不到爬蟲審核 ID：999"));
+                    .andExpect(jsonPath("$.message").value("找不到爬蟲審核ID：999"));
+        }
+    }
+
+    @Nested
+    @DisplayName("PATCH /cinema-movie/crawler-reviews/{id}/reject")
+    class RejectCrawlerReviewTests {
+
+        @Test
+        @DisplayName("待審核拒絕時應傳入審核 ID 並回傳 REJECTED")
+        void reject() throws Exception {
+            when(crawlerReviewsService.rejectCrawlerReview(7)).thenReturn(new CinemaMovieCrawlerReviewResponse(
+                    7,
+                    CinemaResourceType.MOVIE,
+                    12,
+                    "movieName",
+                    "新片名",
+                    "舊片名",
+                    ReviewStatus.REJECTED,
+                    LocalDateTime.of(2026, 10, 19, 18, 0),
+                    null,
+                    null));
+
+            mockMvc.perform(patch("/cinema-movie/crawler-reviews/7/reject"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.crawlerReviewId").value(7))
+                    .andExpect(jsonPath("$.reviewStatus").value("REJECTED"));
+
+            verify(crawlerReviewsService).rejectCrawlerReview(7);
         }
 
         @Test
-        @DisplayName("ID 不是整數應回傳 400")
-        void invalidId() throws Exception {
-            mockMvc.perform(delete("/cinema-movie/crawler-reviews/abc"))
-                    .andExpect(status().isBadRequest());
+        @DisplayName("不是待審核時應回傳 400")
+        void alreadyReviewed() throws Exception {
+            when(crawlerReviewsService.rejectCrawlerReview(7))
+                    .thenThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "只有待審核資料可以拒絕"));
 
-            verifyNoInteractions(crawlerReviewsService);
+            mockMvc.perform(patch("/cinema-movie/crawler-reviews/7/reject"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.message").value("只有待審核資料可以拒絕"));
+        }
+
+        @Test
+        @DisplayName("找不到審核應回傳 404")
+        void notFound() throws Exception {
+            when(crawlerReviewsService.rejectCrawlerReview(999))
+                    .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "找不到爬蟲審核ID：999"));
+
+            mockMvc.perform(patch("/cinema-movie/crawler-reviews/999/reject"))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.message").value("找不到爬蟲審核ID：999"));
         }
     }
 
@@ -675,19 +559,19 @@ class CinemaMovieCrawlerReviewsControllerTest {
         }
 
         @Test
-        @DisplayName("GET /cinema-movie/crawler-reviews/{id} 應回傳 405")
+        @DisplayName("GET /cinema-movie/crawler-reviews/{id} 應回傳 404")
         void getReviewById() throws Exception {
             mockMvc.perform(get("/cinema-movie/crawler-reviews/1"))
-                    .andExpect(status().isMethodNotAllowed());
+                    .andExpect(status().isNotFound());
         }
 
         @Test
-        @DisplayName("POST /cinema-movie/crawler-reviews/{id} 應回傳 405")
+        @DisplayName("POST /cinema-movie/crawler-reviews/{id} 應回傳 404")
         void postReviewWithId() throws Exception {
             mockMvc.perform(post("/cinema-movie/crawler-reviews/1")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content("{}"))
-                    .andExpect(status().isMethodNotAllowed());
+                    .andExpect(status().isNotFound());
         }
 
         @Test
@@ -761,21 +645,9 @@ class CinemaMovieCrawlerReviewsControllerTest {
         }
 
         @Test
-        @DisplayName("PATCH /cinema-movie/crawler-reviews/{id} 沒有 Token 應回傳 401")
+        @DisplayName("PATCH /cinema-movie/crawler-reviews/{id}/approve 沒有 Token 應回傳 401")
         void patchReviewWithoutToken() throws Exception {
-            var request = new MockHttpServletRequest("PATCH", "/cinema-movie/crawler-reviews/1");
-            var response = new MockHttpServletResponse();
-
-            filter.doFilter(request, response, chain);
-
-            assertEquals(401, response.getStatus());
-            verifyNoInteractions(chain, utility);
-        }
-
-        @Test
-        @DisplayName("DELETE /cinema-movie/crawler-reviews/{id} 沒有 Token 應回傳 401")
-        void deleteReviewWithoutToken() throws Exception {
-            var request = new MockHttpServletRequest("DELETE", "/cinema-movie/crawler-reviews/1");
+            var request = new MockHttpServletRequest("PATCH", "/cinema-movie/crawler-reviews/1/approve");
             var response = new MockHttpServletResponse();
 
             filter.doFilter(request, response, chain);

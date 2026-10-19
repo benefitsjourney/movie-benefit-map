@@ -2,7 +2,6 @@ package com.collection.benefitsjourney.controller.CinemaMovie;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,7 +23,6 @@ import com.collection.benefitsjourney.service.CinemaMovie.CinemaMovieCrawlerRevi
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import jakarta.validation.groups.Default;
 
 @RestController
@@ -71,20 +69,15 @@ public class CinemaMovieCrawlerReviewsController {
         return ResponseEntity.ok(crawlerReviewsService.createCrawlerReview(request));
     }
 
-    @PatchMapping("/{id}")
-    @Operation(summary = "修改爬蟲審核")
-    public ResponseEntity<CinemaMovieCrawlerReviewResponse> updateCrawlerReview(
-            @PathVariable Integer id,
-            @Valid @RequestBody CinemaMovieCrawlerReviewRequest request) {
-
-        return ResponseEntity.ok(crawlerReviewsService.updateCrawlerReview(id, request));
+    @PatchMapping("/{id}/approve")
+    @Operation(summary = "審核通過", description = "僅待審核可通過。通過後爬蟲值寫入正式影城或電影；已審核則回傳你已審核過")
+    public ResponseEntity<CinemaMovieCrawlerReviewResponse> approveCrawlerReview(@PathVariable Integer id) {
+        return ResponseEntity.ok(crawlerReviewsService.approveCrawlerReview(id));
     }
 
-    @DeleteMapping("/{id}")
-    @Operation(summary = "刪除爬蟲審核")
-    public ResponseEntity<Void> deleteCrawlerReview(@PathVariable Integer id) {
-        crawlerReviewsService.deleteCrawlerReview(id);
-
-        return ResponseEntity.noContent().build();
+    @PatchMapping("/{id}/reject")
+    @Operation(summary = "審核拒絕", description = "僅待審核可拒絕。只把狀態改成 REJECTED，不寫入正式影城或電影")
+    public ResponseEntity<CinemaMovieCrawlerReviewResponse> rejectCrawlerReview(@PathVariable Integer id) {
+        return ResponseEntity.ok(crawlerReviewsService.rejectCrawlerReview(id));
     }
 }
