@@ -256,7 +256,12 @@ async function changeStatus(row, reviewStatus) {
   const confirmed = await openAppAlert({
     variant: "confirm",
     title: prompt.title,
-    text: `${reviewFieldLabel(row.fieldName)}：${reviewValueText(row.previousValue, row) || "（空）"} → ${reviewValueText(row.crawlerValue, row) || "（空）"}。${prompt.text}`,
+    text: prompt.text,
+    rows: [
+      { label: "欄位", value: reviewFieldLabel(row.fieldName) },
+      { label: "原值", value: reviewValueText(row.previousValue, row) || "（空）" },
+      { label: "爬蟲值", value: reviewValueText(row.crawlerValue, row) || "（空）" },
+    ],
     confirmText: prompt.confirmText,
     cancelText: "取消",
   });
@@ -293,7 +298,7 @@ async function changeStatus(row, reviewStatus) {
 
 <template>
   <section>
-    <PageIntro kicker="✦ CRAWLER REVIEW" lead="爬蟲" mark="審核" description="核對爬蟲與正式資料的差異。同意會寫入正式資料，不同意則保留原值。"
+    <PageIntro kicker="✦ CRAWLER REVIEW" lead="電影影城爬蟲" mark="審核" description="核對爬蟲與正式資料的差異。同意會寫入正式資料，不同意則保留原值。"
       :icon-left="clipboardIcon" :icon-right="sourceBranchIcon" :icon-top="tableIcon" theme="purple" />
 
     <ResultBanner v-if="!(loading && !reviews.length) && !error" :icon="clipboardIcon" title="爬蟲審核紀錄"

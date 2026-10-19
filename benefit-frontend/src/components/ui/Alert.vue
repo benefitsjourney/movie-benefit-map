@@ -93,6 +93,11 @@ const cancelRef = ref(null);
 const extraRef = ref(null);
 
 const currentVariant = computed(() => VARIANTS[state.variant] ?? VARIANTS.confirm);
+const describedBy = computed(() =>
+  [state.text ? "app-alert-text" : "", state.rows.length ? "app-alert-rows" : ""]
+    .filter(Boolean)
+    .join(" "),
+);
 
 let previousOverflow = "";
 let previousFocus = null;
@@ -199,14 +204,14 @@ onUnmounted(() => {
     <div v-if="state.open" class="alert-backdrop" @click.self="onDismiss">
       <div :key="state.token" ref="dialogRef" class="alert-dialog"
         :class="{ 'is-loading': state.variant === 'loading', 'has-extra': Boolean(state.extraText) }" role="alertdialog" aria-modal="true"
-        aria-labelledby="app-alert-title" aria-describedby="app-alert-text" :aria-busy="state.variant === 'loading'"
+        aria-labelledby="app-alert-title" :aria-describedby="describedBy || undefined" :aria-busy="state.variant === 'loading'"
         tabindex="-1">
-        <TicketCard appear :color="currentVariant.color" :title="state.title" :detail="state.rows.length ? '' : state.text">
+        <TicketCard appear :color="currentVariant.color" :title="state.title" :detail="state.text">
           <template #title>
             <span id="app-alert-title">{{ state.title }}</span>
           </template>
 
-          <template v-if="!state.rows.length" #detail>
+          <template v-if="state.text" #detail>
             <span id="app-alert-text">{{ state.text }}</span>
           </template>
 
@@ -216,7 +221,7 @@ onUnmounted(() => {
             </span>
           </div>
 
-          <dl v-if="state.rows.length" id="app-alert-text" class="alert-stats">
+          <dl v-if="state.rows.length" id="app-alert-rows" class="alert-stats">
             <div v-for="row in state.rows" :key="row.label">
               <dt>{{ row.label }}</dt>
               <dd>{{ row.value }}</dd>
@@ -323,11 +328,9 @@ onUnmounted(() => {
 }
 
 .alert-stats > div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.72rem 0.9rem;
+  display: grid;
+  grid-template-columns: 6.75rem minmax(0, 1fr);
+  align-items: stretch;
 }
 
 .alert-stats > div + div {
@@ -337,19 +340,26 @@ onUnmounted(() => {
 .alert-stats dt,
 .alert-stats dd {
   margin: 0;
+  padding: 0.72rem 0.9rem;
   font-size: var(--text-body);
   line-height: var(--leading-body);
 }
 
 .alert-stats dt {
+  display: flex;
+  align-items: center;
+  border-right: 2px dashed var(--accent);
   color: var(--ticket-ink);
   font-weight: 800;
 }
 
 .alert-stats dd {
+  min-width: 0;
   color: var(--c-ink);
   font-weight: 900;
   font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .alert-dialog :deep(.ticket-stub) {

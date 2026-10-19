@@ -1,14 +1,14 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import FrontLayout from '@/layouts/FrontLayout.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
-import AdminCinemaView from '@/views/AdminCinemaView.vue'
-import AdminCinemaDetail from '@/views/AdminCinemaDetail.vue'
-import AdminCinemaForm from '@/views/AdminCinemaForm.vue'
-import AdminMovieView from '@/views/AdminMovieView.vue'
-import AdminMovieDetail from '@/views/AdminMovieDetail.vue'
-import AdminMovieForm from '@/views/AdminMovieForm.vue'
-import AdminCrawlerView from '@/views/AdminCrawlerView.vue'
-import AdminCrawlerReviewView from '@/views/AdminCrawlerReviewView.vue'
+import AdminCinemaMovieCrawlerView from '@/views/admin/AdminCinemaMovieCrawlerView.vue'
+import AdminCinemaView from '@/views/admin/cinema-movie/AdminCinemaView.vue'
+import AdminCinemaDetail from '@/views/admin/cinema-movie/AdminCinemaDetail.vue'
+import AdminCinemaForm from '@/views/admin/cinema-movie/AdminCinemaForm.vue'
+import AdminMovieView from '@/views/admin/cinema-movie/AdminMovieView.vue'
+import AdminMovieDetail from '@/views/admin/cinema-movie/AdminMovieDetail.vue'
+import AdminMovieForm from '@/views/admin/cinema-movie/AdminMovieForm.vue'
+import AdminCrawlerReviewView from '@/views/admin/cinema-movie/AdminCrawlerReviewView.vue'
 import CinemaView from '@/views/CinemaView.vue'
 import MapView from '@/views/MapView.vue'
 import MovieView from '@/views/MovieView.vue'
@@ -49,7 +49,7 @@ const router = createRouter({
         {
           path: 'crawler',
           name: 'admin-crawler',
-          component: AdminCrawlerView,
+          component: AdminCinemaMovieCrawlerView,
         },
         {
           path: 'crawler-reviews',
