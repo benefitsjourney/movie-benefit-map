@@ -285,6 +285,74 @@ class CrawlerMovieServiceTest {
         }
 
         @Test
+        @DisplayName("純英文片名可以新增，長度超過 64 字也保留")
+        void acceptLongEnglishTitle() throws Exception {
+            String title = "This Is A Very Long English Movie Title That Exceeds Sixty Four Characters Easily";
+            assertTrue(title.length() > 64);
+            onlyNewPage("<a href='/movie/fA001/'>列表</a>");
+            pageAt(DETAIL_A, detail(title + " @movies", "2026/10/12"));
+            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
+            when(movieService.createMovie(any(MovieRequest.class)))
+                    .thenReturn(saved(1, "fA001", title, poster("fA001"), true, DATE_A));
+
+            assertEquals(1, crawler.syncMovies().items().size());
+            assertEquals(title, captureCreated().movieName());
+        }
+
+        @Test
+        @DisplayName("Live Viewing 英文副名含特殊符號時，只保留前面的中文片名")
+        void stripLiveViewingTranslation() throws Exception {
+            onlyNewPage("<a href='/movie/fA001/'>列表</a>");
+            pageAt(DETAIL_A, detail("櫻坂46演唱會 Live Viewing “Blooming★Parade” @movies", "2026/10/12"));
+            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
+            when(movieService.createMovie(any(MovieRequest.class)))
+                    .thenReturn(saved(1, "fA001", "櫻坂46演唱會", poster("fA001"), true, DATE_A));
+
+            assertEquals(1, crawler.syncMovies().items().size());
+            assertEquals("櫻坂46演唱會", captureCreated().movieName());
+        }
+
+        @Test
+        @DisplayName("英文片名的重複前綴只留較完整的後半段")
+        void collapseRepeatedEnglishTitle() throws Exception {
+            onlyNewPage("<a href='/movie/fA001/'>甲</a><a href='/movie/fB002/'>乙</a>");
+            pageAt(DETAIL_A, detail(
+                    "SB19 Wakas at Simula SB19 Wakas at Simula: The Trilogy Concert Finale In Cinemas @movies",
+                    "2026/10/12"));
+            pageAt(DETAIL_B, detail(
+                    "Perfume“Cold Sleep” Perfume“Cold Sleep”-25 years Document @movies",
+                    "2026/11/1"));
+            when(movieService.findBySourceId(anyString())).thenReturn(Optional.empty());
+            when(movieService.createMovie(any(MovieRequest.class))).thenAnswer(invocation -> {
+                MovieRequest request = invocation.getArgument(0);
+                return saved(request.sourceId().equals("fA001") ? 1 : 2,
+                        request.sourceId(), request.movieName(), request.imageUrl(), true, request.releaseDate());
+            });
+
+            assertEquals(2, crawler.syncMovies().items().size());
+            ArgumentCaptor<MovieRequest> captor = ArgumentCaptor.forClass(MovieRequest.class);
+            verify(movieService, org.mockito.Mockito.times(2)).createMovie(captor.capture());
+            assertEquals("SB19 Wakas at Simula: The Trilogy Concert Finale In Cinemas",
+                    captor.getAllValues().get(0).movieName());
+            assertEquals("Perfume“Cold Sleep”-25 years Document",
+                    captor.getAllValues().get(1).movieName());
+        }
+
+        @Test
+        @DisplayName("英文片名只是前綴相似、後面沒有分隔時不拆開")
+        void keepEnglishTitleWithoutSeparatedRepeat() throws Exception {
+            String title = "The Matrix The MatrixReloaded";
+            onlyNewPage("<a href='/movie/fA001/'>列表</a>");
+            pageAt(DETAIL_A, detail(title + " @movies", "2026/10/12"));
+            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
+            when(movieService.createMovie(any(MovieRequest.class)))
+                    .thenReturn(saved(1, "fA001", title, poster("fA001"), true, DATE_A));
+
+            assertEquals(1, crawler.syncMovies().items().size());
+            assertEquals(title, captureCreated().movieName());
+        }
+
+        @Test
         @DisplayName("無法解析的上映日期應略過，電影仍可新增")
         void unparseableReleaseDate() throws Exception {
             onlyNewPage("<a href='/movie/fA001/'>列表</a>");
@@ -488,6 +556,25 @@ class CrawlerMovieServiceTest {
         }
 
         @Test
+        @DisplayName("已儲存的重複英文前綴，會送審成較完整的後半段")
+        void reviewCollapsedEnglishTitle() throws Exception {
+            String collapsed = "SB19 Wakas at Simula: The Trilogy Concert Finale In Cinemas";
+            onlyNewPage("<a href='/movie/fA001/'>列表</a>");
+            pageAt(DETAIL_A, detail(
+                    "SB19 Wakas at Simula " + collapsed + " @movies", "2026/10/12"));
+            MovieResponse existing = saved(1, "fA001",
+                    "SB19 Wakas at Simula " + collapsed, poster("fA001"), false, DATE_A);
+            when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
+
+            CrawlerSyncResult<MovieResponse> result = crawler.syncMovies();
+            assertEquals(List.of(existing), result.items());
+            assertSummary(result, 1, 0, 0, 1, 1);
+            verify(crawlerReviewsService).submitCrawlerChange(
+                    CinemaResourceType.MOVIE, 1, CrawlerReviewsService.MOVIE_NAME,
+                    collapsed, existing.movieName());
+        }
+
+        @Test
         @DisplayName("名稱正規化後對到同一來源時，只略過不送審")
         void sameSourceDuplicateIsSkipped() throws Exception {
             onlyNewPage("<a href='/movie/fA001/'>列表</a>");
@@ -567,17 +654,22 @@ class CrawlerMovieServiceTest {
         }
 
         @Test
-        @DisplayName("沒有有效中文片名時應略過")
-        void missingChineseName() throws Exception {
-            onlyNewPage("<a href='/movie/fA001/'>列表</a>");
-            pageAt(DETAIL_A, detail("Only English @movies", "2026/10/12"));
+        @DisplayName("頁籤只剩通用標題時應略過")
+        void genericPageTitleIsSkipped() throws Exception {
+            for (String title : List.of("電影 @movies", "開眼電影網〖開眼電影網〗")) {
+                onlyNewPage("<a href='/movie/fA001/'>列表</a>");
+                pageAt(DETAIL_A, detail(title, "2026/10/12"));
 
-            ResponseStatusException error = assertThrows(
-                    ResponseStatusException.class, crawler::syncMovies);
+                ResponseStatusException error = assertThrows(
+                        ResponseStatusException.class, crawler::syncMovies, title);
 
-            assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode());
-            assertEquals("沒有任何電影同步成功", error.getReason());
+                assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode(), title);
+                assertEquals("沒有任何電影同步成功", error.getReason(), title);
+            }
+
             verify(movieService, never()).createMovie(any());
+            assertTrue(logs.list.stream().anyMatch(event -> event.getLevel() == Level.WARN
+                    && event.getFormattedMessage().contains("電影詳細頁缺少有效片名")));
         }
 
         @Test

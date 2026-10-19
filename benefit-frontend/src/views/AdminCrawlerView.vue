@@ -137,9 +137,11 @@ async function syncCrawler(crawler) {
       title: `${crawler.stamp}更新完成`,
       rows: summaryRows(data),
       confirmText: crawler.resultLabel,
+      extraText: "前往爬蟲審核",
       cancelText: "關閉",
     });
     if (done.isConfirmed) router.push(crawler.resultTo);
+    else if (done.isExtra) router.push({ name: "admin-crawler-reviews" });
   } catch (error) {
     job.status = "error";
     job.error = errorMessage(error);

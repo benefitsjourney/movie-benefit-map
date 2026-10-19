@@ -44,7 +44,6 @@ public class CrawlerMovieService {
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
     private static final int TIMEOUT_MS = 12_000;
     private static final int THREADS = 6;
-    private static final int NAME_MAX_LENGTH = 64;
 
     private static final List<String> ENTRY_URLS = List.of(
             BASE_URL + "/movie/new/",
@@ -63,6 +62,8 @@ public class CrawlerMovieService {
             Pattern.CASE_INSENSITIVE);
     private static final Pattern CHINESE = Pattern.compile("[\\p{IsHan}]");
     private static final Pattern SPACE = Pattern.compile("\\s+");
+    private static final Pattern LIVE_VIEWING_TRANSLATION = Pattern.compile(
+            "^(.+?[\\p{IsHan}])\\s+(Live Viewing\\b.*)$", Pattern.CASE_INSENSITIVE);
     private static final Pattern ENGLISH_TRANSLATION = Pattern.compile(
             "^(.+?)\\s+([A-Za-z][A-Za-z0-9 .=,!?:;’'&+()\\-/–—！]+)$");
     private static final Pattern ENGLISH_WITH_DESCRIPTION = Pattern.compile(
@@ -75,17 +76,19 @@ public class CrawlerMovieService {
     };
 
     private record MovieInfo(String sourceId, String url, String movieName,
-                             String imageUrl, LocalDateTime releaseDate) {}
+            String imageUrl, LocalDateTime releaseDate) {
+    }
 
-    private record StoredMovie(Integer id, String sourceId, String name) {}
+    private record StoredMovie(Integer id, String sourceId, String name) {
+    }
 
     private final MovieService movieService;
     private final CrawlerReviewsService crawlerReviewsService;
     private final JdbcTemplate jdbcTemplate;
 
     public CrawlerMovieService(MovieService movieService,
-                               CrawlerReviewsService crawlerReviewsService,
-                               JdbcTemplate jdbcTemplate) {
+            CrawlerReviewsService crawlerReviewsService,
+            JdbcTemplate jdbcTemplate) {
         this.movieService = movieService;
         this.crawlerReviewsService = crawlerReviewsService;
         this.jdbcTemplate = jdbcTemplate;
@@ -105,21 +108,25 @@ public class CrawlerMovieService {
             Set<String> weeks = new LinkedHashSet<>();
             for (var entry : pages.entrySet()) {
                 Document doc = await(entry.getValue(), entry.getKey());
-                if (doc == null) continue;
+                if (doc == null)
+                    continue;
                 discover(doc, discovered);
                 if (entry.getKey().contains("/next/0/")) {
                     for (Element link : doc.select("a[href]")) {
                         String url = link.absUrl("href");
-                        if (WEEK_LINK.matcher(url).find()) weeks.add(url);
+                        if (WEEK_LINK.matcher(url).find())
+                            weeks.add(url);
                     }
                 }
             }
 
             Map<String, Future<Document>> weeklyJobs = new LinkedHashMap<>();
-            for (String url : weeks) weeklyJobs.put(url, executor.submit(() -> connect(url)));
+            for (String url : weeks)
+                weeklyJobs.put(url, executor.submit(() -> connect(url)));
             for (var entry : weeklyJobs.entrySet()) {
                 Document doc = await(entry.getValue(), entry.getKey());
-                if (doc == null) continue;
+                if (doc == null)
+                    continue;
                 discover(doc, discovered);
             }
 
@@ -208,7 +215,8 @@ public class CrawlerMovieService {
     private void discover(Document page, Map<String, MovieInfo> found) {
         for (Element link : page.select("a[href]")) {
             Matcher match = MOVIE_LINK.matcher(link.absUrl("href"));
-            if (!match.matches()) continue;
+            if (!match.matches())
+                continue;
             String id = match.group(1);
             found.putIfAbsent(id, new MovieInfo(id, BASE_URL + "/movie/" + id + "/",
                     null, null, null));
@@ -219,7 +227,7 @@ public class CrawlerMovieService {
         Document doc = connect(item.url());
         String name = movieTitle(doc);
         if (name == null) {
-            log.warn("電影詳細頁缺少完整有效中文片名，略過：{}", item.url());
+            log.warn("電影詳細頁缺少有效片名，略過：{}", item.url());
             return item;
         }
         return new MovieInfo(item.sourceId(), item.url(), name,
@@ -232,22 +240,26 @@ public class CrawlerMovieService {
         // 開眼格式：「中文片名 English Title @movies〖開眼電影網〗」
         String pageTitle = doc.title();
         String title = WEBSITE_SUFFIX.matcher(pageTitle).find() ? cleanTitle(pageTitle) : null;
-        if (title != null) return title;
+        if (title != null)
+            return title;
 
         // 網站頁籤缺失時，才使用電影標題欄位；不讀取其父層的介紹文字。
         for (String selector : List.of(".filmTitle a", "meta[property=og:title]")) {
             Element element = doc.selectFirst(selector);
-            if (element == null) continue;
+            if (element == null)
+                continue;
             String raw = element.tagName().equals("meta") ? element.attr("content") : element.ownText();
             title = cleanTitle(raw);
-            if (title != null) return title;
+            if (title != null)
+                return title;
         }
         return null;
     }
 
     /** 保留中文正式片名及副標題，只移除後方獨立的英文譯名。 */
     private String cleanTitle(String raw) {
-        if (raw == null || raw.isBlank()) return null;
+        if (raw == null || raw.isBlank())
+            return null;
         String title = raw.replace('\u00a0', ' ').strip().split("[\r\n]+", 2)[0];
         title = WEBSITE_SUFFIX.matcher(title).replaceFirst("");
         title = title.replaceFirst("\\s*[-–—|｜]\\s*(?:電影介紹|劇情介紹|劇情簡介).*$", "");
@@ -256,13 +268,18 @@ public class CrawlerMovieService {
         // 詳細頁可能是「中文正式名稱 English Title：劇情文字」。
         // 從中英文交界拆開，而不是從冒號或片名中的數字、英文拆開。
         title = stripEnglishTranslation(title);
+        title = removeRepeatedEnglishTitle(title);
 
-        if (title.isEmpty() || title.length() > NAME_MAX_LENGTH || !CHINESE.matcher(title).find()
-                || title.equals("電影") || title.equals("開眼電影網")) return null;
+        if (title.isEmpty() || title.equals("電影") || title.equals("開眼電影網"))
+            return null;
         return title;
     }
 
     private String stripEnglishTranslation(String title) {
+        // 特殊標點可能出現在 Live Viewing 英文副名中，不能因符號而略過。
+        Matcher liveViewing = LIVE_VIEWING_TRANSLATION.matcher(title);
+        if (liveViewing.matches())
+            return liveViewing.group(1).trim();
         // 譯名必須以空格後的英文單字起頭，且中文名稱部分確實含中文字。
         // 允許中文名稱以 2、0.0、N.E.W.、2+2=5、半形括號等形式結尾。
         Matcher description = ENGLISH_WITH_DESCRIPTION.matcher(title);
@@ -276,9 +293,37 @@ public class CrawlerMovieService {
         return title;
     }
 
+    /** 清除英文片名重複前綴，保留資訊較完整的後半段。 */
+    private String removeRepeatedEnglishTitle(String title) {
+        if (CHINESE.matcher(title).find())
+            return title;
+
+        // 只比對完整單字邊界，避免把正常片名中的相似字串誤判為重複。
+        for (int i = title.length() - 1; i > 0; i--) {
+            if (!Character.isWhitespace(title.charAt(i - 1)))
+                continue;
+            String first = title.substring(0, i).trim();
+            String second = title.substring(i).trim();
+            if (first.length() < 8 || first.split("\\s+").length < 2)
+                continue;
+            if (!second.regionMatches(true, 0, first, 0, Math.min(first.length(), second.length())))
+                continue;
+            if (second.length() < first.length())
+                continue;
+            if (second.length() > first.length()) {
+                char boundary = second.charAt(first.length());
+                if (!Character.isWhitespace(boundary) && ":：-–—|｜".indexOf(boundary) < 0)
+                    continue;
+            }
+            return second;
+        }
+        return title;
+    }
+
     /** 網站略去版本註記時，避免把現有「真人版／修復版」改成一般電影名稱。 */
     private boolean sameTitleIgnoringEdition(String crawled, String stored) {
-        if (crawled == null || stored == null) return false;
+        if (crawled == null || stored == null)
+            return false;
         String withoutEdition = EDITION_SUFFIX.matcher(stored.trim()).replaceFirst("").trim();
         return !withoutEdition.equals(stored.trim())
                 && normalizeName(crawled).equals(normalizeName(withoutEdition));
@@ -286,7 +331,8 @@ public class CrawlerMovieService {
 
     private LocalDateTime releaseDate(Document doc) {
         Matcher match = RELEASE_DATE.matcher(doc.body().text());
-        if (!match.find()) return null;
+        if (!match.find())
+            return null;
         for (DateTimeFormatter formatter : DATE_FORMATS) {
             try {
                 return LocalDate.parse(match.group(1), formatter).atStartOfDay();
@@ -307,7 +353,8 @@ public class CrawlerMovieService {
         jdbcTemplate.query("SELECT movie_id, source_id, movie_name FROM movie", rs -> {
             StoredMovie movie = new StoredMovie(rs.getInt("movie_id"),
                     rs.getString("source_id"), rs.getString("movie_name"));
-            if (movie.name() != null) names.putIfAbsent(normalizeName(movie.name()), movie);
+            if (movie.name() != null)
+                names.putIfAbsent(normalizeName(movie.name()), movie);
         });
         return names;
     }
@@ -338,10 +385,12 @@ public class CrawlerMovieService {
     }
 
     private boolean reviewField(Integer id, String field, Object crawled, Object current) {
-        if (crawled == null) return false;
+        if (crawled == null)
+            return false;
         String after = CrawlerReviewsService.formatValue(crawled);
         String before = CrawlerReviewsService.formatValue(current);
-        if (Objects.equals(after, before)) return false;
+        if (Objects.equals(after, before))
+            return false;
         return crawlerReviewsService.submitCrawlerChange(CinemaResourceType.MOVIE, id, field, after, before);
     }
 

@@ -16,8 +16,9 @@ const VARIANTS = {
   warning: { color: "orange", icon: warningIcon, dismissible: true, focus: "confirm" },
 };
 
-const DISMISSED = { isConfirmed: false, isDismissed: true };
-const CONFIRMED = { isConfirmed: true, isDismissed: false };
+const DISMISSED = { isConfirmed: false, isDismissed: true, isExtra: false };
+const CONFIRMED = { isConfirmed: true, isDismissed: false, isExtra: false };
+const EXTRA = { isConfirmed: false, isDismissed: false, isExtra: true };
 
 const state = reactive({
   open: false,
@@ -28,6 +29,7 @@ const state = reactive({
   rows: [],
   confirmText: "確定",
   cancelText: "取消",
+  extraText: "",
 });
 
 let resolver = null;
@@ -56,6 +58,7 @@ export function openAppAlert(options = {}) {
     rows: Array.isArray(options.rows) ? options.rows : [],
     confirmText: options.confirmText ?? "確定",
     cancelText: variant === "loading" ? "" : (options.cancelText ?? "取消"),
+    extraText: variant === "loading" ? "" : (options.extraText ?? ""),
   });
 
   return new Promise((resolve) => {
@@ -87,6 +90,7 @@ import TicketCard from "@/components/ui/TicketCard.vue";
 const dialogRef = ref(null);
 const confirmRef = ref(null);
 const cancelRef = ref(null);
+const extraRef = ref(null);
 
 const currentVariant = computed(() => VARIANTS[state.variant] ?? VARIANTS.confirm);
 
@@ -95,6 +99,10 @@ let previousFocus = null;
 
 function onConfirm() {
   settle(CONFIRMED);
+}
+
+function onExtra() {
+  settle(EXTRA);
 }
 
 function onDismiss() {
@@ -114,7 +122,7 @@ function onKeydown(event) {
 
   if (event.key !== "Tab") return;
 
-  const nodes = [cancelRef.value, confirmRef.value].filter(Boolean);
+  const nodes = [cancelRef.value, extraRef.value, confirmRef.value].filter(Boolean);
   if (!nodes.length) {
     event.preventDefault();
     dialogRef.value?.focus();
@@ -190,7 +198,7 @@ onUnmounted(() => {
   <Teleport to="body">
     <div v-if="state.open" class="alert-backdrop" @click.self="onDismiss">
       <div :key="state.token" ref="dialogRef" class="alert-dialog"
-        :class="{ 'is-loading': state.variant === 'loading' }" role="alertdialog" aria-modal="true"
+        :class="{ 'is-loading': state.variant === 'loading', 'has-extra': Boolean(state.extraText) }" role="alertdialog" aria-modal="true"
         aria-labelledby="app-alert-title" aria-describedby="app-alert-text" :aria-busy="state.variant === 'loading'"
         tabindex="-1">
         <TicketCard appear :color="currentVariant.color" :title="state.title" :detail="state.rows.length ? '' : state.text">
@@ -218,6 +226,10 @@ onUnmounted(() => {
           <template v-if="state.variant !== 'loading'" #action>
             <button v-if="state.cancelText" ref="cancelRef" type="button" class="ticket-link" @click="onDismiss">
               {{ state.cancelText }}
+            </button>
+
+            <button v-if="state.extraText" ref="extraRef" type="button" class="ticket-link is-dark" @click="onExtra">
+              {{ state.extraText }}
             </button>
 
             <button ref="confirmRef" type="button" class="ticket-link is-dark" @click="onConfirm">
@@ -342,8 +354,15 @@ onUnmounted(() => {
 
 .alert-dialog :deep(.ticket-stub) {
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.6rem;
   padding: var(--alert-stub-pad) 1.15rem;
+}
+
+@media (max-width: 560px) {
+  .alert-dialog.has-extra {
+    --stub-size: calc(var(--alert-stub-pad) * 2 + var(--alert-action-size) * 2 + 0.6rem + var(--dash));
+  }
 }
 
 .alert-dialog :deep(.ticket-film) {
