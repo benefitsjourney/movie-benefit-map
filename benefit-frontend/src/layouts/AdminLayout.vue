@@ -15,7 +15,7 @@ const links = [
     children: [
       { to: "/admin/cinemas", label: "影城資料", icon: movieIcon },
       { to: "/admin/movies", label: "電影資料", icon: filmIcon },
-      { to: "/admin/crawler-reviews", label: "爬蟲審核", icon: reviewIcon },
+      { to: "/admin/cinemas-movies/reviews", label: "爬蟲審核", icon: reviewIcon },
     ],
   },
 ];

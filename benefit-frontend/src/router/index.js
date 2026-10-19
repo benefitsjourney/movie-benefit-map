@@ -52,13 +52,13 @@ const router = createRouter({
           component: AdminCinemaMovieCrawlerView,
         },
         {
-          path: 'crawler-reviews',
-          name: 'admin-crawler-reviews',
+          path: 'cinemas-movies/reviews',
+          name: 'admin-reviews',
           component: AdminCrawlerReviewView,
         },
         {
-          path: 'crawler-reviews/:id',
-          redirect: { name: 'admin-crawler-reviews' },
+          path: 'cinemas-movies/reviews/:id',
+          redirect: { name: 'admin-reviews' },
         },
         {
           path: 'cinemas',

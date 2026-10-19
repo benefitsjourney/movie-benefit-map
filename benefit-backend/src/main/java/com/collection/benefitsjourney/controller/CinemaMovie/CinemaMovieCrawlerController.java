@@ -18,25 +18,25 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RequestMapping("/cinema-movie/crawler")
 @Tag(name = "影城電影爬蟲")
 public class CinemaMovieCrawlerController {
-    private CrawlerCinemaService cinemaCrawlerService;
-    private CrawlerMovieService movieCrawlerService;
+    private CrawlerCinemaService crawlerCinemaService;
+    private CrawlerMovieService crawlerMovieService;
 
-    public CinemaMovieCrawlerController(CrawlerCinemaService cinemaCrawlerService,
-            CrawlerMovieService movieCrawlerService) {
-        this.cinemaCrawlerService = cinemaCrawlerService;
-        this.movieCrawlerService = movieCrawlerService;
+    public CinemaMovieCrawlerController(CrawlerCinemaService crawlerCinemaService,
+            CrawlerMovieService crawlerMovieService) {
+        this.crawlerCinemaService = crawlerCinemaService;
+        this.crawlerMovieService = crawlerMovieService;
     }
 
     @GetMapping("/cinemas")
     @Operation(summary = "爬取並同步影城資料")
     public ResponseEntity<CinemaMovieCrawlerSyncResult<CinemaResponse>> syncCinemas() {
-        return ResponseEntity.ok(cinemaCrawlerService.syncCinemas());
+        return ResponseEntity.ok(crawlerCinemaService.syncCinemas());
     }
 
     @GetMapping("/movies")
     @Operation(summary = "爬取並同步電影資料")
     public ResponseEntity<CinemaMovieCrawlerSyncResult<MovieResponse>> syncMovies() {
         return ResponseEntity.ok(
-                movieCrawlerService.syncMovies());
+                crawlerMovieService.syncMovies());
     }
 }

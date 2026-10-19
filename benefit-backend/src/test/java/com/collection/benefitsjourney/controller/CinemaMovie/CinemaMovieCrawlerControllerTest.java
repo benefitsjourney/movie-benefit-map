@@ -43,10 +43,10 @@ class CinemaMovieCrawlerControllerTest {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private CrawlerCinemaService cinemaCrawlerService;
+    private CrawlerCinemaService crawlerCinemaService;
 
     @MockitoBean
-    private CrawlerMovieService movieCrawlerService;
+    private CrawlerMovieService crawlerMovieService;
 
     private CinemaResponse cinema() {
         return new CinemaResponse(
@@ -68,7 +68,7 @@ class CinemaMovieCrawlerControllerTest {
         @Test
         @DisplayName("同步成功應回傳 200 與影城資料")
         void success() throws Exception {
-            when(cinemaCrawlerService.syncCinemas()).thenReturn(
+            when(crawlerCinemaService.syncCinemas()).thenReturn(
                     CinemaMovieCrawlerSyncResult.of(3, 1, 2, 4, 5, 8, List.of(cinema())));
 
             mockMvc.perform(get("/cinema-movie/crawler/cinemas"))
@@ -87,14 +87,14 @@ class CinemaMovieCrawlerControllerTest {
                     .andExpect(jsonPath("$.items[0].county").value("TAIPEI"))
                     .andExpect(jsonPath("$.items[0].isActive").value(true));
 
-            verify(cinemaCrawlerService).syncCinemas();
-            verifyNoInteractions(movieCrawlerService);
+            verify(crawlerCinemaService).syncCinemas();
+            verifyNoInteractions(crawlerMovieService);
         }
 
         @Test
         @DisplayName("Service 回傳空結果應回傳 200 與統計")
         void emptyResult() throws Exception {
-            when(cinemaCrawlerService.syncCinemas()).thenReturn(
+            when(crawlerCinemaService.syncCinemas()).thenReturn(
                     CinemaMovieCrawlerSyncResult.of(0, 0, 0, 0, 0, 0, List.of()));
 
             mockMvc.perform(get("/cinema-movie/crawler/cinemas"))
@@ -111,7 +111,7 @@ class CinemaMovieCrawlerControllerTest {
         @Test
         @DisplayName("來源網站異常應回傳 502")
         void sourceError() throws Exception {
-            when(cinemaCrawlerService.syncCinemas()).thenThrow(
+            when(crawlerCinemaService.syncCinemas()).thenThrow(
                     new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                             "找不到影城縣市資料，來源網站結構可能已變更"));
 
@@ -125,7 +125,7 @@ class CinemaMovieCrawlerControllerTest {
         @Test
         @DisplayName("資料庫同步全部失敗應回傳 500")
         void databaseError() throws Exception {
-            when(cinemaCrawlerService.syncCinemas()).thenThrow(
+            when(crawlerCinemaService.syncCinemas()).thenThrow(
                     new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR,
                             "影城資料抓取成功，但寫入資料庫失敗"));
 
@@ -144,7 +144,7 @@ class CinemaMovieCrawlerControllerTest {
         @Test
         @DisplayName("同步成功應回傳 200 與電影資料")
         void success() throws Exception {
-            when(movieCrawlerService.syncMovies()).thenReturn(
+            when(crawlerMovieService.syncMovies()).thenReturn(
                     CinemaMovieCrawlerSyncResult.of(4, 2, 3, 1, 1, 6, List.of(movie())));
 
             mockMvc.perform(get("/cinema-movie/crawler/movies"))
@@ -163,14 +163,14 @@ class CinemaMovieCrawlerControllerTest {
                     .andExpect(jsonPath("$.items[0].isVisible").value(true))
                     .andExpect(jsonPath("$.items[0].releaseDate").exists());
 
-            verify(movieCrawlerService).syncMovies();
-            verifyNoInteractions(cinemaCrawlerService);
+            verify(crawlerMovieService).syncMovies();
+            verifyNoInteractions(crawlerCinemaService);
         }
 
         @Test
         @DisplayName("Service 回傳空結果應回傳 200 與統計")
         void emptyResult() throws Exception {
-            when(movieCrawlerService.syncMovies()).thenReturn(
+            when(crawlerMovieService.syncMovies()).thenReturn(
                     CinemaMovieCrawlerSyncResult.of(0, 0, 0, 0, 0, 0, List.of()));
 
             mockMvc.perform(get("/cinema-movie/crawler/movies"))
@@ -186,7 +186,7 @@ class CinemaMovieCrawlerControllerTest {
         @Test
         @DisplayName("沒有成功同步任何電影應回傳 502")
         void noMoviesSynced() throws Exception {
-            when(movieCrawlerService.syncMovies()).thenThrow(
+            when(crawlerMovieService.syncMovies()).thenThrow(
                     new ResponseStatusException(HttpStatus.BAD_GATEWAY,
                             "電影爬蟲未成功同步任何資料"));
 
@@ -200,7 +200,7 @@ class CinemaMovieCrawlerControllerTest {
         @Test
         @DisplayName("同步遭到中斷應回傳 503")
         void interrupted() throws Exception {
-            when(movieCrawlerService.syncMovies()).thenThrow(
+            when(crawlerMovieService.syncMovies()).thenThrow(
                     new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
                             "電影同步遭到中斷"));
 
@@ -221,7 +221,7 @@ class CinemaMovieCrawlerControllerTest {
                     .andExpect(status().isMethodNotAllowed())
                     .andExpect(jsonPath("$.status").value(405));
 
-            verifyNoInteractions(cinemaCrawlerService, movieCrawlerService);
+            verifyNoInteractions(crawlerCinemaService, crawlerMovieService);
         }
 
         @Test
@@ -230,13 +230,13 @@ class CinemaMovieCrawlerControllerTest {
             mockMvc.perform(post("/cinema-movie/crawler/movies"))
                     .andExpect(status().isMethodNotAllowed());
 
-            verifyNoInteractions(cinemaCrawlerService, movieCrawlerService);
+            verifyNoInteractions(crawlerCinemaService, crawlerMovieService);
         }
 
         @Test
         @DisplayName("未預期的 Service 例外應回傳 500")
         void unexpectedError() throws Exception {
-            when(movieCrawlerService.syncMovies())
+            when(crawlerMovieService.syncMovies())
                     .thenThrow(new IllegalStateException("unexpected"));
 
             mockMvc.perform(get("/cinema-movie/crawler/movies"))

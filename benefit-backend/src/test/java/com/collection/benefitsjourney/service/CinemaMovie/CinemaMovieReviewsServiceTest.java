@@ -30,23 +30,23 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.collection.benefitsjourney.domain.CinemaMovieCrawlerReviewBean;
-import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieCrawlerReviewRequest;
-import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieCrawlerReviewResponse;
+import com.collection.benefitsjourney.domain.CinemaMovieReviewBean;
+import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieReviewRequest;
+import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieReviewResponse;
 import com.collection.benefitsjourney.dto.CinemaMovie.MovieRequest;
 import com.collection.benefitsjourney.dto.CinemaMovie.MovieResponse;
 import com.collection.benefitsjourney.dto.PageResponse;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaResourceType;
-import com.collection.benefitsjourney.enums.CinemaMovie.CinemaMovieCrawlerReviewSort;
+import com.collection.benefitsjourney.enums.CinemaMovie.CinemaMovieReviewSort;
 import com.collection.benefitsjourney.enums.ReviewStatus;
 import com.collection.benefitsjourney.enums.SortOrder;
-import com.collection.benefitsjourney.repository.CinemaMovieCrawlerReviewsRepository;
+import com.collection.benefitsjourney.repository.CinemaMovieReviewsRepository;
 
 @ExtendWith(MockitoExtension.class)
-class CinemaMovieCrawlerReviewsServiceTest {
+class CinemaMovieReviewsServiceTest {
 
     @Mock
-    private CinemaMovieCrawlerReviewsRepository crawlerReviewsRepository;
+    private CinemaMovieReviewsRepository cinemaMovieReviewsRepository;
 
     @Mock
     private CinemaService cinemaService;
@@ -55,13 +55,13 @@ class CinemaMovieCrawlerReviewsServiceTest {
     private MovieService movieService;
 
     @InjectMocks
-    private CinemaMovieCrawlerReviewsService crawlerReviewsService;
+    private CinemaMovieReviewsService cinemaMovieReviewsService;
 
     private static final LocalDateTime REVIEWED_AT = LocalDateTime.of(2026, 10, 9, 11, 0);
 
-    private CinemaMovieCrawlerReviewBean review(Integer id, ReviewStatus status) {
-        CinemaMovieCrawlerReviewBean review = new CinemaMovieCrawlerReviewBean();
-        review.setCrawlerReviewId(id);
+    private CinemaMovieReviewBean review(Integer id, ReviewStatus status) {
+        CinemaMovieReviewBean review = new CinemaMovieReviewBean();
+        review.setCinemaMovieReviewId(id);
         review.setCrawlerType(CinemaResourceType.MOVIE);
         review.setEntityId(12);
         review.setFieldName("movieName");
@@ -74,7 +74,7 @@ class CinemaMovieCrawlerReviewsServiceTest {
         return review;
     }
 
-    private CinemaMovieCrawlerReviewRequest request(
+    private CinemaMovieReviewRequest request(
             CinemaResourceType crawlerType,
             Integer entityId,
             String fieldName,
@@ -82,7 +82,7 @@ class CinemaMovieCrawlerReviewsServiceTest {
             String previousValue,
             ReviewStatus reviewStatus,
             LocalDateTime reviewedAt) {
-        return new CinemaMovieCrawlerReviewRequest(
+        return new CinemaMovieReviewRequest(
                 crawlerType,
                 entityId,
                 fieldName,
@@ -99,8 +99,8 @@ class CinemaMovieCrawlerReviewsServiceTest {
         @Test
         @DisplayName("查詢參數應傳到 Repository，頁碼應從 1-based 轉 0-based")
         void shouldPassFiltersAndPaging() {
-            CinemaMovieCrawlerReviewBean bean = review(7, ReviewStatus.PENDING);
-            when(crawlerReviewsRepository.findAllByFilters(
+            CinemaMovieReviewBean bean = review(7, ReviewStatus.PENDING);
+            when(cinemaMovieReviewsRepository.findAllByFilters(
                     eq(CinemaResourceType.MOVIE),
                     eq(ReviewStatus.PENDING),
                     any(Pageable.class)))
@@ -109,16 +109,16 @@ class CinemaMovieCrawlerReviewsServiceTest {
                             PageRequest.of(2, 20),
                             41));
 
-            PageResponse<CinemaMovieCrawlerReviewResponse> result = crawlerReviewsService.findAll(
+            PageResponse<CinemaMovieReviewResponse> result = cinemaMovieReviewsService.findAll(
                     CinemaResourceType.MOVIE,
                     ReviewStatus.PENDING,
                     3,
                     20,
-                    CinemaMovieCrawlerReviewSort.SortBy.CRAWLER_REVIEW_ID,
+                    CinemaMovieReviewSort.SortBy.CINEMA_MOVIE_REVIEW_ID,
                     SortOrder.ASC);
 
             ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-            verify(crawlerReviewsRepository).findAllByFilters(
+            verify(cinemaMovieReviewsRepository).findAllByFilters(
                     eq(CinemaResourceType.MOVIE),
                     eq(ReviewStatus.PENDING),
                     pageableCaptor.capture());
@@ -127,7 +127,7 @@ class CinemaMovieCrawlerReviewsServiceTest {
             assertEquals(2, pageable.getPageNumber());
             assertEquals(20, pageable.getPageSize());
             assertEquals(1, pageable.getSort().stream().count());
-            Sort.Order order = pageable.getSort().getOrderFor("crawlerReviewId");
+            Sort.Order order = pageable.getSort().getOrderFor("cinemaMovieReviewId");
             assertNotNull(order);
             assertEquals(Sort.Direction.ASC, order.getDirection());
 
@@ -136,8 +136,8 @@ class CinemaMovieCrawlerReviewsServiceTest {
             assertEquals(41, result.totalElements());
             assertEquals(3, result.totalPages());
             assertEquals(1, result.content().size());
-            CinemaMovieCrawlerReviewResponse response = result.content().get(0);
-            assertEquals(7, response.crawlerReviewId());
+            CinemaMovieReviewResponse response = result.content().get(0);
+            assertEquals(7, response.cinemaMovieReviewId());
             assertEquals(CinemaResourceType.MOVIE, response.crawlerType());
             assertEquals(12, response.entityId());
             assertEquals("movieName", response.fieldName());
@@ -152,23 +152,23 @@ class CinemaMovieCrawlerReviewsServiceTest {
         @Test
         @DisplayName("未指定篩選時應把 null 傳給 Repository")
         void shouldAllowNullFilters() {
-            when(crawlerReviewsRepository.findAllByFilters(
+            when(cinemaMovieReviewsRepository.findAllByFilters(
                     nullable(CinemaResourceType.class),
                     nullable(ReviewStatus.class),
                     any(Pageable.class)))
                     .thenReturn(new PageImpl<>(List.of()));
 
-            PageResponse<CinemaMovieCrawlerReviewResponse> result = crawlerReviewsService.findAll(
+            PageResponse<CinemaMovieReviewResponse> result = cinemaMovieReviewsService.findAll(
                     null,
                     null,
                     1,
                     10,
-                    CinemaMovieCrawlerReviewSort.SortBy.CRAWLER_REVIEW_ID,
+                    CinemaMovieReviewSort.SortBy.CINEMA_MOVIE_REVIEW_ID,
                     SortOrder.DESC);
 
             assertNotNull(result);
             ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-            verify(crawlerReviewsRepository).findAllByFilters(
+            verify(cinemaMovieReviewsRepository).findAllByFilters(
                     nullable(CinemaResourceType.class),
                     nullable(ReviewStatus.class),
                     pageableCaptor.capture());
@@ -178,28 +178,28 @@ class CinemaMovieCrawlerReviewsServiceTest {
             assertEquals(10, pageable.getPageSize());
             assertEquals(1, pageable.getSort().stream().count());
             assertEquals(Sort.Direction.DESC,
-                    pageable.getSort().getOrderFor("crawlerReviewId").getDirection());
+                    pageable.getSort().getOrderFor("cinemaMovieReviewId").getDirection());
         }
 
         @Test
-        @DisplayName("非主鍵排序時，應再依 crawlerReviewId 由小到大")
+        @DisplayName("非主鍵排序時，應再依 cinemaMovieReviewId 由小到大")
         void shouldAppendIdSort() {
-            when(crawlerReviewsRepository.findAllByFilters(
+            when(cinemaMovieReviewsRepository.findAllByFilters(
                     nullable(CinemaResourceType.class),
                     nullable(ReviewStatus.class),
                     any(Pageable.class)))
                     .thenReturn(new PageImpl<>(List.of()));
 
-            crawlerReviewsService.findAll(
+            cinemaMovieReviewsService.findAll(
                     null,
                     null,
                     1,
                     10,
-                    CinemaMovieCrawlerReviewSort.SortBy.REVIEW_STATUS,
+                    CinemaMovieReviewSort.SortBy.REVIEW_STATUS,
                     SortOrder.DESC);
 
             ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
-            verify(crawlerReviewsRepository).findAllByFilters(
+            verify(cinemaMovieReviewsRepository).findAllByFilters(
                     nullable(CinemaResourceType.class),
                     nullable(ReviewStatus.class),
                     pageableCaptor.capture());
@@ -208,116 +208,116 @@ class CinemaMovieCrawlerReviewsServiceTest {
             assertEquals(2, orders.size());
             assertEquals("reviewStatus", orders.get(0).getProperty());
             assertEquals(Sort.Direction.DESC, orders.get(0).getDirection());
-            assertEquals("crawlerReviewId", orders.get(1).getProperty());
+            assertEquals("cinemaMovieReviewId", orders.get(1).getProperty());
             assertEquals(Sort.Direction.ASC, orders.get(1).getDirection());
         }
     }
 
     @Nested
-    @DisplayName("createCrawlerReview - 新增爬蟲審核")
-    class CreateCrawlerReviewTests {
+    @DisplayName("createCinemaMovieReview - 新增爬蟲審核")
+    class CreateCinemaMovieReviewTests {
 
         @Test
         @DisplayName("Request 為 null 應回傳 400，且不呼叫 Repository")
         void nullRequest() {
             ResponseStatusException exception = assertThrows(
                     ResponseStatusException.class,
-                    () -> crawlerReviewsService.createCrawlerReview(null));
+                    () -> cinemaMovieReviewsService.createCinemaMovieReview(null));
 
             assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
             assertEquals("請求內容不可為空", exception.getReason());
-            verifyNoInteractions(crawlerReviewsRepository);
+            verifyNoInteractions(cinemaMovieReviewsRepository);
         }
 
         @Test
         @DisplayName("爬蟲類型未填應回傳 400")
         void nullCrawlerType() {
-            CinemaMovieCrawlerReviewRequest request = request(
+            CinemaMovieReviewRequest request = request(
                     null, 12, "movieName", null, null, null, null);
 
             ResponseStatusException exception = assertThrows(
                     ResponseStatusException.class,
-                    () -> crawlerReviewsService.createCrawlerReview(request));
+                    () -> cinemaMovieReviewsService.createCinemaMovieReview(request));
 
             assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
             assertEquals("爬蟲類型不可為空", exception.getReason());
-            verifyNoInteractions(crawlerReviewsRepository);
+            verifyNoInteractions(cinemaMovieReviewsRepository);
         }
 
         @Test
         @DisplayName("對應資料 ID 未填應回傳 400")
         void nullEntityId() {
-            CinemaMovieCrawlerReviewRequest request = request(
+            CinemaMovieReviewRequest request = request(
                     CinemaResourceType.MOVIE, null, "movieName", null, null, null, null);
 
             ResponseStatusException exception = assertThrows(
                     ResponseStatusException.class,
-                    () -> crawlerReviewsService.createCrawlerReview(request));
+                    () -> cinemaMovieReviewsService.createCinemaMovieReview(request));
 
             assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
             assertEquals("對應資料ID不可為空", exception.getReason());
-            verifyNoInteractions(crawlerReviewsRepository);
+            verifyNoInteractions(cinemaMovieReviewsRepository);
         }
 
         @Test
         @DisplayName("欄位名稱未填或只有空白應回傳 400")
         void blankFieldName() {
-            CinemaMovieCrawlerReviewRequest nullName = request(
+            CinemaMovieReviewRequest nullName = request(
                     CinemaResourceType.MOVIE, 12, null, null, null, null, null);
-            CinemaMovieCrawlerReviewRequest blankName = request(
+            CinemaMovieReviewRequest blankName = request(
                     CinemaResourceType.MOVIE, 12, "   ", null, null, null, null);
 
             ResponseStatusException nullNameException = assertThrows(
                     ResponseStatusException.class,
-                    () -> crawlerReviewsService.createCrawlerReview(nullName));
+                    () -> cinemaMovieReviewsService.createCinemaMovieReview(nullName));
             ResponseStatusException blankNameException = assertThrows(
                     ResponseStatusException.class,
-                    () -> crawlerReviewsService.createCrawlerReview(blankName));
+                    () -> cinemaMovieReviewsService.createCinemaMovieReview(blankName));
 
             assertEquals(HttpStatus.BAD_REQUEST, nullNameException.getStatusCode());
             assertEquals("欄位名稱不可為空", nullNameException.getReason());
             assertEquals("欄位名稱不可為空", blankNameException.getReason());
-            verifyNoInteractions(crawlerReviewsRepository);
+            verifyNoInteractions(cinemaMovieReviewsRepository);
         }
 
         @Test
         @DisplayName("相同差異已有待審或已拒絕時應回傳 400，不能再新增")
         void duplicateSameDifference() {
-            CinemaMovieCrawlerReviewBean pending = review(2, ReviewStatus.PENDING);
-            CinemaMovieCrawlerReviewRequest request = request(
+            CinemaMovieReviewBean pending = review(2, ReviewStatus.PENDING);
+            CinemaMovieReviewRequest request = request(
                     CinemaResourceType.MOVIE, 12, "movieName", "新片名", "舊片名", null, null);
-            when(crawlerReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
+            when(cinemaMovieReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
                     CinemaResourceType.MOVIE, 12, "movieName"))
                     .thenReturn(List.of(review(1, ReviewStatus.APPROVED), pending));
 
             ResponseStatusException exception = assertThrows(
                     ResponseStatusException.class,
-                    () -> crawlerReviewsService.createCrawlerReview(request));
+                    () -> cinemaMovieReviewsService.createCinemaMovieReview(request));
 
             assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
             assertEquals("已有相同差異的審核紀錄，不重複新增", exception.getReason());
-            verify(crawlerReviewsRepository, never()).save(any(CinemaMovieCrawlerReviewBean.class));
+            verify(cinemaMovieReviewsRepository, never()).save(any(CinemaMovieReviewBean.class));
         }
 
         @Test
         @DisplayName("爬蟲值與原值相同時應回傳 400")
         void sameValue() {
-            CinemaMovieCrawlerReviewRequest request = request(
+            CinemaMovieReviewRequest request = request(
                     CinemaResourceType.MOVIE, 12, "movieName", "同一片名", "同一片名", null, null);
 
             ResponseStatusException exception = assertThrows(
                     ResponseStatusException.class,
-                    () -> crawlerReviewsService.createCrawlerReview(request));
+                    () -> cinemaMovieReviewsService.createCinemaMovieReview(request));
 
             assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
             assertEquals("爬蟲值與原值相同，無需新增", exception.getReason());
-            verifyNoInteractions(crawlerReviewsRepository);
+            verifyNoInteractions(cinemaMovieReviewsRepository);
         }
 
         @Test
         @DisplayName("直接新增已拒絕或已接受應回傳 400")
         void rejectNonPendingCreate() {
-            CinemaMovieCrawlerReviewRequest request = request(
+            CinemaMovieReviewRequest request = request(
                     CinemaResourceType.MOVIE,
                     8,
                     "movieName",
@@ -328,17 +328,17 @@ class CinemaMovieCrawlerReviewsServiceTest {
 
             ResponseStatusException exception = assertThrows(
                     ResponseStatusException.class,
-                    () -> crawlerReviewsService.createCrawlerReview(request));
+                    () -> cinemaMovieReviewsService.createCinemaMovieReview(request));
 
             assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
             assertEquals("新增僅能建立待審核資料", exception.getReason());
-            verifyNoInteractions(crawlerReviewsRepository);
+            verifyNoInteractions(cinemaMovieReviewsRepository);
         }
 
         @Test
         @DisplayName("沒有相同差異時應新增 PENDING，已接受的歷史不擋新增")
         void shouldCreatePending() {
-            CinemaMovieCrawlerReviewRequest request = request(
+            CinemaMovieReviewRequest request = request(
                     CinemaResourceType.CINEMA,
                     100,
                     "cinema_address",
@@ -346,50 +346,50 @@ class CinemaMovieCrawlerReviewsServiceTest {
                     "舊地址",
                     null,
                     null);
-            when(crawlerReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
+            when(cinemaMovieReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
                     CinemaResourceType.CINEMA, 100, "cinema_address"))
                     .thenReturn(List.of(review(1, ReviewStatus.APPROVED)));
-            when(crawlerReviewsRepository.save(any(CinemaMovieCrawlerReviewBean.class)))
+            when(cinemaMovieReviewsRepository.save(any(CinemaMovieReviewBean.class)))
                     .thenAnswer(invocation -> {
-                        CinemaMovieCrawlerReviewBean saved = invocation.getArgument(0);
-                        saved.setCrawlerReviewId(15);
+                        CinemaMovieReviewBean saved = invocation.getArgument(0);
+                        saved.setCinemaMovieReviewId(15);
                         return saved;
                     });
 
-            CinemaMovieCrawlerReviewResponse result = crawlerReviewsService.createCrawlerReview(request);
+            CinemaMovieReviewResponse result = cinemaMovieReviewsService.createCinemaMovieReview(request);
 
-            ArgumentCaptor<CinemaMovieCrawlerReviewBean> captor = ArgumentCaptor.forClass(CinemaMovieCrawlerReviewBean.class);
-            verify(crawlerReviewsRepository).save(captor.capture());
-            CinemaMovieCrawlerReviewBean saved = captor.getValue();
+            ArgumentCaptor<CinemaMovieReviewBean> captor = ArgumentCaptor.forClass(CinemaMovieReviewBean.class);
+            verify(cinemaMovieReviewsRepository).save(captor.capture());
+            CinemaMovieReviewBean saved = captor.getValue();
             assertEquals(CinemaResourceType.CINEMA, saved.getCrawlerType());
             assertEquals(100, saved.getEntityId());
             assertEquals("cinema_address", saved.getFieldName());
             assertEquals("新地址", saved.getCrawlerValue());
             assertEquals("舊地址", saved.getPreviousValue());
             assertEquals(ReviewStatus.PENDING, saved.getReviewStatus());
-            assertEquals(15, result.crawlerReviewId());
+            assertEquals(15, result.cinemaMovieReviewId());
         }
 
         @Test
         @DisplayName("同欄位已有 PENDING 但爬蟲值改變時，應更新該筆而不是再新增")
         void shouldUpdateExistingPending() {
-            CinemaMovieCrawlerReviewBean pending = review(2, ReviewStatus.PENDING);
-            CinemaMovieCrawlerReviewRequest request = request(
+            CinemaMovieReviewBean pending = review(2, ReviewStatus.PENDING);
+            CinemaMovieReviewRequest request = request(
                     CinemaResourceType.MOVIE, 12, "movieName", "更新後片名", "舊片名", null, null);
-            when(crawlerReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
+            when(cinemaMovieReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
                     CinemaResourceType.MOVIE, 12, "movieName"))
                     .thenReturn(List.of(pending));
-            when(crawlerReviewsRepository.save(any(CinemaMovieCrawlerReviewBean.class)))
+            when(cinemaMovieReviewsRepository.save(any(CinemaMovieReviewBean.class)))
                     .thenAnswer(invocation -> invocation.getArgument(0));
 
-            CinemaMovieCrawlerReviewResponse result = crawlerReviewsService.createCrawlerReview(request);
+            CinemaMovieReviewResponse result = cinemaMovieReviewsService.createCinemaMovieReview(request);
 
-            assertEquals(2, result.crawlerReviewId());
+            assertEquals(2, result.cinemaMovieReviewId());
             assertEquals("更新後片名", pending.getCrawlerValue());
             assertEquals("舊片名", pending.getPreviousValue());
             assertEquals(ReviewStatus.PENDING, pending.getReviewStatus());
             assertEquals("更新後片名", result.crawlerValue());
-            verify(crawlerReviewsRepository).save(pending);
+            verify(cinemaMovieReviewsRepository).save(pending);
         }
     }
 
@@ -400,52 +400,52 @@ class CinemaMovieCrawlerReviewsServiceTest {
         @Test
         @DisplayName("相同差異已是 REJECTED 時應略過，不再每天新增")
         void skipRejectedDifference() {
-            CinemaMovieCrawlerReviewBean rejected = review(3, ReviewStatus.REJECTED);
-            when(crawlerReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
+            CinemaMovieReviewBean rejected = review(3, ReviewStatus.REJECTED);
+            when(cinemaMovieReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
                     CinemaResourceType.MOVIE, 12, "movieName"))
                     .thenReturn(List.of(rejected));
 
-            boolean saved = crawlerReviewsService.submitCrawlerChange(
+            boolean saved = cinemaMovieReviewsService.submitCrawlerChange(
                     CinemaResourceType.MOVIE, 12, "movieName", "新片名", "舊片名");
 
             assertEquals(false, saved);
-            verify(crawlerReviewsRepository, never()).save(any(CinemaMovieCrawlerReviewBean.class));
+            verify(cinemaMovieReviewsRepository, never()).save(any(CinemaMovieReviewBean.class));
         }
 
         @Test
         @DisplayName("已接受的電影來源衝突，相同差異不再送審")
         void skipApprovedSourceConflict() {
-            CinemaMovieCrawlerReviewBean approved = review(4, ReviewStatus.APPROVED);
-            approved.setFieldName(CinemaMovieCrawlerReviewsService.SOURCE_ID);
+            CinemaMovieReviewBean approved = review(4, ReviewStatus.APPROVED);
+            approved.setFieldName(CinemaMovieReviewsService.SOURCE_ID);
             approved.setCrawlerValue("fNEW");
             approved.setPreviousValue("fOLD");
-            when(crawlerReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
-                    CinemaResourceType.MOVIE, 12, CinemaMovieCrawlerReviewsService.SOURCE_ID))
+            when(cinemaMovieReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
+                    CinemaResourceType.MOVIE, 12, CinemaMovieReviewsService.SOURCE_ID))
                     .thenReturn(List.of(approved));
 
-            boolean saved = crawlerReviewsService.submitCrawlerChange(
-                    CinemaResourceType.MOVIE, 12, CinemaMovieCrawlerReviewsService.SOURCE_ID, "fNEW", "fOLD");
+            boolean saved = cinemaMovieReviewsService.submitCrawlerChange(
+                    CinemaResourceType.MOVIE, 12, CinemaMovieReviewsService.SOURCE_ID, "fNEW", "fOLD");
 
             assertEquals(false, saved);
-            verify(crawlerReviewsRepository, never()).save(any(CinemaMovieCrawlerReviewBean.class));
+            verify(cinemaMovieReviewsRepository, never()).save(any(CinemaMovieReviewBean.class));
         }
 
         @Test
         @DisplayName("已接受的一般欄位不擋相同差異再次送審")
         void approvedMovieNameDoesNotBlockResubmit() {
-            CinemaMovieCrawlerReviewBean approved = review(4, ReviewStatus.APPROVED);
-            when(crawlerReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
+            CinemaMovieReviewBean approved = review(4, ReviewStatus.APPROVED);
+            when(cinemaMovieReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
                     CinemaResourceType.MOVIE, 12, "movieName"))
                     .thenReturn(List.of(approved));
-            when(crawlerReviewsRepository.save(any(CinemaMovieCrawlerReviewBean.class)))
+            when(cinemaMovieReviewsRepository.save(any(CinemaMovieReviewBean.class)))
                     .thenAnswer(invocation -> invocation.getArgument(0));
 
-            boolean saved = crawlerReviewsService.submitCrawlerChange(
+            boolean saved = cinemaMovieReviewsService.submitCrawlerChange(
                     CinemaResourceType.MOVIE, 12, "movieName", "新片名", "舊片名");
 
             assertEquals(true, saved);
-            ArgumentCaptor<CinemaMovieCrawlerReviewBean> captor = ArgumentCaptor.forClass(CinemaMovieCrawlerReviewBean.class);
-            verify(crawlerReviewsRepository).save(captor.capture());
+            ArgumentCaptor<CinemaMovieReviewBean> captor = ArgumentCaptor.forClass(CinemaMovieReviewBean.class);
+            verify(cinemaMovieReviewsRepository).save(captor.capture());
             assertEquals(ReviewStatus.PENDING, captor.getValue().getReviewStatus());
             assertEquals("新片名", captor.getValue().getCrawlerValue());
         }
@@ -453,22 +453,22 @@ class CinemaMovieCrawlerReviewsServiceTest {
         @Test
         @DisplayName("已接受的來源衝突若新來源不同，仍要再送審")
         void approvedSourceConflictWithNewValue() {
-            CinemaMovieCrawlerReviewBean approved = review(4, ReviewStatus.APPROVED);
-            approved.setFieldName(CinemaMovieCrawlerReviewsService.SOURCE_ID);
+            CinemaMovieReviewBean approved = review(4, ReviewStatus.APPROVED);
+            approved.setFieldName(CinemaMovieReviewsService.SOURCE_ID);
             approved.setCrawlerValue("fNEW");
             approved.setPreviousValue("fOLD");
-            when(crawlerReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
-                    CinemaResourceType.MOVIE, 12, CinemaMovieCrawlerReviewsService.SOURCE_ID))
+            when(cinemaMovieReviewsRepository.findByCrawlerTypeAndEntityIdAndFieldName(
+                    CinemaResourceType.MOVIE, 12, CinemaMovieReviewsService.SOURCE_ID))
                     .thenReturn(List.of(approved));
-            when(crawlerReviewsRepository.save(any(CinemaMovieCrawlerReviewBean.class)))
+            when(cinemaMovieReviewsRepository.save(any(CinemaMovieReviewBean.class)))
                     .thenAnswer(invocation -> invocation.getArgument(0));
 
-            boolean saved = crawlerReviewsService.submitCrawlerChange(
-                    CinemaResourceType.MOVIE, 12, CinemaMovieCrawlerReviewsService.SOURCE_ID, "fOTHER", "fOLD");
+            boolean saved = cinemaMovieReviewsService.submitCrawlerChange(
+                    CinemaResourceType.MOVIE, 12, CinemaMovieReviewsService.SOURCE_ID, "fOTHER", "fOLD");
 
             assertEquals(true, saved);
-            ArgumentCaptor<CinemaMovieCrawlerReviewBean> captor = ArgumentCaptor.forClass(CinemaMovieCrawlerReviewBean.class);
-            verify(crawlerReviewsRepository).save(captor.capture());
+            ArgumentCaptor<CinemaMovieReviewBean> captor = ArgumentCaptor.forClass(CinemaMovieReviewBean.class);
+            verify(cinemaMovieReviewsRepository).save(captor.capture());
             assertEquals("fOTHER", captor.getValue().getCrawlerValue());
             assertEquals("fOLD", captor.getValue().getPreviousValue());
             assertEquals(ReviewStatus.PENDING, captor.getValue().getReviewStatus());
@@ -476,23 +476,23 @@ class CinemaMovieCrawlerReviewsServiceTest {
     }
 
     @Nested
-    @DisplayName("approveCrawlerReview - 審核通過")
-    class ApproveCrawlerReviewTests {
+    @DisplayName("approveCinemaMovieReview - 審核通過")
+    class ApproveCinemaMovieReviewTests {
 
         @Test
         @DisplayName("待審核通過時應寫入正式電影並改成 APPROVED")
         void approvePendingMovie() {
-            CinemaMovieCrawlerReviewBean existing = review(7, ReviewStatus.PENDING);
+            CinemaMovieReviewBean existing = review(7, ReviewStatus.PENDING);
             existing.setReviewedAt(null);
-            existing.setFieldName(CinemaMovieCrawlerReviewsService.MOVIE_NAME);
-            when(crawlerReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
+            existing.setFieldName(CinemaMovieReviewsService.MOVIE_NAME);
+            when(cinemaMovieReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
             when(movieService.updateMovie(eq(12), any(MovieRequest.class)))
                     .thenReturn(new MovieResponse(
                             12, null, "新片名", null, null, null, null, null));
-            when(crawlerReviewsRepository.save(any(CinemaMovieCrawlerReviewBean.class)))
+            when(cinemaMovieReviewsRepository.save(any(CinemaMovieReviewBean.class)))
                     .thenAnswer(invocation -> invocation.getArgument(0));
 
-            CinemaMovieCrawlerReviewResponse result = crawlerReviewsService.approveCrawlerReview(7);
+            CinemaMovieReviewResponse result = cinemaMovieReviewsService.approveCinemaMovieReview(7);
 
             ArgumentCaptor<MovieRequest> captor = ArgumentCaptor.forClass(MovieRequest.class);
             verify(movieService).updateMovie(eq(12), captor.capture());
@@ -505,28 +505,28 @@ class CinemaMovieCrawlerReviewsServiceTest {
         @Test
         @DisplayName("不是待審核時應回傳你已審核過")
         void alreadyReviewed() {
-            CinemaMovieCrawlerReviewBean existing = review(7, ReviewStatus.APPROVED);
-            when(crawlerReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
+            CinemaMovieReviewBean existing = review(7, ReviewStatus.APPROVED);
+            when(cinemaMovieReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
 
             ResponseStatusException exception = assertThrows(
                     ResponseStatusException.class,
-                    () -> crawlerReviewsService.approveCrawlerReview(7));
+                    () -> cinemaMovieReviewsService.approveCinemaMovieReview(7));
 
             assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
             assertEquals("你已審核過", exception.getReason());
             assertEquals(ReviewStatus.APPROVED, existing.getReviewStatus());
-            verify(crawlerReviewsRepository, never()).save(any(CinemaMovieCrawlerReviewBean.class));
+            verify(cinemaMovieReviewsRepository, never()).save(any(CinemaMovieReviewBean.class));
             verifyNoInteractions(movieService);
         }
 
         @Test
         @DisplayName("找不到審核應回傳 404")
         void notFound() {
-            when(crawlerReviewsRepository.findById(999)).thenReturn(Optional.empty());
+            when(cinemaMovieReviewsRepository.findById(999)).thenReturn(Optional.empty());
 
             ResponseStatusException exception = assertThrows(
                     ResponseStatusException.class,
-                    () -> crawlerReviewsService.approveCrawlerReview(999));
+                    () -> cinemaMovieReviewsService.approveCinemaMovieReview(999));
 
             assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
             assertEquals("找不到爬蟲審核ID：999", exception.getReason());
@@ -535,18 +535,18 @@ class CinemaMovieCrawlerReviewsServiceTest {
         @Test
         @DisplayName("接受電影來源衝突時只確認電影存在，不覆蓋正式來源")
         void approveSourceConflictWithoutUpdatingMovie() {
-            CinemaMovieCrawlerReviewBean existing = review(7, ReviewStatus.PENDING);
+            CinemaMovieReviewBean existing = review(7, ReviewStatus.PENDING);
             existing.setReviewedAt(null);
-            existing.setFieldName(CinemaMovieCrawlerReviewsService.SOURCE_ID);
+            existing.setFieldName(CinemaMovieReviewsService.SOURCE_ID);
             existing.setCrawlerValue("fNEW");
             existing.setPreviousValue("fOLD");
-            when(crawlerReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
+            when(cinemaMovieReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
             when(movieService.findById(12)).thenReturn(new MovieResponse(
                     12, "fOLD", "既有片名", null, true, null, null, null));
-            when(crawlerReviewsRepository.save(any(CinemaMovieCrawlerReviewBean.class)))
+            when(cinemaMovieReviewsRepository.save(any(CinemaMovieReviewBean.class)))
                     .thenAnswer(invocation -> invocation.getArgument(0));
 
-            CinemaMovieCrawlerReviewResponse result = crawlerReviewsService.approveCrawlerReview(7);
+            CinemaMovieReviewResponse result = cinemaMovieReviewsService.approveCinemaMovieReview(7);
 
             assertEquals(ReviewStatus.APPROVED, result.reviewStatus());
             assertNotNull(existing.getReviewedAt());
@@ -558,40 +558,40 @@ class CinemaMovieCrawlerReviewsServiceTest {
         @Test
         @DisplayName("來源衝突的新來源是空值時不能接受")
         void approveBlankSourceConflict() {
-            CinemaMovieCrawlerReviewBean existing = review(7, ReviewStatus.PENDING);
-            existing.setFieldName(CinemaMovieCrawlerReviewsService.SOURCE_ID);
+            CinemaMovieReviewBean existing = review(7, ReviewStatus.PENDING);
+            existing.setFieldName(CinemaMovieReviewsService.SOURCE_ID);
             existing.setCrawlerValue("  ");
-            when(crawlerReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
+            when(cinemaMovieReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
 
-            assertThrows(IllegalArgumentException.class, () -> crawlerReviewsService.approveCrawlerReview(7));
+            assertThrows(IllegalArgumentException.class, () -> cinemaMovieReviewsService.approveCinemaMovieReview(7));
 
             assertEquals(ReviewStatus.PENDING, existing.getReviewStatus());
             verify(movieService, never()).findById(any());
-            verify(crawlerReviewsRepository, never()).save(any(CinemaMovieCrawlerReviewBean.class));
+            verify(cinemaMovieReviewsRepository, never()).save(any(CinemaMovieReviewBean.class));
         }
     }
 
     @Nested
-    @DisplayName("rejectCrawlerReview - 審核拒絕")
-    class RejectCrawlerReviewTests {
+    @DisplayName("rejectCinemaMovieReview - 審核拒絕")
+    class RejectCinemaMovieReviewTests {
 
         @Test
         @DisplayName("待審核拒絕時只改成 REJECTED，不寫入正式資料")
         void rejectPending() {
-            CinemaMovieCrawlerReviewBean existing = review(7, ReviewStatus.PENDING);
+            CinemaMovieReviewBean existing = review(7, ReviewStatus.PENDING);
             existing.setReviewedAt(null);
-            when(crawlerReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
-            when(crawlerReviewsRepository.save(any(CinemaMovieCrawlerReviewBean.class)))
+            when(cinemaMovieReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
+            when(cinemaMovieReviewsRepository.save(any(CinemaMovieReviewBean.class)))
                     .thenAnswer(invocation -> invocation.getArgument(0));
 
-            CinemaMovieCrawlerReviewResponse result = crawlerReviewsService.rejectCrawlerReview(7);
+            CinemaMovieReviewResponse result = cinemaMovieReviewsService.rejectCinemaMovieReview(7);
 
             assertEquals(ReviewStatus.REJECTED, existing.getReviewStatus());
             assertEquals("新片名", existing.getCrawlerValue());
             assertEquals("舊片名", existing.getPreviousValue());
             assertNotNull(existing.getReviewedAt());
             assertEquals(ReviewStatus.REJECTED, result.reviewStatus());
-            verify(crawlerReviewsRepository).save(existing);
+            verify(cinemaMovieReviewsRepository).save(existing);
             verifyNoInteractions(movieService);
             verifyNoInteractions(cinemaService);
         }
@@ -599,28 +599,28 @@ class CinemaMovieCrawlerReviewsServiceTest {
         @Test
         @DisplayName("不是待審核時不能拒絕")
         void alreadyReviewed() {
-            CinemaMovieCrawlerReviewBean existing = review(7, ReviewStatus.APPROVED);
-            when(crawlerReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
+            CinemaMovieReviewBean existing = review(7, ReviewStatus.APPROVED);
+            when(cinemaMovieReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
 
             ResponseStatusException exception = assertThrows(
                     ResponseStatusException.class,
-                    () -> crawlerReviewsService.rejectCrawlerReview(7));
+                    () -> cinemaMovieReviewsService.rejectCinemaMovieReview(7));
 
             assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
             assertEquals("只有待審核資料可以拒絕", exception.getReason());
             assertEquals(ReviewStatus.APPROVED, existing.getReviewStatus());
-            verify(crawlerReviewsRepository, never()).save(any(CinemaMovieCrawlerReviewBean.class));
+            verify(cinemaMovieReviewsRepository, never()).save(any(CinemaMovieReviewBean.class));
             verifyNoInteractions(movieService);
         }
 
         @Test
         @DisplayName("找不到審核應回傳 404")
         void notFound() {
-            when(crawlerReviewsRepository.findById(999)).thenReturn(Optional.empty());
+            when(cinemaMovieReviewsRepository.findById(999)).thenReturn(Optional.empty());
 
             ResponseStatusException exception = assertThrows(
                     ResponseStatusException.class,
-                    () -> crawlerReviewsService.rejectCrawlerReview(999));
+                    () -> cinemaMovieReviewsService.rejectCinemaMovieReview(999));
 
             assertEquals(HttpStatus.NOT_FOUND, exception.getStatusCode());
             assertEquals("找不到爬蟲審核ID：999", exception.getReason());

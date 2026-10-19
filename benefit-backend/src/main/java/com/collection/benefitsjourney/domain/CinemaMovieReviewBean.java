@@ -24,12 +24,12 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-@Table(name = "cinema_movie_crawler_review", comment = "爬蟲審核表")
-public class CinemaMovieCrawlerReviewBean {
+@Table(name = "cinema_movie_review", comment = "爬蟲審核表")
+public class CinemaMovieReviewBean {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "crawler_review_id", comment = "ReviewID")
-    private Integer crawlerReviewId;
+    @Column(name = "cinema_movie_review_id", comment = "ReviewID")
+    private Integer cinemaMovieReviewId;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "crawler_type", nullable = false, length = 32, comment = "爬蟲類型")

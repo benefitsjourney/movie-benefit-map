@@ -145,7 +145,7 @@ const filterFields = [
 ];
 
 const columns = [
-  { key: "crawlerReviewId", label: "編號", minWidth: "6rem", nowrap: true, align: "center" },
+  { key: "cinemaMovieReviewId", label: "編號", minWidth: "6rem", nowrap: true, align: "center" },
   {
     key: "crawlerType",
     label: "類型",
@@ -208,7 +208,7 @@ const {
   loading,
   error,
   retry,
-} = useApiCollection("/cinema-movie/crawler-reviews", requestParams, { page });
+} = useApiCollection("/cinema-movie/reviews", requestParams, { page });
 
 const hasFilters = computed(
   () => Boolean(filters.value.crawlerType) || Boolean(filters.value.reviewStatus),
@@ -219,7 +219,7 @@ const resultUnit = computed(() =>
 );
 
 function choiceDisabled(row) {
-  return isReviewed(row) || actingId.value === row.crawlerReviewId;
+  return isReviewed(row) || actingId.value === row.cinemaMovieReviewId;
 }
 
 function goToPage(next) {
@@ -268,10 +268,10 @@ async function changeStatus(row, reviewStatus) {
   if (!confirmed.isConfirmed || choiceDisabled(row)) return;
 
   const action = reviewStatus === "APPROVED" ? "approve" : "reject";
-  actingId.value = row.crawlerReviewId;
+  actingId.value = row.cinemaMovieReviewId;
   try {
     const { data } = await http.patch(
-      `/cinema-movie/crawler-reviews/${row.crawlerReviewId}/${action}`,
+      `/cinema-movie/reviews/${row.cinemaMovieReviewId}/${action}`,
     );
     row.reviewStatus = data?.reviewStatus ?? reviewStatus;
     await openAppAlert({
@@ -307,7 +307,7 @@ async function changeStatus(row, reviewStatus) {
     <SearchFilter v-if="!(loading && !reviews.length) && !error" v-model="appliedFilters" title="篩選審核"
       :title-icon="filterIcon" submit-label="查詢審核" :fields="filterFields" theme="purple">
       <div ref="listTop" class="review-sheet">
-        <DataTable caption="爬蟲審核資料表" :columns="columns" :rows="reviews" row-key="crawlerReviewId"
+        <DataTable caption="爬蟲審核資料表" :columns="columns" :rows="reviews" row-key="cinemaMovieReviewId"
           empty-text="目前沒有符合條件的審核。" :loading="loading" theme="purple">
           <template #cell-entityId="{ row }">
             <RouterLink v-if="reviewEntityRoute(row)" class="entity-link" :to="reviewEntityRoute(row)">

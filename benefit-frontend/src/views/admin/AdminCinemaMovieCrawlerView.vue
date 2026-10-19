@@ -141,7 +141,7 @@ async function syncCrawler(crawler) {
       cancelText: "關閉",
     });
     if (done.isConfirmed) router.push(crawler.resultTo);
-    else if (done.isExtra) router.push({ name: "admin-crawler-reviews" });
+    else if (done.isExtra) router.push({ name: "admin-reviews" });
   } catch (error) {
     job.status = "error";
     job.error = errorMessage(error);

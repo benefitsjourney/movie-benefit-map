@@ -2,12 +2,12 @@ package com.collection.benefitsjourney.dto.CinemaMovie;
 
 import java.time.LocalDateTime;
 
-import com.collection.benefitsjourney.domain.CinemaMovieCrawlerReviewBean;
+import com.collection.benefitsjourney.domain.CinemaMovieReviewBean;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaResourceType;
 import com.collection.benefitsjourney.enums.ReviewStatus;
 
-public record CinemaMovieCrawlerReviewResponse(
-        Integer crawlerReviewId,
+public record CinemaMovieReviewResponse(
+        Integer cinemaMovieReviewId,
         CinemaResourceType crawlerType,
         Integer entityId,
         String fieldName,
@@ -18,9 +18,9 @@ public record CinemaMovieCrawlerReviewResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
 
-    public static CinemaMovieCrawlerReviewResponse from(CinemaMovieCrawlerReviewBean review) {
-        return new CinemaMovieCrawlerReviewResponse(
-                review.getCrawlerReviewId(),
+    public static CinemaMovieReviewResponse from(CinemaMovieReviewBean review) {
+        return new CinemaMovieReviewResponse(
+                review.getCinemaMovieReviewId(),
                 review.getCrawlerType(),
                 review.getEntityId(),
                 review.getFieldName(),

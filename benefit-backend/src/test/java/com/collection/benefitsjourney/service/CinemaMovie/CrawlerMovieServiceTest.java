@@ -78,23 +78,23 @@ class CrawlerMovieServiceTest {
     private MovieService movieService;
 
     @Mock
-    private CinemaMovieCrawlerReviewsService crawlerReviewsService;
+    private CinemaMovieReviewsService cinemaMovieReviewsService;
 
     @Mock
     private JdbcTemplate jdbcTemplate;
 
-    private CrawlerMovieService crawler;
+    private CrawlerMovieService crawlerMovieService;
     private Logger logger;
     private ListAppender<ILoggingEvent> logs;
 
     @BeforeEach
     void setUp() {
-        crawler = spy(new CrawlerMovieService(movieService, crawlerReviewsService, jdbcTemplate));
+        crawlerMovieService = spy(new CrawlerMovieService(movieService, cinemaMovieReviewsService, jdbcTemplate));
         logger = (Logger) LoggerFactory.getLogger(CrawlerMovieService.class);
         logs = new ListAppender<>();
         logs.start();
         logger.addAppender(logs);
-        lenient().when(crawlerReviewsService.submitCrawlerChange(any(), any(), any(), any(), any()))
+        lenient().when(cinemaMovieReviewsService.submitCrawlerChange(any(), any(), any(), any(), any()))
                 .thenReturn(true);
     }
 
@@ -128,7 +128,7 @@ class CrawlerMovieServiceTest {
     }
 
     private void pageAt(String url, String html) throws IOException {
-        doReturn(page(url, html)).when(crawler).connect(url);
+        doReturn(page(url, html)).when(crawlerMovieService).connect(url);
     }
 
     private void pages(String newHtml, String nowHtml, String now2Html, String nextHtml, String next2Html)
@@ -195,7 +195,7 @@ class CrawlerMovieServiceTest {
             MovieResponse created = saved(1, "fA001", "測試電影", poster("fA001"), true, DATE_A);
             when(movieService.createMovie(any(MovieRequest.class))).thenReturn(created);
 
-            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawler.syncMovies();
+            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawlerMovieService.syncMovies();
             assertEquals(List.of(created), result.items());
             assertSummary(result, 1, 1, 0, 0, 0);
             assertOnlyResultLog(result);
@@ -206,8 +206,8 @@ class CrawlerMovieServiceTest {
             assertEquals(poster("fA001"), request.imageUrl());
             assertEquals(Boolean.TRUE, request.isVisible());
             assertEquals(DATE_A, request.releaseDate());
-            verify(crawler).connect(DETAIL_A);
-            verify(crawler).connect(NEXT2);
+            verify(crawlerMovieService).connect(DETAIL_A);
+            verify(crawlerMovieService).connect(NEXT2);
         }
 
         @Test
@@ -225,7 +225,7 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "正式名稱", poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().items().size());
+            assertEquals(1, crawlerMovieService.syncMovies().items().size());
             MovieRequest request = captureCreated();
             assertEquals("正式名稱", request.movieName());
             assertEquals(DATE_A, request.releaseDate());
@@ -248,9 +248,9 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "錨點片名", poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().items().size());
+            assertEquals(1, crawlerMovieService.syncMovies().items().size());
             assertEquals("錨點片名", captureCreated().movieName());
-            verify(crawler).connect(DETAIL_A);
+            verify(crawlerMovieService).connect(DETAIL_A);
         }
 
         @Test
@@ -267,7 +267,7 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "片名：特別篇", poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().items().size());
+            assertEquals(1, crawlerMovieService.syncMovies().items().size());
             assertEquals("片名：特別篇", captureCreated().movieName());
         }
 
@@ -280,7 +280,7 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "2+2=5 的電影", poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().items().size());
+            assertEquals(1, crawlerMovieService.syncMovies().items().size());
             assertEquals("2+2=5 的電影", captureCreated().movieName());
         }
 
@@ -295,7 +295,7 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", title, poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().items().size());
+            assertEquals(1, crawlerMovieService.syncMovies().items().size());
             assertEquals(title, captureCreated().movieName());
         }
 
@@ -308,7 +308,7 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "櫻坂46演唱會", poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().items().size());
+            assertEquals(1, crawlerMovieService.syncMovies().items().size());
             assertEquals("櫻坂46演唱會", captureCreated().movieName());
         }
 
@@ -329,7 +329,7 @@ class CrawlerMovieServiceTest {
                         request.sourceId(), request.movieName(), request.imageUrl(), true, request.releaseDate());
             });
 
-            assertEquals(2, crawler.syncMovies().items().size());
+            assertEquals(2, crawlerMovieService.syncMovies().items().size());
             ArgumentCaptor<MovieRequest> captor = ArgumentCaptor.forClass(MovieRequest.class);
             verify(movieService, org.mockito.Mockito.times(2)).createMovie(captor.capture());
             assertEquals("SB19 Wakas at Simula: The Trilogy Concert Finale In Cinemas",
@@ -348,7 +348,7 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", title, poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().items().size());
+            assertEquals(1, crawlerMovieService.syncMovies().items().size());
             assertEquals(title, captureCreated().movieName());
         }
 
@@ -361,7 +361,7 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "測試電影", poster("fA001"), true, null));
 
-            assertEquals(1, crawler.syncMovies().items().size());
+            assertEquals(1, crawlerMovieService.syncMovies().items().size());
             assertEquals("測試電影", captureCreated().movieName());
             assertNull(captureCreated().releaseDate());
         }
@@ -377,10 +377,10 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "週次電影", poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().items().size());
+            assertEquals(1, crawlerMovieService.syncMovies().items().size());
             assertEquals("週次電影", captureCreated().movieName());
-            verify(crawler).connect(WEEK);
-            verify(crawler, never()).connect(BASE + "/movie/next/w9/");
+            verify(crawlerMovieService).connect(WEEK);
+            verify(crawlerMovieService, never()).connect(BASE + "/movie/next/w9/");
         }
 
         @Test
@@ -394,9 +394,9 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "測試電影", poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().items().size());
+            assertEquals(1, crawlerMovieService.syncMovies().items().size());
             verify(movieService).createMovie(any(MovieRequest.class));
-            verify(crawler).connect(DETAIL_A);
+            verify(crawlerMovieService).connect(DETAIL_A);
         }
 
         @Test
@@ -409,7 +409,7 @@ class CrawlerMovieServiceTest {
                     """);
 
             ResponseStatusException error = assertThrows(
-                    ResponseStatusException.class, crawler::syncMovies);
+                    ResponseStatusException.class, crawlerMovieService::syncMovies);
 
             assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode());
             assertEquals("電影網站沒有回傳可用列表", error.getReason());
@@ -430,12 +430,12 @@ class CrawlerMovieServiceTest {
             MovieResponse existing = saved(1, "fA001", "測試電影", poster("fA001"), false, DATE_A);
             when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
 
-            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawler.syncMovies();
+            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawlerMovieService.syncMovies();
 
             assertEquals(1, result.items().size());
             assertSame(existing, result.items().get(0));
             assertSummary(result, 1, 0, 0, 0, 0);
-            verifyNoInteractions(crawlerReviewsService);
+            verifyNoInteractions(cinemaMovieReviewsService);
             verify(movieService, never()).createMovie(any());
         }
 
@@ -447,17 +447,17 @@ class CrawlerMovieServiceTest {
             MovieResponse existing = saved(1, "fA001", "舊名稱", BASE + "/poster/old.jpg", false, DATE_A);
             when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
 
-            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawler.syncMovies();
+            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawlerMovieService.syncMovies();
             assertEquals(List.of(existing), result.items());
             assertSummary(result, 1, 0, 0, 1, 3);
 
-            verify(crawlerReviewsService).submitCrawlerChange(
-                    CinemaResourceType.MOVIE, 1, CinemaMovieCrawlerReviewsService.MOVIE_NAME, "更新後名稱", "舊名稱");
-            verify(crawlerReviewsService).submitCrawlerChange(
-                    CinemaResourceType.MOVIE, 1, CinemaMovieCrawlerReviewsService.IMAGE_URL,
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
+                    CinemaResourceType.MOVIE, 1, CinemaMovieReviewsService.MOVIE_NAME, "更新後名稱", "舊名稱");
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
+                    CinemaResourceType.MOVIE, 1, CinemaMovieReviewsService.IMAGE_URL,
                     poster("fA001"), BASE + "/poster/old.jpg");
-            verify(crawlerReviewsService).submitCrawlerChange(
-                    CinemaResourceType.MOVIE, 1, CinemaMovieCrawlerReviewsService.RELEASE_DATE,
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
+                    CinemaResourceType.MOVIE, 1, CinemaMovieReviewsService.RELEASE_DATE,
                     "2026-11-01 00:00:00", "2026-10-12 00:00:00");
             verify(movieService, never()).createMovie(any());
         }
@@ -470,11 +470,11 @@ class CrawlerMovieServiceTest {
             MovieResponse existing = saved(1, "fA001", "測試電影", poster("fA001"), false, DATE_A);
             when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
 
-            assertEquals(List.of(existing), crawler.syncMovies().items());
+            assertEquals(List.of(existing), crawlerMovieService.syncMovies().items());
 
-            verify(crawlerReviewsService, never()).submitCrawlerChange(
-                    any(), any(), eq(CinemaMovieCrawlerReviewsService.RELEASE_DATE), any(), any());
-            verifyNoInteractions(crawlerReviewsService);
+            verify(cinemaMovieReviewsService, never()).submitCrawlerChange(
+                    any(), any(), eq(CinemaMovieReviewsService.RELEASE_DATE), any(), any());
+            verifyNoInteractions(cinemaMovieReviewsService);
         }
 
         @Test
@@ -494,10 +494,10 @@ class CrawlerMovieServiceTest {
             for (String storedName : storedNames) {
                 MovieResponse existing = saved(1, "fA001", storedName, poster("fA001"), false, DATE_A);
                 when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
-                assertEquals(List.of(existing), crawler.syncMovies().items(), storedName);
+                assertEquals(List.of(existing), crawlerMovieService.syncMovies().items(), storedName);
             }
 
-            verifyNoInteractions(crawlerReviewsService);
+            verifyNoInteractions(cinemaMovieReviewsService);
         }
 
         @Test
@@ -508,10 +508,10 @@ class CrawlerMovieServiceTest {
             MovieResponse existing = saved(1, "fA001", "測試電影（導演版）", poster("fA001"), false, DATE_A);
             when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
 
-            assertEquals(List.of(existing), crawler.syncMovies().items());
+            assertEquals(List.of(existing), crawlerMovieService.syncMovies().items());
 
-            verify(crawlerReviewsService).submitCrawlerChange(
-                    CinemaResourceType.MOVIE, 1, CinemaMovieCrawlerReviewsService.MOVIE_NAME,
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
+                    CinemaResourceType.MOVIE, 1, CinemaMovieReviewsService.MOVIE_NAME,
                     "測試電影", "測試電影（導演版）");
         }
 
@@ -523,12 +523,12 @@ class CrawlerMovieServiceTest {
             givenStored(8, "fOLD", "Test　測試電影！");
             when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
 
-            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawler.syncMovies();
+            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawlerMovieService.syncMovies();
             assertEquals(List.of(), result.items());
             assertSummary(result, 1, 0, 0, 0, 1);
 
-            verify(crawlerReviewsService).submitCrawlerChange(
-                    CinemaResourceType.MOVIE, 8, CinemaMovieCrawlerReviewsService.SOURCE_ID, "fA001", "fOLD");
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
+                    CinemaResourceType.MOVIE, 8, CinemaMovieReviewsService.SOURCE_ID, "fA001", "fOLD");
             verify(movieService, never()).createMovie(any());
         }
 
@@ -545,14 +545,14 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "測試電影", poster("fA001"), true, DATE_A));
 
-            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawler.syncMovies();
+            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawlerMovieService.syncMovies();
 
             assertEquals(1, result.items().size());
             assertEquals("fA001", result.items().get(0).sourceId());
             assertSummary(result, 2, 1, 0, 0, 1);
             verify(movieService).createMovie(any(MovieRequest.class));
-            verify(crawlerReviewsService).submitCrawlerChange(
-                    CinemaResourceType.MOVIE, 1, CinemaMovieCrawlerReviewsService.SOURCE_ID, "fB002", "fA001");
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
+                    CinemaResourceType.MOVIE, 1, CinemaMovieReviewsService.SOURCE_ID, "fB002", "fA001");
         }
 
         @Test
@@ -566,11 +566,11 @@ class CrawlerMovieServiceTest {
                     "SB19 Wakas at Simula " + collapsed, poster("fA001"), false, DATE_A);
             when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
 
-            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawler.syncMovies();
+            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawlerMovieService.syncMovies();
             assertEquals(List.of(existing), result.items());
             assertSummary(result, 1, 0, 0, 1, 1);
-            verify(crawlerReviewsService).submitCrawlerChange(
-                    CinemaResourceType.MOVIE, 1, CinemaMovieCrawlerReviewsService.MOVIE_NAME,
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
+                    CinemaResourceType.MOVIE, 1, CinemaMovieReviewsService.MOVIE_NAME,
                     collapsed, existing.movieName());
         }
 
@@ -582,9 +582,9 @@ class CrawlerMovieServiceTest {
             givenStored(8, "fA001", "測試電影");
             when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
 
-            assertEquals(List.of(), crawler.syncMovies().items());
+            assertEquals(List.of(), crawlerMovieService.syncMovies().items());
 
-            verifyNoInteractions(crawlerReviewsService);
+            verifyNoInteractions(cinemaMovieReviewsService);
             verify(movieService, never()).createMovie(any());
         }
     }
@@ -599,7 +599,7 @@ class CrawlerMovieServiceTest {
             onlyNewPage("<html><body>目前沒有電影</body></html>");
 
             ResponseStatusException error = assertThrows(
-                    ResponseStatusException.class, crawler::syncMovies);
+                    ResponseStatusException.class, crawlerMovieService::syncMovies);
 
             assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode());
             assertEquals("電影網站沒有回傳可用列表", error.getReason());
@@ -610,11 +610,11 @@ class CrawlerMovieServiceTest {
         @DisplayName("五個電影列表全都連線失敗應回傳 502")
         void allListsFailed() throws Exception {
             for (String url : List.of(NEW, NOW, NOW2, NEXT, NEXT2)) {
-                doThrow(new IOException("timeout")).when(crawler).connect(url);
+                doThrow(new IOException("timeout")).when(crawlerMovieService).connect(url);
             }
 
             ResponseStatusException error = assertThrows(
-                    ResponseStatusException.class, crawler::syncMovies);
+                    ResponseStatusException.class, crawlerMovieService::syncMovies);
 
             assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode());
             assertEquals("電影網站沒有回傳可用列表", error.getReason());
@@ -625,7 +625,7 @@ class CrawlerMovieServiceTest {
         @DisplayName("部分列表失敗時仍能同步其他列表的電影")
         void partialListFailure() throws Exception {
             pageAt(NEW, "<a href='/movie/fA001/'>列表</a>");
-            doThrow(new IOException("second list failed")).when(crawler).connect(NOW);
+            doThrow(new IOException("second list failed")).when(crawlerMovieService).connect(NOW);
             pageAt(NOW2, "");
             pageAt(NEXT, "");
             pageAt(NEXT2, "");
@@ -634,7 +634,7 @@ class CrawlerMovieServiceTest {
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "測試電影", poster("fA001"), true, DATE_A));
 
-            assertEquals(1, crawler.syncMovies().items().size());
+            assertEquals(1, crawlerMovieService.syncMovies().items().size());
             verify(movieService).createMovie(any(MovieRequest.class));
         }
 
@@ -642,11 +642,11 @@ class CrawlerMovieServiceTest {
         @DisplayName("詳細頁連線或 HTTP 錯誤時應略過該片")
         void detailFetchFailed() throws Exception {
             onlyNewPage("<a href='/movie/fA001/'>列表</a><a href='/movie/fB002/'>列表</a>");
-            doThrow(new IOException("detail failed")).when(crawler).connect(DETAIL_A);
-            doThrow(new HttpStatusException("missing", 404, DETAIL_B)).when(crawler).connect(DETAIL_B);
+            doThrow(new IOException("detail failed")).when(crawlerMovieService).connect(DETAIL_A);
+            doThrow(new HttpStatusException("missing", 404, DETAIL_B)).when(crawlerMovieService).connect(DETAIL_B);
 
             ResponseStatusException error = assertThrows(
-                    ResponseStatusException.class, crawler::syncMovies);
+                    ResponseStatusException.class, crawlerMovieService::syncMovies);
 
             assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode());
             assertEquals("沒有任何電影同步成功", error.getReason());
@@ -661,7 +661,7 @@ class CrawlerMovieServiceTest {
                 pageAt(DETAIL_A, detail(title, "2026/10/12"));
 
                 ResponseStatusException error = assertThrows(
-                        ResponseStatusException.class, crawler::syncMovies, title);
+                        ResponseStatusException.class, crawlerMovieService::syncMovies, title);
 
                 assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode(), title);
                 assertEquals("沒有任何電影同步成功", error.getReason(), title);
@@ -687,7 +687,7 @@ class CrawlerMovieServiceTest {
                 return saved(2, "fB002", "第二部", poster("fB002"), true, DATE_B);
             });
 
-            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawler.syncMovies();
+            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawlerMovieService.syncMovies();
 
             assertEquals(1, result.items().size());
             assertEquals("fB002", result.items().get(0).sourceId());
@@ -705,7 +705,7 @@ class CrawlerMovieServiceTest {
                     .thenThrow(new IllegalStateException("db failed"));
 
             ResponseStatusException error = assertThrows(
-                    ResponseStatusException.class, crawler::syncMovies);
+                    ResponseStatusException.class, crawlerMovieService::syncMovies);
 
             assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode());
             assertEquals("沒有任何電影同步成功", error.getReason());

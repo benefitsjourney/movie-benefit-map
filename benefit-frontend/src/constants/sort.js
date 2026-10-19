@@ -73,8 +73,8 @@ export const ADMIN_CRAWLER_REVIEW_SORT_OPTIONS = [
   { value: "ENTITY_ID:ASC", label: "資料編號（小 → 大）" },
   { value: "ENTITY_ID:DESC", label: "資料編號（大 → 小）" },
   ...UPDATED_AT_OPTIONS,
-  { value: "CRAWLER_REVIEW_ID:ASC", label: "編號（小 → 大）" },
-  { value: "CRAWLER_REVIEW_ID:DESC", label: "編號（大 → 小）" },
+  { value: "CINEMA_MOVIE_REVIEW_ID:ASC", label: "編號（小 → 大）" },
+  { value: "CINEMA_MOVIE_REVIEW_ID:DESC", label: "編號（大 → 小）" },
 ];
 
 /** 僅接受畫面提供的排序值，避免將任意欄位名稱傳給 API。 */
