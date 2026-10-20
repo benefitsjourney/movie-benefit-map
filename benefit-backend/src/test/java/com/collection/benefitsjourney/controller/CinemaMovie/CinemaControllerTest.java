@@ -507,53 +507,47 @@ class CinemaControllerTest {
     class FindMapCinemasTests {
 
         @Test
-        @DisplayName("未提供參數時應查詢全台影城")
-        void nationwide() throws Exception {
-            when(cinemaMapService.findNearby(null, null, null, null, null))
-                    .thenReturn(new CinemaMapResponse(0, null, null, null, List.of()));
-
+        @DisplayName("未提供座標與半徑時應回傳 400")
+        void missingRequiredCoordinates() throws Exception {
             mockMvc.perform(get("/cinemas/map"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.total").value(0))
-                    .andExpect(jsonPath("$.cinemas").isArray())
-                    .andExpect(jsonPath("$.cinemas").isEmpty());
+                    .andExpect(status().isBadRequest());
 
-            verify(cinemaMapService).findNearby(null, null, null, null, null);
-            verifyNoInteractions(cinemaService);
+            verifyNoInteractions(cinemaMapService, cinemaService);
         }
 
         @Test
-        @DisplayName("關鍵字、縣市、座標及半徑應正確傳入 MapService")
+        @DisplayName("關鍵字、縣市、座標、半徑與特典條件應正確傳入 MapService")
         void nearbyWithAllParameters() throws Exception {
+            when(cinemaMapService.findNearby(
+                    "威秀", County.TAIPEI, 25.03, 121.56, 3000.0,
+                    "電影", "海報", true))
+                    .thenReturn(new CinemaMapResponse(
+                            0, 25.03, 121.56, 3000.0, List.of()));
+
             mockMvc.perform(get("/cinemas/map")
                     .param("keyword", "威秀")
                     .param("county", "TAIPEI")
                     .param("latitude", "25.03")
                     .param("longitude", "121.56")
-                    .param("radius", "3000"))
-                    .andExpect(status().isOk());
+                    .param("radius", "3000")
+                    .param("movieKeyword", "電影")
+                    .param("benefitKeyword", "海報")
+                    .param("hasBenefit", "true"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.total").value(0))
+                    .andExpect(jsonPath("$.radius").value(3000.0));
 
             verify(cinemaMapService).findNearby(
-                    "威秀", County.TAIPEI, 25.03, 121.56, 3000.0);
+                    "威秀", County.TAIPEI, 25.03, 121.56, 3000.0,
+                    "電影", "海報", true);
             verifyNoInteractions(cinemaService);
         }
 
         @Test
-        @DisplayName("省略半徑時應將 null 交給 MapService 套用預設值")
-        void defaultRadius() throws Exception {
+        @DisplayName("省略半徑時應回傳 400，不呼叫 MapService")
+        void missingRadius() throws Exception {
             mockMvc.perform(get("/cinemas/map")
                     .param("latitude", "25.03")
-                    .param("longitude", "121.56"))
-                    .andExpect(status().isOk());
-
-            verify(cinemaMapService).findNearby(null, null, 25.03, 121.56, null);
-        }
-
-        @Test
-        @DisplayName("無效的緯度型別應回傳 400，不呼叫 MapService")
-        void invalidLatitudeFormat() throws Exception {
-            mockMvc.perform(get("/cinemas/map")
-                    .param("latitude", "abc")
                     .param("longitude", "121.56"))
                     .andExpect(status().isBadRequest());
 
@@ -561,29 +555,35 @@ class CinemaControllerTest {
         }
 
         @Test
-        @DisplayName("不合法的座標組合應回傳 MapService 的 400")
-        void missingLongitude() throws Exception {
-            when(cinemaMapService.findNearby(null, null, 25.03, null, null))
-                    .thenThrow(new ResponseStatusException(
-                            HttpStatus.BAD_REQUEST, "緯度與經度必須同時提供"));
+        @DisplayName("無效的緯度型別應回傳 400，不呼叫 MapService")
+        void invalidLatitudeFormat() throws Exception {
+            mockMvc.perform(get("/cinemas/map")
+                    .param("latitude", "abc")
+                    .param("longitude", "121.56")
+                    .param("radius", "1000"))
+                    .andExpect(status().isBadRequest());
 
-            mockMvc.perform(get("/cinemas/map").param("latitude", "25.03"))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value("緯度與經度必須同時提供"));
-
-            verify(cinemaMapService).findNearby(null, null, 25.03, null, null);
+            verifyNoInteractions(cinemaMapService, cinemaService);
         }
 
         @Test
-        @DisplayName("無座標但指定半徑應回傳 MapService 的 400")
-        void radiusWithoutCoordinates() throws Exception {
-            when(cinemaMapService.findNearby(null, null, null, null, 5000.0))
-                    .thenThrow(new ResponseStatusException(
-                            HttpStatus.BAD_REQUEST, "未提供座標時不可指定搜尋半徑"));
+        @DisplayName("缺少經度應回傳 400，不呼叫 MapService")
+        void missingLongitude() throws Exception {
+            mockMvc.perform(get("/cinemas/map")
+                    .param("latitude", "25.03")
+                    .param("radius", "1000"))
+                    .andExpect(status().isBadRequest());
 
+            verifyNoInteractions(cinemaMapService, cinemaService);
+        }
+
+        @Test
+        @DisplayName("無座標但指定半徑應回傳 400")
+        void radiusWithoutCoordinates() throws Exception {
             mockMvc.perform(get("/cinemas/map").param("radius", "5000"))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.message").value("未提供座標時不可指定搜尋半徑"));
+                    .andExpect(status().isBadRequest());
+
+            verifyNoInteractions(cinemaMapService, cinemaService);
         }
 
         @Test

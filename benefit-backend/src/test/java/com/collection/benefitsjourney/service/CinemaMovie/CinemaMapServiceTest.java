@@ -2,12 +2,13 @@ package com.collection.benefitsjourney.service.CinemaMovie;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -26,8 +27,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.collection.benefitsjourney.domain.BenefitBean;
 import com.collection.benefitsjourney.domain.CinemaBean;
+import com.collection.benefitsjourney.domain.CinemaMovieBenefitBean;
+import com.collection.benefitsjourney.domain.MovieBean;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMapResponse;
+import com.collection.benefitsjourney.enums.BenefitInventoryStatus;
 import com.collection.benefitsjourney.enums.County;
 import com.collection.benefitsjourney.repository.CinemaRepository;
 
@@ -58,46 +63,35 @@ class CinemaMapServiceTest {
         return cinema;
     }
 
+    private CinemaMovieBenefitBean benefit(
+            Integer id,
+            CinemaBean cinema,
+            Integer movieId,
+            String movieName,
+            Integer benefitId,
+            String benefitName) {
+
+        MovieBean movie = new MovieBean();
+        movie.setMovieId(movieId);
+        movie.setMovieName(movieName);
+
+        BenefitBean benefit = new BenefitBean();
+        benefit.setBenefitId(benefitId);
+        benefit.setBenefitName(benefitName);
+
+        CinemaMovieBenefitBean link = new CinemaMovieBenefitBean();
+        link.setCinemaMovieBenefitId(id);
+        link.setCinema(cinema);
+        link.setMovie(movie);
+        link.setBenefit(benefit);
+        link.setBenefitInventoryStatus(BenefitInventoryStatus.IN_STOCK.getCode());
+
+        return link;
+    }
+
     @Nested
-    @DisplayName("findNearby - 全台模式")
-    class NationwideTests {
-
-        @Test
-        @DisplayName("未提供座標時應回傳全部影城，並依影城 ID 升冪排序")
-        void shouldReturnAllCinemasSortedById() {
-            CinemaBean first = cinema(3, "影城C", 25.03, 121.5);
-            CinemaBean second = cinema(1, "影城A", 25.01, 121.5);
-            CinemaBean third = cinema(2, "影城B", 25.02, 121.5);
-
-            when(cinemaRepository.findAllForMap(
-                    nullable(String.class),
-                    eq(County.TAIPEI)))
-                    .thenReturn(List.of(first, second, third));
-
-            CinemaMapResponse result = cinemaMapService.findNearby(
-                    null, County.TAIPEI, null, null, null);
-
-            assertNotNull(result);
-            assertEquals(3, result.total());
-
-            assertNull(result.latitude());
-            assertNull(result.longitude());
-            assertNull(result.radius());
-
-            assertEquals(3, result.cinemas().size());
-
-            assertEquals(1, result.cinemas().get(0).cinemaId());
-            assertEquals(2, result.cinemas().get(1).cinemaId());
-            assertEquals(3, result.cinemas().get(2).cinemaId());
-
-            // 全台模式不計算距離
-            assertTrue(result.cinemas().stream()
-                    .allMatch(cinema -> cinema.distance() == null));
-
-            verify(cinemaRepository).findAllForMap(
-                    nullable(String.class),
-                    eq(County.TAIPEI));
-        }
+    @DisplayName("findNearby - 附近搜尋")
+    class NearbyTests {
 
         @Test
         @DisplayName("關鍵字與縣市篩選條件應正確傳入 Repository")
@@ -108,11 +102,15 @@ class CinemaMapServiceTest {
                     .thenReturn(List.of());
 
             CinemaMapResponse result = cinemaMapService.findNearby(
-                    "威秀", County.TAIPEI, null, null, null);
+                    "威秀", County.TAIPEI, 25.0, 121.0, 1000.0,
+                    null, null, null);
 
             assertNotNull(result);
             assertEquals(0, result.total());
             assertTrue(result.cinemas().isEmpty());
+            assertEquals(25.0, result.latitude());
+            assertEquals(121.0, result.longitude());
+            assertEquals(1000.0, result.radius());
 
             ArgumentCaptor<String> keywordCaptor = ArgumentCaptor.forClass(String.class);
 
@@ -122,6 +120,9 @@ class CinemaMapServiceTest {
 
             // 不綁死 LikeKeywords 內部的跳脫規則
             assertTrue(keywordCaptor.getValue().contains("威秀"));
+
+            // 沒有半徑內影城時不查特典
+            verify(cinemaRepository, never()).findApprovedForMap(any(), any(), any());
         }
 
         @Test
@@ -133,45 +134,17 @@ class CinemaMapServiceTest {
                     .thenReturn(List.of());
 
             CinemaMapResponse result = cinemaMapService.findNearby(
-                    null, null, null, null, null);
+                    null, null, 25.0, 121.0, 5000.0,
+                    null, null, null);
 
             assertNotNull(result);
             assertEquals(0, result.total());
             assertTrue(result.cinemas().isEmpty());
-
-            assertNull(result.latitude());
-            assertNull(result.longitude());
-            assertNull(result.radius());
-        }
-    }
-
-    @Nested
-    @DisplayName("findNearby - 附近模式")
-    class NearbyTests {
-
-        @Test
-        @DisplayName("未指定半徑時應使用預設 5000 公尺")
-        void shouldUseDefaultRadius() {
-            CinemaBean center = cinema(1, "中心影城", 25.0, 121.0);
-            CinemaBean nearby = cinema(2, "附近影城", 25.01, 121.0);
-            CinemaBean far = cinema(3, "遠方影城", 25.1, 121.0);
-
-            when(cinemaRepository.findAllForMap(
-                    nullable(String.class),
-                    nullable(County.class)))
-                    .thenReturn(List.of(far, nearby, center));
-
-            CinemaMapResponse result = cinemaMapService.findNearby(
-                    null, null, 25.0, 121.0, null);
-
-            assertNotNull(result);
-            assertEquals(2, result.total());
             assertEquals(25.0, result.latitude());
             assertEquals(121.0, result.longitude());
             assertEquals(5000.0, result.radius());
 
-            assertEquals(1, result.cinemas().get(0).cinemaId());
-            assertEquals(2, result.cinemas().get(1).cinemaId());
+            verify(cinemaRepository, never()).findApprovedForMap(any(), any(), any());
         }
 
         @Test
@@ -187,7 +160,8 @@ class CinemaMapServiceTest {
                     .thenReturn(List.of(center, nearby, far));
 
             CinemaMapResponse result = cinemaMapService.findNearby(
-                    null, null, 25.0, 121.0, 1000.0);
+                    null, null, 25.0, 121.0, 1000.0,
+                    null, null, null);
 
             assertNotNull(result);
             assertEquals(2, result.total());
@@ -198,6 +172,12 @@ class CinemaMapServiceTest {
 
             assertTrue(result.cinemas().stream()
                     .allMatch(cinema -> cinema.distance() <= 1000.0));
+
+            // 特典查詢只帶入半徑內、且已依距離排序的影城 ID
+            verify(cinemaRepository).findApprovedForMap(
+                    eq(List.of(1, 2)),
+                    isNull(),
+                    isNull());
         }
 
         @Test
@@ -211,10 +191,13 @@ class CinemaMapServiceTest {
                     .thenReturn(List.of(center));
 
             CinemaMapResponse result = cinemaMapService.findNearby(
-                    null, null, 25.0, 121.0, 1000.0);
+                    null, null, 25.0, 121.0, 1000.0,
+                    null, null, null);
 
             assertEquals(1, result.total());
             assertEquals(0.0, result.cinemas().get(0).distance());
+            assertEquals(0, result.cinemas().get(0).benefitCount());
+            assertTrue(result.cinemas().get(0).benefits().isEmpty());
         }
 
         @Test
@@ -229,7 +212,8 @@ class CinemaMapServiceTest {
                     .thenReturn(List.of(target));
 
             CinemaMapResponse result = cinemaMapService.findNearby(
-                    null, null, 25.0, 121.0, 5000.0);
+                    null, null, 25.0, 121.0, 5000.0,
+                    null, null, null);
 
             assertEquals(1, result.total());
 
@@ -257,7 +241,8 @@ class CinemaMapServiceTest {
                     .thenReturn(List.of(far, near, center));
 
             CinemaMapResponse result = cinemaMapService.findNearby(
-                    null, null, 25.0, 121.0, 5000.0);
+                    null, null, 25.0, 121.0, 5000.0,
+                    null, null, null);
 
             assertEquals(3, result.total());
 
@@ -284,7 +269,8 @@ class CinemaMapServiceTest {
                     .thenReturn(List.of(second, first));
 
             CinemaMapResponse result = cinemaMapService.findNearby(
-                    null, null, 25.0, 121.0, 5000.0);
+                    null, null, 25.0, 121.0, 5000.0,
+                    null, null, null);
 
             assertEquals(2, result.total());
 
@@ -310,7 +296,8 @@ class CinemaMapServiceTest {
                     .thenReturn(List.of(farther, nearer));
 
             CinemaMapResponse result = cinemaMapService.findNearby(
-                    null, null, 0.0, 0.0, 100.0);
+                    null, null, 0.0, 0.0, 100.0,
+                    null, null, null);
 
             assertEquals(2, result.total());
 
@@ -334,7 +321,8 @@ class CinemaMapServiceTest {
                     .thenReturn(List.of(far));
 
             CinemaMapResponse result = cinemaMapService.findNearby(
-                    null, null, 25.0, 121.0, 1000.0);
+                    null, null, 25.0, 121.0, 1000.0,
+                    null, null, null);
 
             assertNotNull(result);
             assertEquals(0, result.total());
@@ -344,6 +332,197 @@ class CinemaMapServiceTest {
             assertEquals(25.0, result.latitude());
             assertEquals(121.0, result.longitude());
             assertEquals(1000.0, result.radius());
+
+            verify(cinemaRepository, never()).findApprovedForMap(any(), any(), any());
+        }
+    }
+
+    @Nested
+    @DisplayName("findNearby - 特典條件")
+    class BenefitTests {
+
+        @Test
+        @DisplayName("上架特典應依影城分組，並保留查詢結果順序")
+        void shouldGroupBenefitsByCinema() {
+            CinemaBean first = cinema(1, "影城A", 25.0, 121.0);
+            CinemaBean second = cinema(2, "影城B", 25.01, 121.0);
+
+            when(cinemaRepository.findAllForMap(
+                    nullable(String.class),
+                    nullable(County.class)))
+                    .thenReturn(List.of(second, first));
+            when(cinemaRepository.findApprovedForMap(
+                    eq(List.of(1, 2)),
+                    isNull(),
+                    isNull()))
+                    .thenReturn(List.of(
+                            benefit(11, first, 101, "電影甲", 201, "海報"),
+                            benefit(12, first, 102, "電影乙", 202, "明信片"),
+                            benefit(21, second, 101, "電影甲", 201, "海報")));
+
+            CinemaMapResponse result = cinemaMapService.findNearby(
+                    null, null, 25.0, 121.0, 5000.0,
+                    null, null, null);
+
+            assertEquals(2, result.total());
+
+            CinemaMapResponse.Cinema cinemaA = result.cinemas().get(0);
+            assertEquals(1, cinemaA.cinemaId());
+            assertEquals(2, cinemaA.benefitCount());
+            assertEquals(List.of(11, 12), cinemaA.benefits().stream()
+                    .map(benefit -> benefit.cinemaMovieBenefitId())
+                    .toList());
+            assertEquals("IN_STOCK", cinemaA.benefits().get(0).status());
+            assertEquals("電影甲", cinemaA.benefits().get(0).movieName());
+            assertEquals("海報", cinemaA.benefits().get(0).benefitName());
+
+            CinemaMapResponse.Cinema cinemaB = result.cinemas().get(1);
+            assertEquals(2, cinemaB.cinemaId());
+            assertEquals(1, cinemaB.benefitCount());
+            assertEquals(21, cinemaB.benefits().get(0).cinemaMovieBenefitId());
+        }
+
+        @Test
+        @DisplayName("未指定特典條件時，沒有特典的影城仍應回傳")
+        void shouldKeepCinemasWithoutBenefits() {
+            CinemaBean withBenefit = cinema(1, "有特典", 25.0, 121.0);
+            CinemaBean withoutBenefit = cinema(2, "無特典", 25.01, 121.0);
+
+            when(cinemaRepository.findAllForMap(
+                    nullable(String.class),
+                    nullable(County.class)))
+                    .thenReturn(List.of(withBenefit, withoutBenefit));
+            when(cinemaRepository.findApprovedForMap(any(), isNull(), isNull()))
+                    .thenReturn(List.of(
+                            benefit(11, withBenefit, 101, "電影甲", 201, "海報")));
+
+            CinemaMapResponse result = cinemaMapService.findNearby(
+                    null, null, 25.0, 121.0, 5000.0,
+                    null, null, false);
+
+            assertEquals(2, result.total());
+            assertEquals(1, result.cinemas().get(0).benefitCount());
+            assertEquals(0, result.cinemas().get(1).benefitCount());
+        }
+
+        @Test
+        @DisplayName("hasBenefit 為 true 時只回傳有上架特典的影城")
+        void shouldFilterCinemasWithoutBenefitsWhenHasBenefit() {
+            CinemaBean withBenefit = cinema(1, "有特典", 25.0, 121.0);
+            CinemaBean withoutBenefit = cinema(2, "無特典", 25.01, 121.0);
+
+            when(cinemaRepository.findAllForMap(
+                    nullable(String.class),
+                    nullable(County.class)))
+                    .thenReturn(List.of(withBenefit, withoutBenefit));
+            when(cinemaRepository.findApprovedForMap(
+                    eq(List.of(1, 2)),
+                    isNull(),
+                    isNull()))
+                    .thenReturn(List.of(
+                            benefit(11, withBenefit, 101, "電影甲", 201, "海報")));
+
+            CinemaMapResponse result = cinemaMapService.findNearby(
+                    null, null, 25.0, 121.0, 5000.0,
+                    null, null, true);
+
+            assertEquals(1, result.total());
+            assertEquals(1, result.cinemas().get(0).cinemaId());
+            assertEquals(1, result.cinemas().get(0).benefitCount());
+        }
+
+        @Test
+        @DisplayName("電影關鍵字應轉成模糊條件，且沒有符合特典的影城不回傳")
+        void shouldFilterByMovieKeyword() {
+            CinemaBean matched = cinema(1, "符合影城", 25.0, 121.0);
+            CinemaBean unmatched = cinema(2, "未符合影城", 25.01, 121.0);
+
+            when(cinemaRepository.findAllForMap(
+                    nullable(String.class),
+                    nullable(County.class)))
+                    .thenReturn(List.of(matched, unmatched));
+            when(cinemaRepository.findApprovedForMap(
+                    eq(List.of(1, 2)),
+                    any(String.class),
+                    isNull()))
+                    .thenReturn(List.of(
+                            benefit(11, matched, 101, "鬼滅之刃", 201, "海報")));
+
+            CinemaMapResponse result = cinemaMapService.findNearby(
+                    null, null, 25.0, 121.0, 5000.0,
+                    "鬼滅", null, null);
+
+            assertEquals(1, result.total());
+            assertEquals(1, result.cinemas().get(0).cinemaId());
+
+            ArgumentCaptor<String> movieCaptor = ArgumentCaptor.forClass(String.class);
+            verify(cinemaRepository).findApprovedForMap(
+                    eq(List.of(1, 2)),
+                    movieCaptor.capture(),
+                    isNull());
+            assertTrue(movieCaptor.getValue().contains("鬼滅"));
+        }
+
+        @Test
+        @DisplayName("特典關鍵字應轉成模糊條件，且沒有符合特典的影城不回傳")
+        void shouldFilterByBenefitKeyword() {
+            CinemaBean matched = cinema(1, "符合影城", 25.0, 121.0);
+            CinemaBean unmatched = cinema(2, "未符合影城", 25.01, 121.0);
+
+            when(cinemaRepository.findAllForMap(
+                    nullable(String.class),
+                    nullable(County.class)))
+                    .thenReturn(List.of(unmatched, matched));
+            when(cinemaRepository.findApprovedForMap(
+                    eq(List.of(1, 2)),
+                    isNull(),
+                    any(String.class)))
+                    .thenReturn(List.of(
+                            benefit(11, matched, 101, "電影甲", 201, "壓克力立牌")));
+
+            CinemaMapResponse result = cinemaMapService.findNearby(
+                    null, null, 25.0, 121.0, 5000.0,
+                    null, "立牌", null);
+
+            assertEquals(1, result.total());
+            assertEquals(1, result.cinemas().get(0).cinemaId());
+            assertEquals("壓克力立牌", result.cinemas().get(0).benefits().get(0).benefitName());
+
+            ArgumentCaptor<String> benefitCaptor = ArgumentCaptor.forClass(String.class);
+            verify(cinemaRepository).findApprovedForMap(
+                    eq(List.of(1, 2)),
+                    isNull(),
+                    benefitCaptor.capture());
+            assertTrue(benefitCaptor.getValue().contains("立牌"));
+        }
+
+        @Test
+        @DisplayName("空白的電影或特典關鍵字不應觸發只顯示有特典")
+        void blankKeywordsShouldNotFilterCinemas() {
+            CinemaBean withoutBenefit = cinema(1, "無特典", 25.0, 121.0);
+
+            when(cinemaRepository.findAllForMap(
+                    nullable(String.class),
+                    nullable(County.class)))
+                    .thenReturn(List.of(withoutBenefit));
+            when(cinemaRepository.findApprovedForMap(
+                    eq(List.of(1)),
+                    isNull(),
+                    isNull()))
+                    .thenReturn(List.of());
+
+            CinemaMapResponse result = cinemaMapService.findNearby(
+                    "  ", null, 25.0, 121.0, 5000.0,
+                    " ", "　", null);
+
+            assertEquals(1, result.total());
+            assertEquals(0, result.cinemas().get(0).benefitCount());
+
+            verify(cinemaRepository).findAllForMap(isNull(), isNull());
+            verify(cinemaRepository).findApprovedForMap(
+                    eq(List.of(1)),
+                    isNull(),
+                    isNull());
         }
     }
 
@@ -352,49 +531,30 @@ class CinemaMapServiceTest {
     class ValidationTests {
 
         @Test
-        @DisplayName("未提供座標卻指定半徑應回傳 400")
-        void radiusWithoutCoordinates() {
-            ResponseStatusException exception = assertThrows(
-                    ResponseStatusException.class,
-                    () -> cinemaMapService.findNearby(
-                            null, null, null, null, 5000.0));
+        @DisplayName("緯度、經度或搜尋半徑缺一應回傳 400")
+        void missingRequiredCoordinates() {
+            Double[][] cases = {
+                    { null, null, null },
+                    { 25.0, null, null },
+                    { null, 121.0, null },
+                    { null, null, 5000.0 },
+                    { 25.0, 121.0, null },
+                    { 25.0, null, 5000.0 },
+                    { null, 121.0, 5000.0 }
+            };
 
-            assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
-            assertEquals(
-                    "未提供座標時不可指定搜尋半徑",
-                    exception.getReason());
+            for (Double[] query : cases) {
+                ResponseStatusException exception = assertThrows(
+                        ResponseStatusException.class,
+                        () -> cinemaMapService.findNearby(
+                                null, null, query[0], query[1], query[2],
+                                null, null, null));
 
-            verifyNoInteractions(cinemaRepository);
-        }
-
-        @Test
-        @DisplayName("只提供緯度應回傳 400")
-        void missingLongitude() {
-            ResponseStatusException exception = assertThrows(
-                    ResponseStatusException.class,
-                    () -> cinemaMapService.findNearby(
-                            null, null, 25.0, null, null));
-
-            assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
-            assertEquals(
-                    "緯度與經度必須同時提供",
-                    exception.getReason());
-
-            verifyNoInteractions(cinemaRepository);
-        }
-
-        @Test
-        @DisplayName("只提供經度應回傳 400")
-        void missingLatitude() {
-            ResponseStatusException exception = assertThrows(
-                    ResponseStatusException.class,
-                    () -> cinemaMapService.findNearby(
-                            null, null, null, 121.0, null));
-
-            assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
-            assertEquals(
-                    "緯度與經度必須同時提供",
-                    exception.getReason());
+                assertEquals(HttpStatus.BAD_REQUEST, exception.getStatusCode());
+                assertEquals(
+                        "緯度、經度與搜尋半徑為必填",
+                        exception.getReason());
+            }
 
             verifyNoInteractions(cinemaRepository);
         }
@@ -413,7 +573,8 @@ class CinemaMapServiceTest {
                 ResponseStatusException exception = assertThrows(
                         ResponseStatusException.class,
                         () -> cinemaMapService.findNearby(
-                                null, null, latitude, 121.0, null));
+                                null, null, latitude, 121.0, 1000.0,
+                                null, null, null));
 
                 assertEquals(
                         HttpStatus.BAD_REQUEST,
@@ -441,7 +602,8 @@ class CinemaMapServiceTest {
                 ResponseStatusException exception = assertThrows(
                         ResponseStatusException.class,
                         () -> cinemaMapService.findNearby(
-                                null, null, 25.0, longitude, null));
+                                null, null, 25.0, longitude, 1000.0,
+                                null, null, null));
 
                 assertEquals(
                         HttpStatus.BAD_REQUEST,
@@ -469,7 +631,8 @@ class CinemaMapServiceTest {
                 ResponseStatusException exception = assertThrows(
                         ResponseStatusException.class,
                         () -> cinemaMapService.findNearby(
-                                null, null, 25.0, 121.0, radius));
+                                null, null, 25.0, 121.0, radius,
+                                null, null, null));
 
                 assertEquals(
                         HttpStatus.BAD_REQUEST,
@@ -501,7 +664,8 @@ class CinemaMapServiceTest {
                 CinemaMapResponse result = cinemaMapService.findNearby(
                         null, null,
                         coordinate[0], coordinate[1],
-                        1000.0);
+                        1000.0,
+                        null, null, null);
 
                 assertNotNull(result);
                 assertEquals(0, result.total());
@@ -521,7 +685,8 @@ class CinemaMapServiceTest {
                     .thenReturn(List.of(center));
 
             CinemaMapResponse result = cinemaMapService.findNearby(
-                    null, null, 25.0, 121.0, 0.001);
+                    null, null, 25.0, 121.0, 0.001,
+                    null, null, null);
 
             assertNotNull(result);
             assertEquals(1, result.total());
