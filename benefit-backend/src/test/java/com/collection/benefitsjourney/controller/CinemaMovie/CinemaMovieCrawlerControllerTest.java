@@ -50,14 +50,15 @@ class CinemaMovieCrawlerControllerTest {
 
     private CinemaResponse cinema() {
         return new CinemaResponse(
-                100, "t02a01", "信義威秀", County.TAIPEI,
+                100, "t02a01", "https://www.atmovies.com.tw/showtime/t02a01/", "信義威秀", County.TAIPEI,
                 "台北市信義區松壽路20號", null, null,
                 "https://example.com", true, true, null, null);
     }
 
     private MovieResponse movie() {
         return new MovieResponse(
-                1, "fA001", "測試電影", "https://example.com/poster.jpg",
+                1, "fA001", "https://www.atmovies.com.tw/movie/fA001/", "測試電影",
+                "https://example.com/poster.jpg",
                 true, LocalDateTime.of(2026, 10, 12, 0, 0), null, null);
     }
 
@@ -79,10 +80,11 @@ class CinemaMovieCrawlerControllerTest {
                     .andExpect(jsonPath("$.updatedCount").value(4))
                     .andExpect(jsonPath("$.reviewCount").value(5))
                     .andExpect(jsonPath("$.elapsedSeconds").value(8))
-                    .andExpect(jsonPath("$.message")
-                            .value("本次抓到 3 筆、新增 1 筆、略過 2 筆、更新 4 筆、納入審核 5 筆，耗時 8 秒。"))
+                    .andExpect(jsonPath("$.message").doesNotExist())
                     .andExpect(jsonPath("$.items[0].cinemaId").value(100))
                     .andExpect(jsonPath("$.items[0].sourceId").value("t02a01"))
+                    .andExpect(jsonPath("$.items[0].sourceUrl")
+                            .value("https://www.atmovies.com.tw/showtime/t02a01/"))
                     .andExpect(jsonPath("$.items[0].cinemaName").value("信義威秀"))
                     .andExpect(jsonPath("$.items[0].county").value("TAIPEI"))
                     .andExpect(jsonPath("$.items[0].isActive").value(true));
@@ -104,6 +106,8 @@ class CinemaMovieCrawlerControllerTest {
                     .andExpect(jsonPath("$.skippedCount").value(0))
                     .andExpect(jsonPath("$.updatedCount").value(0))
                     .andExpect(jsonPath("$.reviewCount").value(0))
+                    .andExpect(jsonPath("$.elapsedSeconds").value(0))
+                    .andExpect(jsonPath("$.message").doesNotExist())
                     .andExpect(jsonPath("$.items").isArray())
                     .andExpect(jsonPath("$.items").isEmpty());
         }
@@ -155,10 +159,11 @@ class CinemaMovieCrawlerControllerTest {
                     .andExpect(jsonPath("$.updatedCount").value(1))
                     .andExpect(jsonPath("$.reviewCount").value(1))
                     .andExpect(jsonPath("$.elapsedSeconds").value(6))
-                    .andExpect(jsonPath("$.message")
-                            .value("本次抓到 4 筆、新增 2 筆、略過 3 筆、更新 1 筆、納入審核 1 筆，耗時 6 秒。"))
+                    .andExpect(jsonPath("$.message").doesNotExist())
                     .andExpect(jsonPath("$.items[0].movieId").value(1))
                     .andExpect(jsonPath("$.items[0].sourceId").value("fA001"))
+                    .andExpect(jsonPath("$.items[0].sourceUrl")
+                            .value("https://www.atmovies.com.tw/movie/fA001/"))
                     .andExpect(jsonPath("$.items[0].movieName").value("測試電影"))
                     .andExpect(jsonPath("$.items[0].isVisible").value(true))
                     .andExpect(jsonPath("$.items[0].releaseDate").exists());
@@ -177,10 +182,9 @@ class CinemaMovieCrawlerControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.items").isArray())
                     .andExpect(jsonPath("$.items").isEmpty())
+                    .andExpect(jsonPath("$.message").doesNotExist())
                     .andExpect(jsonPath("$.createdCount").value(0))
-                    .andExpect(jsonPath("$.skippedCount").value(0))
-                    .andExpect(jsonPath("$.message")
-                            .value("本次抓到 0 筆、新增 0 筆、略過 0 筆、更新 0 筆、納入審核 0 筆，耗時 0 秒。"));
+                    .andExpect(jsonPath("$.skippedCount").value(0));
         }
 
         @Test

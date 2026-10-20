@@ -43,6 +43,7 @@ const REVIEW_FIELD_LABELS = {
   latitude: "緯度",
   longitude: "經度",
   official_website_url: "官網",
+  source_url: "來源網址",
   is_active: "營業狀態",
   is_visible: "前台顯示",
   movie_name: "電影名稱",
@@ -163,8 +164,8 @@ const columns = [
     align: "center",
     format: reviewFieldLabel,
   },
-  { key: "previousValue", label: "原值", minWidth: "12rem", format: reviewValueText },
-  { key: "crawlerValue", label: "爬蟲值", minWidth: "12rem", format: reviewValueText },
+  { key: "previousValue", label: "現有資料", minWidth: "12rem", format: reviewValueText },
+  { key: "crawlerValue", label: "爬取資料", minWidth: "12rem", format: reviewValueText },
   {
     key: "reviewStatus",
     label: "審查狀態",
@@ -237,18 +238,18 @@ async function changeStatus(row, reviewStatus) {
   const prompts = {
     APPROVED: {
       title: "確定同意這筆差異？",
-      text: "同意後會把爬蟲值寫入正式資料。",
+      text: "同意後會把爬取資料寫入正式資料。",
       confirmText: "同意",
       successTitle: "已同意",
-      successText: "爬蟲值已寫入正式資料。",
+      successText: "爬取資料已寫入正式資料。",
       errorTitle: "同意失敗",
     },
     REJECTED: {
       title: "確定不同意這筆差異？",
-      text: "不同意後正式資料會維持原值。",
+      text: "不同意後正式資料會維持現有資料。",
       confirmText: "不同意",
       successTitle: "已不同意",
-      successText: "正式資料維持原值。",
+      successText: "正式資料維持現有資料。",
       errorTitle: "不同意失敗",
     },
   };
@@ -259,8 +260,8 @@ async function changeStatus(row, reviewStatus) {
     text: prompt.text,
     rows: [
       { label: "欄位", value: reviewFieldLabel(row.fieldName) },
-      { label: "原值", value: reviewValueText(row.previousValue, row) || "（空）" },
-      { label: "爬蟲值", value: reviewValueText(row.crawlerValue, row) || "（空）" },
+      { label: "現有資料", value: reviewValueText(row.previousValue, row) || "（空）" },
+      { label: "爬取資料", value: reviewValueText(row.crawlerValue, row) || "（空）" },
     ],
     confirmText: prompt.confirmText,
     cancelText: "取消",
@@ -298,7 +299,7 @@ async function changeStatus(row, reviewStatus) {
 
 <template>
   <section>
-    <PageIntro kicker="✦ CRAWLER REVIEW" lead="電影影城爬蟲" mark="審核" description="核對爬蟲與正式資料的差異。同意會寫入正式資料，不同意則保留原值。"
+    <PageIntro kicker="✦ CRAWLER REVIEW" lead="電影影城爬蟲" mark="審核" description="核對爬蟲與正式資料的差異。同意會寫入正式資料，不同意則保留現有資料。"
       :icon-left="clipboardIcon" :icon-right="sourceBranchIcon" :icon-top="tableIcon" theme="purple" />
 
     <ResultBanner v-if="!(loading && !reviews.length) && !error" :icon="clipboardIcon" title="爬蟲審核紀錄"
@@ -361,7 +362,9 @@ async function changeStatus(row, reviewStatus) {
 }
 
 .review-actions :deep(.app-button.is-settled) {
+  border: 1.5px solid var(--btn-bg);
   background: transparent;
+  color: var(--btn-bg);
   box-shadow: none;
   opacity: 0.28;
   cursor: not-allowed;

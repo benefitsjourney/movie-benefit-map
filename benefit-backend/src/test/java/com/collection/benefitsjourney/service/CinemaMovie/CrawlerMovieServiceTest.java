@@ -24,7 +24,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
-import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.junit.jupiter.api.AfterEach;
@@ -57,6 +56,7 @@ import com.collection.benefitsjourney.enums.CinemaMovie.CinemaResourceType;
  * 透過 Spy connect() 模擬網站，Mockito Mock 模擬資料庫服務。
  * 前提：CrawlerMovieService 的 connect(String url) 維持 package-private。
  * 不能依賴 mockStatic(Jsoup.class)：電影列表是在 ExecutorService 工作執行緒下載。
+ * 只有 movie 表已有的 sourceId 才會再呼叫 findBySourceId；詳細頁以完成順序處理。
  */
 @ExtendWith(MockitoExtension.class)
 class CrawlerMovieServiceTest {
@@ -161,7 +161,8 @@ class CrawlerMovieServiceTest {
 
     private MovieResponse saved(int id, String sourceId, String name,
             String imageUrl, boolean visible, LocalDateTime date) {
-        return new MovieResponse(id, sourceId, name, imageUrl, visible, date, null, null);
+        return new MovieResponse(id, sourceId, BASE + "/movie/" + sourceId + "/",
+                name, imageUrl, visible, date, null, null);
     }
 
     private void givenStored(int id, String sourceId, String name) {
@@ -176,10 +177,24 @@ class CrawlerMovieServiceTest {
         }).when(jdbcTemplate).query(anyString(), any(RowCallbackHandler.class));
     }
 
+    /** 來源 ID 已在 movie 表時，同步才會載入完整電影做差異審核。 */
+    private void givenExisting(MovieResponse existing) {
+        givenStored(existing.movieId(), existing.sourceId(), existing.movieName());
+        when(movieService.findBySourceId(existing.sourceId())).thenReturn(Optional.of(existing));
+    }
+
     private MovieRequest captureCreated() {
         ArgumentCaptor<MovieRequest> captor = ArgumentCaptor.forClass(MovieRequest.class);
         verify(movieService).createMovie(captor.capture());
         return captor.getValue();
+    }
+
+    private String movieName(ArgumentCaptor<MovieRequest> captor, String sourceId) {
+        return captor.getAllValues().stream()
+                .filter(request -> sourceId.equals(request.sourceId()))
+                .map(request -> request.movieName())
+                .findFirst()
+                .orElseThrow();
     }
 
     @Nested
@@ -191,7 +206,6 @@ class CrawlerMovieServiceTest {
         void createFromDetailTitle() throws Exception {
             onlyNewPage("<a href='/movie/fA001/'>列表上的名稱不採用</a>");
             pageAt(DETAIL_A, detail("測試電影 English Title @movies〖開眼電影網〗", "2026/10/12"));
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
             MovieResponse created = saved(1, "fA001", "測試電影", poster("fA001"), true, DATE_A);
             when(movieService.createMovie(any(MovieRequest.class))).thenReturn(created);
 
@@ -202,10 +216,12 @@ class CrawlerMovieServiceTest {
 
             MovieRequest request = captureCreated();
             assertEquals("fA001", request.sourceId());
+            assertEquals(DETAIL_A, request.sourceUrl());
             assertEquals("測試電影", request.movieName());
             assertEquals(poster("fA001"), request.imageUrl());
             assertEquals(Boolean.TRUE, request.isVisible());
             assertEquals(DATE_A, request.releaseDate());
+            verify(movieService, never()).findBySourceId(anyString());
             verify(crawlerMovieService).connect(DETAIL_A);
             verify(crawlerMovieService).connect(NEXT2);
         }
@@ -221,7 +237,6 @@ class CrawlerMovieServiceTest {
                       <p>上映日期：10/12/2026</p>
                     </body></html>
                     """);
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "正式名稱", poster("fA001"), true, DATE_A));
 
@@ -244,7 +259,6 @@ class CrawlerMovieServiceTest {
                       <p>上映日期：2026/10/12</p>
                     </body></html>
                     """);
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "錨點片名", poster("fA001"), true, DATE_A));
 
@@ -263,7 +277,6 @@ class CrawlerMovieServiceTest {
                       <meta property="og:title" content="片名：特別篇 @movies">
                     </head><body><p>上映日期：2026/10/12</p></body></html>
                     """);
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "片名：特別篇", poster("fA001"), true, DATE_A));
 
@@ -276,7 +289,6 @@ class CrawlerMovieServiceTest {
         void keepNumericEndingAndDropIntroSuffix() throws Exception {
             onlyNewPage("<a href='/movie/fA001/'>列表</a>");
             pageAt(DETAIL_A, detail("2+2=5 的電影 Two Plus Two｜劇情簡介 @movies", "2026/10/12"));
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "2+2=5 的電影", poster("fA001"), true, DATE_A));
 
@@ -291,7 +303,6 @@ class CrawlerMovieServiceTest {
             assertTrue(title.length() > 64);
             onlyNewPage("<a href='/movie/fA001/'>列表</a>");
             pageAt(DETAIL_A, detail(title + " @movies", "2026/10/12"));
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", title, poster("fA001"), true, DATE_A));
 
@@ -304,7 +315,6 @@ class CrawlerMovieServiceTest {
         void stripLiveViewingTranslation() throws Exception {
             onlyNewPage("<a href='/movie/fA001/'>列表</a>");
             pageAt(DETAIL_A, detail("櫻坂46演唱會 Live Viewing “Blooming★Parade” @movies", "2026/10/12"));
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "櫻坂46演唱會", poster("fA001"), true, DATE_A));
 
@@ -322,7 +332,6 @@ class CrawlerMovieServiceTest {
             pageAt(DETAIL_B, detail(
                     "Perfume“Cold Sleep” Perfume“Cold Sleep”-25 years Document @movies",
                     "2026/11/1"));
-            when(movieService.findBySourceId(anyString())).thenReturn(Optional.empty());
             when(movieService.createMovie(any(MovieRequest.class))).thenAnswer(invocation -> {
                 MovieRequest request = invocation.getArgument(0);
                 return saved(request.sourceId().equals("fA001") ? 1 : 2,
@@ -333,9 +342,9 @@ class CrawlerMovieServiceTest {
             ArgumentCaptor<MovieRequest> captor = ArgumentCaptor.forClass(MovieRequest.class);
             verify(movieService, org.mockito.Mockito.times(2)).createMovie(captor.capture());
             assertEquals("SB19 Wakas at Simula: The Trilogy Concert Finale In Cinemas",
-                    captor.getAllValues().get(0).movieName());
+                    movieName(captor, "fA001"));
             assertEquals("Perfume“Cold Sleep”-25 years Document",
-                    captor.getAllValues().get(1).movieName());
+                    movieName(captor, "fB002"));
         }
 
         @Test
@@ -344,7 +353,6 @@ class CrawlerMovieServiceTest {
             String title = "The Matrix The MatrixReloaded";
             onlyNewPage("<a href='/movie/fA001/'>列表</a>");
             pageAt(DETAIL_A, detail(title + " @movies", "2026/10/12"));
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", title, poster("fA001"), true, DATE_A));
 
@@ -357,7 +365,6 @@ class CrawlerMovieServiceTest {
         void unparseableReleaseDate() throws Exception {
             onlyNewPage("<a href='/movie/fA001/'>列表</a>");
             pageAt(DETAIL_A, detail("測試電影 @movies", "13/40/2026"));
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "測試電影", poster("fA001"), true, null));
 
@@ -373,7 +380,6 @@ class CrawlerMovieServiceTest {
                     "<a href='/movie/next/w3/'>第三週</a>", "");
             pageAt(WEEK, "<a href='/movie/fA001/'>週次列表</a>");
             pageAt(DETAIL_A, detail("週次電影 @movies", "2026/10/12"));
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "週次電影", poster("fA001"), true, DATE_A));
 
@@ -390,7 +396,6 @@ class CrawlerMovieServiceTest {
                     "<a href='/movie/fA001/'>乙</a>",
                     "<a href='/film/fA001/'>丙</a>", "", "");
             pageAt(DETAIL_A, detail("測試電影 @movies", "2026/10/12"));
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "測試電影", poster("fA001"), true, DATE_A));
 
@@ -428,7 +433,7 @@ class CrawlerMovieServiceTest {
             onlyNewPage("<a href='/movie/fA001/'>列表</a>");
             pageAt(DETAIL_A, detail("測試電影 @movies", "2026/10/12"));
             MovieResponse existing = saved(1, "fA001", "測試電影", poster("fA001"), false, DATE_A);
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
+            givenExisting(existing);
 
             CinemaMovieCrawlerSyncResult<MovieResponse> result = crawlerMovieService.syncMovies();
 
@@ -436,6 +441,51 @@ class CrawlerMovieServiceTest {
             assertSame(existing, result.items().get(0));
             assertSummary(result, 1, 0, 0, 0, 0);
             verifyNoInteractions(cinemaMovieReviewsService);
+            verify(movieService, never()).createMovie(any());
+            verify(movieService, never()).updateMovie(any(), any());
+        }
+
+        @Test
+        @DisplayName("既有電影沒有來源網址時直接補上，不送審")
+        void fillMissingSourceUrl() throws Exception {
+            onlyNewPage("<a href='/movie/fA001/'>列表</a>");
+            pageAt(DETAIL_A, detail("測試電影 @movies", "2026/10/12"));
+            MovieResponse existing = new MovieResponse(
+                    1, "fA001", null, "測試電影", poster("fA001"), false, DATE_A, null, null);
+            givenExisting(existing);
+            MovieResponse filled = saved(1, "fA001", "測試電影", poster("fA001"), false, DATE_A);
+            when(movieService.updateMovie(eq(1), any(MovieRequest.class))).thenReturn(filled);
+
+            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawlerMovieService.syncMovies();
+
+            assertSame(filled, result.items().get(0));
+            assertSummary(result, 1, 0, 0, 1, 0);
+            ArgumentCaptor<MovieRequest> captor = ArgumentCaptor.forClass(MovieRequest.class);
+            verify(movieService).updateMovie(eq(1), captor.capture());
+            assertEquals(DETAIL_A, captor.getValue().sourceUrl());
+            assertNull(captor.getValue().movieName());
+            verifyNoInteractions(cinemaMovieReviewsService);
+            verify(movieService, never()).createMovie(any());
+        }
+
+        @Test
+        @DisplayName("來源網址不同時只送審，不改正式資料")
+        void queueSourceUrlChange() throws Exception {
+            onlyNewPage("<a href='/movie/fA001/'>列表</a>");
+            pageAt(DETAIL_A, detail("測試電影 @movies", "2026/10/12"));
+            MovieResponse existing = new MovieResponse(
+                    1, "fA001", "https://old.example/movie", "測試電影", poster("fA001"),
+                    false, DATE_A, null, null);
+            givenExisting(existing);
+
+            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawlerMovieService.syncMovies();
+
+            assertEquals(List.of(existing), result.items());
+            assertSummary(result, 1, 0, 0, 1, 1);
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
+                    CinemaResourceType.MOVIE, 1, CinemaMovieReviewsService.SOURCE_URL,
+                    DETAIL_A, "https://old.example/movie");
+            verify(movieService, never()).updateMovie(any(), any());
             verify(movieService, never()).createMovie(any());
         }
 
@@ -445,7 +495,7 @@ class CrawlerMovieServiceTest {
             onlyNewPage("<a href='/movie/fA001/'>列表</a>");
             pageAt(DETAIL_A, detail("更新後名稱 @movies", "2026/11/1"));
             MovieResponse existing = saved(1, "fA001", "舊名稱", BASE + "/poster/old.jpg", false, DATE_A);
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
+            givenExisting(existing);
 
             CinemaMovieCrawlerSyncResult<MovieResponse> result = crawlerMovieService.syncMovies();
             assertEquals(List.of(existing), result.items());
@@ -468,7 +518,7 @@ class CrawlerMovieServiceTest {
             onlyNewPage("<a href='/movie/fA001/'>列表</a>");
             pageAt(DETAIL_A, detail("測試電影 @movies", null));
             MovieResponse existing = saved(1, "fA001", "測試電影", poster("fA001"), false, DATE_A);
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
+            givenExisting(existing);
 
             assertEquals(List.of(existing), crawlerMovieService.syncMovies().items());
 
@@ -493,7 +543,7 @@ class CrawlerMovieServiceTest {
 
             for (String storedName : storedNames) {
                 MovieResponse existing = saved(1, "fA001", storedName, poster("fA001"), false, DATE_A);
-                when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
+                givenExisting(existing);
                 assertEquals(List.of(existing), crawlerMovieService.syncMovies().items(), storedName);
             }
 
@@ -506,7 +556,7 @@ class CrawlerMovieServiceTest {
             onlyNewPage("<a href='/movie/fA001/'>列表</a>");
             pageAt(DETAIL_A, detail("測試電影 @movies", "2026/10/12"));
             MovieResponse existing = saved(1, "fA001", "測試電影（導演版）", poster("fA001"), false, DATE_A);
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
+            givenExisting(existing);
 
             assertEquals(List.of(existing), crawlerMovieService.syncMovies().items());
 
@@ -521,7 +571,6 @@ class CrawlerMovieServiceTest {
             onlyNewPage("<a href='/movie/fA001/'>列表</a>");
             pageAt(DETAIL_A, detail("test 測試電影 @movies", "2026/10/12"));
             givenStored(8, "fOLD", "Test　測試電影！");
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
 
             CinemaMovieCrawlerSyncResult<MovieResponse> result = crawlerMovieService.syncMovies();
             assertEquals(List.of(), result.items());
@@ -529,6 +578,7 @@ class CrawlerMovieServiceTest {
 
             verify(cinemaMovieReviewsService).submitCrawlerChange(
                     CinemaResourceType.MOVIE, 8, CinemaMovieReviewsService.SOURCE_ID, "fA001", "fOLD");
+            verify(movieService, never()).findBySourceId(anyString());
             verify(movieService, never()).createMovie(any());
         }
 
@@ -541,18 +591,22 @@ class CrawlerMovieServiceTest {
                     """);
             pageAt(DETAIL_A, detail("測試電影 @movies", "2026/10/12"));
             pageAt(DETAIL_B, detail("測試電影 English @movies", "2026/11/1"));
-            when(movieService.findBySourceId(anyString())).thenReturn(Optional.empty());
-            when(movieService.createMovie(any(MovieRequest.class)))
-                    .thenReturn(saved(1, "fA001", "測試電影", poster("fA001"), true, DATE_A));
+            when(movieService.createMovie(any(MovieRequest.class))).thenAnswer(invocation -> {
+                MovieRequest request = invocation.getArgument(0);
+                return saved(1, request.sourceId(), request.movieName(), request.imageUrl(), true,
+                        request.releaseDate());
+            });
 
             CinemaMovieCrawlerSyncResult<MovieResponse> result = crawlerMovieService.syncMovies();
 
             assertEquals(1, result.items().size());
-            assertEquals("fA001", result.items().get(0).sourceId());
+            String createdSource = result.items().get(0).sourceId();
+            String duplicateSource = "fA001".equals(createdSource) ? "fB002" : "fA001";
             assertSummary(result, 2, 1, 0, 0, 1);
             verify(movieService).createMovie(any(MovieRequest.class));
             verify(cinemaMovieReviewsService).submitCrawlerChange(
-                    CinemaResourceType.MOVIE, 1, CinemaMovieReviewsService.SOURCE_ID, "fB002", "fA001");
+                    CinemaResourceType.MOVIE, 1, CinemaMovieReviewsService.SOURCE_ID,
+                    duplicateSource, createdSource);
         }
 
         @Test
@@ -564,7 +618,7 @@ class CrawlerMovieServiceTest {
                     "SB19 Wakas at Simula " + collapsed + " @movies", "2026/10/12"));
             MovieResponse existing = saved(1, "fA001",
                     "SB19 Wakas at Simula " + collapsed, poster("fA001"), false, DATE_A);
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.of(existing));
+            givenExisting(existing);
 
             CinemaMovieCrawlerSyncResult<MovieResponse> result = crawlerMovieService.syncMovies();
             assertEquals(List.of(existing), result.items());
@@ -584,6 +638,7 @@ class CrawlerMovieServiceTest {
 
             assertEquals(List.of(), crawlerMovieService.syncMovies().items());
 
+            verify(movieService).findBySourceId("fA001");
             verifyNoInteractions(cinemaMovieReviewsService);
             verify(movieService, never()).createMovie(any());
         }
@@ -630,7 +685,6 @@ class CrawlerMovieServiceTest {
             pageAt(NEXT, "");
             pageAt(NEXT2, "");
             pageAt(DETAIL_A, detail("測試電影 @movies", "2026/10/12"));
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenReturn(saved(1, "fA001", "測試電影", poster("fA001"), true, DATE_A));
 
@@ -643,7 +697,7 @@ class CrawlerMovieServiceTest {
         void detailFetchFailed() throws Exception {
             onlyNewPage("<a href='/movie/fA001/'>列表</a><a href='/movie/fB002/'>列表</a>");
             doThrow(new IOException("detail failed")).when(crawlerMovieService).connect(DETAIL_A);
-            doThrow(new HttpStatusException("missing", 404, DETAIL_B)).when(crawlerMovieService).connect(DETAIL_B);
+            doThrow(new IOException("HTTP 404：" + DETAIL_B)).when(crawlerMovieService).connect(DETAIL_B);
 
             ResponseStatusException error = assertThrows(
                     ResponseStatusException.class, crawlerMovieService::syncMovies);
@@ -678,7 +732,6 @@ class CrawlerMovieServiceTest {
             onlyNewPage("<a href='/movie/fA001/'>甲</a><a href='/movie/fB002/'>乙</a>");
             pageAt(DETAIL_A, detail("第一部 @movies", "2026/10/12"));
             pageAt(DETAIL_B, detail("第二部 @movies", "2026/11/1"));
-            when(movieService.findBySourceId(anyString())).thenReturn(Optional.empty());
             when(movieService.createMovie(any(MovieRequest.class))).thenAnswer(invocation -> {
                 MovieRequest request = invocation.getArgument(0);
                 if ("fA001".equals(request.sourceId())) {
@@ -700,7 +753,6 @@ class CrawlerMovieServiceTest {
         void allSavesFailed() throws Exception {
             onlyNewPage("<a href='/movie/fA001/'>列表</a>");
             pageAt(DETAIL_A, detail("測試電影 @movies", "2026/10/12"));
-            when(movieService.findBySourceId("fA001")).thenReturn(Optional.empty());
             when(movieService.createMovie(any(MovieRequest.class)))
                     .thenThrow(new IllegalStateException("db failed"));
 

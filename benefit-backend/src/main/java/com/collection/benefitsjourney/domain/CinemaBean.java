@@ -36,6 +36,9 @@ public class CinemaBean {
     @Column(name = "source_id", unique = true, length = 64, comment = "外部來源的影城辨認ID")
     private String sourceId;
 
+    @Column(name = "source_url", length = 512, comment = "爬蟲來源頁面網址")
+    private String sourceUrl;
+
     @Column(name = "cinema_name", nullable = false, length = 256, comment = "影城名稱")
     private String cinemaName;
 

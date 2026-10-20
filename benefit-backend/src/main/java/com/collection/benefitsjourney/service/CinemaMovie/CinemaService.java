@@ -112,6 +112,7 @@ public class CinemaService {
         CinemaBean cinema = new CinemaBean();
 
         cinema.setSourceId(request.sourceId());
+        cinema.setSourceUrl(request.sourceUrl());
         cinema.setCinemaName(request.cinemaName());
         cinema.setCounty(request.county());
         cinema.setCinemaAddress(request.cinemaAddress());
@@ -157,6 +158,10 @@ public class CinemaService {
                     });
 
             cinema.setSourceId(request.sourceId());
+        }
+
+        if (request.sourceUrl() != null) {
+            cinema.setSourceUrl(request.sourceUrl());
         }
 
         if (request.cinemaName() != null) {

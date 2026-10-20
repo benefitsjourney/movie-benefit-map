@@ -7,6 +7,7 @@ import com.collection.benefitsjourney.domain.MovieBean;
 public record MovieResponse(
         Integer movieId,
         String sourceId,
+        String sourceUrl,
         String movieName,
         String imageUrl,
         Boolean isVisible,
@@ -18,6 +19,7 @@ public record MovieResponse(
         return new MovieResponse(
                 movie.getMovieId(),
                 movie.getSourceId(),
+                movie.getSourceUrl(),
                 movie.getMovieName(),
                 movie.getImageUrl(),
                 movie.getIsVisible(),

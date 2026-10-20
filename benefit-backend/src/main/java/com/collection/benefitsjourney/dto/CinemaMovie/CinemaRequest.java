@@ -15,6 +15,8 @@ public record CinemaRequest(
 
         @Size(max = 64, message = "來源ID長度不可超過64字元") String sourceId,
 
+        @Size(max = 512, message = "來源網址長度不可超過512字元") String sourceUrl,
+
         @Size(max = 256, message = "影城名稱長度不可超過256字元") @NotBlank(groups = OnCreate.class, message = "影城名稱不能為空") String cinemaName,
 
         @NotNull(groups = OnCreate.class, message = "縣市不能為空") County county,

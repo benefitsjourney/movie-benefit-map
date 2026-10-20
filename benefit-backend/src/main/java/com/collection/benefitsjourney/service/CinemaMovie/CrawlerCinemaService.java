@@ -38,7 +38,7 @@ public class CrawlerCinemaService {
 
     /** HTTP 請求最大等待時間 */
     private static final int REQUEST_TIMEOUT_MS = 10_000;
-    private static final int HTTP_CONCURRENCY = 5;
+    private static final int HTTP_CONCURRENCY = 8;
     private static final String USER_AGENT = "Mozilla/5.0";
 
     /** 爬蟲網站影城列表頁面 */
@@ -151,25 +151,28 @@ public class CrawlerCinemaService {
                 existing.put(cinema.sourceId(), cinemaService.findBySourceId(cinema.sourceId()));
             }
 
-            List<CompletableFuture<CinemaResponse>> coordinateTasks = cinemas.stream()
-                    .map(cinema -> CompletableFuture.supplyAsync(() -> {
-                        CinemaResponse current = existing.get(cinema.sourceId()).orElse(null);
-                        if (!refreshCoordinates && current != null
-                                && current.latitude() != null && current.longitude() != null) {
-                            return cinema; // null 座標表示本次沒抓，不會建立座標變更審核。
-                        }
-                        Coordinates location = getCoordinates(cinema.sourceId());
-                        if (location == null) {
-                            return cinema;
-                        }
-                        return withCoordinates(cinema, location);
-                    }, executor))
-                    .toList();
+            // 只對需要補座標或強制重抓的影城建立 HTTP 任務，避免浪費執行緒
+            Map<String, CompletableFuture<Coordinates>> coordinateTasks = new LinkedHashMap<>();
+            for (CinemaResponse cinema : cinemas) {
+                CinemaResponse current = existing.get(cinema.sourceId()).orElse(null);
+                boolean hasCoordinates = current != null
+                        && current.latitude() != null && current.longitude() != null;
+                if (refreshCoordinates || !hasCoordinates) {
+                    coordinateTasks.put(cinema.sourceId(), CompletableFuture.supplyAsync(
+                            () -> getCoordinates(cinema.sourceId()), executor));
+                }
+            }
 
-            List<CinemaResponse> resolved = coordinateTasks.stream()
-                    .map(task -> task.join())
+            List<CinemaResponse> resolved = cinemas.stream()
+                    .map(cinema -> {
+                        CompletableFuture<Coordinates> task = coordinateTasks.get(cinema.sourceId());
+                        if (task == null) {
+                            return cinema; // 本次沒抓座標，不觸發座標變更審核。
+                        }
+                        Coordinates location = task.join();
+                        return location == null ? cinema : withCoordinates(cinema, location);
+                    })
                     .toList();
-
             SyncStats stats = new SyncStats();
             stats.skipped = omitted;
             List<CinemaResponse> saved = resolved.stream()
@@ -199,7 +202,7 @@ public class CrawlerCinemaService {
 
     private CinemaResponse withCoordinates(CinemaResponse cinema, Coordinates coordinates) {
         return new CinemaResponse(
-                cinema.cinemaId(), cinema.sourceId(), cinema.cinemaName(),
+                cinema.cinemaId(), cinema.sourceId(), cinema.sourceUrl(), cinema.cinemaName(),
                 cinema.county(), cinema.cinemaAddress(),
                 coordinates.latitude(), coordinates.longitude(),
                 cinema.officialWebsiteUrl(), cinema.isActive(), cinema.isVisible(),
@@ -295,6 +298,7 @@ public class CrawlerCinemaService {
         return new CinemaResponse(
                 null,
                 sourceId,
+                cinemaUrl,
                 cinemaName,
                 county,
                 cinemaAddress,
@@ -314,11 +318,12 @@ public class CrawlerCinemaService {
             return existing
                     .map(cinema -> {
                         int reviewed = reviewChangedFields(cinema, response);
+                        CinemaResponse current = fillMissingSourceUrl(cinema, response);
                         stats.reviewed += reviewed;
-                        if (reviewed > 0) {
+                        if (reviewed > 0 || current != cinema) {
                             stats.updated++;
                         }
-                        return cinema;
+                        return current;
                     })
                     .orElseGet(() -> {
                         CinemaResponse created = cinemaService.createCinema(toCinemaRequest(response));
@@ -339,6 +344,7 @@ public class CrawlerCinemaService {
     private CinemaRequest toCinemaRequest(CinemaResponse response) {
         return new CinemaRequest(
                 response.sourceId(),
+                response.sourceUrl(),
                 response.cinemaName(),
                 response.county(),
                 response.cinemaAddress(),
@@ -387,7 +393,26 @@ public class CrawlerCinemaService {
                         crawled.officialWebsiteUrl(), current.officialWebsiteUrl())) {
             reviewed++;
         }
+
+        if (hasText(current.sourceUrl())
+                && reviewField(current.cinemaId(), CinemaMovieReviewsService.SOURCE_URL,
+                        crawled.sourceUrl(), current.sourceUrl())) {
+            reviewed++;
+        }
         return reviewed;
+    }
+
+    /** 舊資料還沒有來源網址時直接補上，不進審核。 */
+    private CinemaResponse fillMissingSourceUrl(CinemaResponse current, CinemaResponse crawled) {
+        if (!hasText(crawled.sourceUrl()) || hasText(current.sourceUrl())) {
+            return current;
+        }
+        return cinemaService.updateCinema(current.cinemaId(), new CinemaRequest(
+                null, crawled.sourceUrl(), null, null, null, null, null, null, null, null));
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     /** 略過未抓到或與正式資料相同的值，其他差異交給審核Service去重複 */

@@ -229,6 +229,7 @@ class MovieServiceTest {
             MovieRequest request = mock(MovieRequest.class);
             LocalDateTime releaseDate = LocalDateTime.of(2026, 10, 12, 0, 0);
             when(request.sourceId()).thenReturn("M002");
+            when(request.sourceUrl()).thenReturn("https://www.atmovies.com.tw/movie/M002/");
             when(request.movieName()).thenReturn("測試電影");
             when(request.imageUrl())
                     .thenReturn("https://example.com/movie.jpg");
@@ -244,6 +245,7 @@ class MovieServiceTest {
             verify(movieRepository).save(captor.capture());
             MovieBean saved = captor.getValue();
             assertEquals("M002", saved.getSourceId());
+            assertEquals("https://www.atmovies.com.tw/movie/M002/", saved.getSourceUrl());
             assertEquals("測試電影", saved.getMovieName());
             assertEquals(
                     "https://example.com/movie.jpg",
@@ -371,6 +373,7 @@ class MovieServiceTest {
             MovieRequest request = mock(MovieRequest.class);
             LocalDateTime newReleaseDate = LocalDateTime.of(2026, 12, 25, 0, 0);
             when(request.sourceId()).thenReturn("M003");
+            when(request.sourceUrl()).thenReturn("https://www.atmovies.com.tw/movie/M003/");
             when(request.imageUrl())
                     .thenReturn("https://example.com/new.jpg");
             when(request.releaseDate()).thenReturn(newReleaseDate);
@@ -388,6 +391,7 @@ class MovieServiceTest {
             MovieBean saved = captor.getValue();
             assertSame(existing, saved);
             assertEquals("M003", saved.getSourceId());
+            assertEquals("https://www.atmovies.com.tw/movie/M003/", saved.getSourceUrl());
             assertEquals("原本電影", saved.getMovieName());
             assertEquals(
                     "https://example.com/new.jpg",

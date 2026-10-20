@@ -5,6 +5,7 @@ USE BenefitsJourney;
 CREATE TABLE cinema (
     cinema_id INT IDENTITY(1,1) NOT NULL,
     source_id NVARCHAR(64) NULL,
+    source_url NVARCHAR(512) NULL,
     cinema_name NVARCHAR(256) NOT NULL,
     county NVARCHAR(32) NOT NULL,
     cinema_address NVARCHAR(256) NULL,

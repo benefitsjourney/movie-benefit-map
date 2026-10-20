@@ -488,7 +488,7 @@ class CinemaMovieReviewsServiceTest {
             when(cinemaMovieReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
             when(movieService.updateMovie(eq(12), any(MovieRequest.class)))
                     .thenReturn(new MovieResponse(
-                            12, null, "新片名", null, null, null, null, null));
+                            12, null, null, "新片名", null, null, null, null, null));
             when(cinemaMovieReviewsRepository.save(any(CinemaMovieReviewBean.class)))
                     .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -542,7 +542,7 @@ class CinemaMovieReviewsServiceTest {
             existing.setPreviousValue("fOLD");
             when(cinemaMovieReviewsRepository.findById(7)).thenReturn(Optional.of(existing));
             when(movieService.findById(12)).thenReturn(new MovieResponse(
-                    12, "fOLD", "既有片名", null, true, null, null, null));
+                    12, "fOLD", null, "既有片名", null, true, null, null, null));
             when(cinemaMovieReviewsRepository.save(any(CinemaMovieReviewBean.class)))
                     .thenAnswer(invocation -> invocation.getArgument(0));
 

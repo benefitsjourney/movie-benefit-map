@@ -7,6 +7,7 @@ import alertIcon from "@iconify-icons/mdi/alert-circle-outline";
 import infoIcon from "@iconify-icons/mdi/information-outline";
 import warningIcon from "@iconify-icons/mdi/alert-outline";
 
+/** 定義 Alert 類型對應的顏色、圖示、可否關閉與預設焦點 */
 const VARIANTS = {
   confirm: { color: "purple", icon: syncIcon, dismissible: true, focus: "cancel" },
   loading: { color: "blue", icon: loadingIcon, dismissible: false, focus: "dialog" },
@@ -16,10 +17,22 @@ const VARIANTS = {
   warning: { color: "orange", icon: warningIcon, dismissible: true, focus: "confirm" },
 };
 
+/** 集中管理彈窗預設文案，減少開啟時的重複預設值 */
+const ALERT_DEFAULTS = {
+  title: "",
+  text: "",
+  confirmText: "確定",
+  cancelText: "取消",
+  extraText: "",
+  fileButtonText: "選擇檔案",
+};
+
+/** 統一三種按鈕操作的回傳結果格式，供呼叫端判斷 */
 const DISMISSED = { isConfirmed: false, isDismissed: true, isExtra: false };
 const CONFIRMED = { isConfirmed: true, isDismissed: false, isExtra: false };
 const EXTRA = { isConfirmed: false, isDismissed: false, isExtra: true };
 
+/** 全域共用的響應式彈窗狀態，包含文字、表單及上傳檔案資訊 */
 const state = reactive({
   open: false,
   token: 0,
@@ -30,10 +43,22 @@ const state = reactive({
   confirmText: "確定",
   cancelText: "取消",
   extraText: "",
+  fields: [],
+  fieldValues: {},
+  fieldErrors: {},
+  requireFile: false,
+  fileAccept: "",
+  fileButtonText: "選擇檔案",
+  fileName: "",
+  fileError: "",
+  hasFile: false,
 });
 
+/** resolver 用來完成 openAppAlert 的 Promise；檔案物件獨立儲存，不放入響應式狀態 */
 let resolver = null;
+let selectedFile = null;
 
+/** 關閉彈窗並結束本次等待中的 Promise */
 function settle(result) {
   const resolve = resolver;
   resolver = null;
@@ -41,24 +66,39 @@ function settle(result) {
   resolve?.(result);
 }
 
-/** 開啟 Alert，回傳使用者確認或取消的結果。 */
+/** 開啟 Alert；先結束前一個彈窗，再依設定重設欄位並等待使用者操作 */
 export function openAppAlert(options = {}) {
   const previous = resolver;
   resolver = null;
   previous?.(DISMISSED);
 
   const variant = VARIANTS[options.variant] ? options.variant : "confirm";
+  const fields = variant === "loading" || !Array.isArray(options.fields) ? [] : options.fields;
+  const fieldValues = Object.fromEntries(
+    fields.map(({ key, value }) => [key, value == null ? "" : String(value)]),
+  );
+
+  selectedFile = null;
 
   Object.assign(state, {
     open: true,
     token: state.token + 1,
     variant,
-    title: options.title ?? "",
-    text: options.text ?? "",
+    title: options.title ?? ALERT_DEFAULTS.title,
+    text: options.text ?? ALERT_DEFAULTS.text,
     rows: Array.isArray(options.rows) ? options.rows : [],
-    confirmText: options.confirmText ?? "確定",
-    cancelText: variant === "loading" ? "" : (options.cancelText ?? "取消"),
-    extraText: variant === "loading" ? "" : (options.extraText ?? ""),
+    confirmText: options.confirmText ?? ALERT_DEFAULTS.confirmText,
+    cancelText: variant === "loading" ? "" : (options.cancelText ?? ALERT_DEFAULTS.cancelText),
+    extraText: variant === "loading" ? "" : (options.extraText ?? ALERT_DEFAULTS.extraText),
+    fields,
+    fieldValues,
+    fieldErrors: {},
+    requireFile: variant !== "loading" && Boolean(options.file),
+    fileAccept: options.file?.accept ?? "",
+    fileButtonText: options.file?.buttonText ?? ALERT_DEFAULTS.fileButtonText,
+    fileName: "",
+    fileError: "",
+    hasFile: false,
   });
 
   return new Promise((resolve) => {
@@ -66,16 +106,16 @@ export function openAppAlert(options = {}) {
   });
 }
 
-/** 更新目前 Alert 的標題或內容。 */
+/** 載入等執行過程中，僅更新目前彈窗的標題、內容或統計列 */
 export function updateAppAlert(patch = {}) {
   if (!state.open) return;
 
-  if (patch.title != null) state.title = patch.title;
-  if (patch.text != null) state.text = patch.text;
-  if (patch.rows != null) state.rows = patch.rows;
+  for (const key of ["title", "text", "rows"]) {
+    if (patch[key] != null) state[key] = patch[key];
+  }
 }
 
-/** 關閉 Alert，並回傳取消結果。 */
+/** 由外部主動關閉 Alert，並通知呼叫端操作已取消 */
 export function closeAppAlert() {
   if (!state.open && !resolver) return;
   settle(DISMISSED);
@@ -87,12 +127,21 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { Icon } from "@iconify/vue";
 import TicketCard from "@/components/ui/TicketCard.vue";
 
+/** 保存彈窗和按鈕的 DOM 參照，用於焦點管理及檔案選取 */
 const dialogRef = ref(null);
 const confirmRef = ref(null);
 const cancelRef = ref(null);
 const extraRef = ref(null);
+const fileInputRef = ref(null);
 
+/** 根據當前類型讀取外觀及互動規則 */
 const currentVariant = computed(() => VARIANTS[state.variant] ?? VARIANTS.confirm);
+/** 未提供必填檔案或存在空白欄位時，停用確認按鈕 */
+const confirmBlocked = computed(() => {
+  if (state.requireFile && !state.hasFile) return true;
+  return state.fields.some((field) => !String(state.fieldValues[field.key] ?? "").trim());
+});
+/** 依實際顯示內容建立無障礙描述 ID */
 const describedBy = computed(() =>
   [state.text ? "app-alert-text" : "", state.rows.length ? "app-alert-rows" : ""]
     .filter(Boolean)
@@ -102,19 +151,58 @@ const describedBy = computed(() =>
 let previousOverflow = "";
 let previousFocus = null;
 
+/** 按下確認後檢查輸入、執行欄位驗證，再回傳整理後的資料 */
 function onConfirm() {
-  settle(CONFIRMED);
+  if (confirmBlocked.value) return;
+
+  const errors = Object.fromEntries(
+    state.fields.flatMap((field) => {
+      const value = String(state.fieldValues[field.key] ?? "").trim();
+      const message = field.validate?.(value) ?? "";
+      return message ? [[field.key, message]] : [];
+    }),
+  );
+  state.fieldErrors = errors;
+  if (Object.keys(errors).length) return;
+
+  const file = selectedFile;
+  const values = Object.fromEntries(
+    state.fields.map(({ key }) => [key, String(state.fieldValues[key] ?? "").trim()]),
+  );
+  selectedFile = null;
+  state.hasFile = false;
+  settle({ ...CONFIRMED, values, file });
 }
 
+/** 觸發隱藏的原生檔案選擇器 */
+function openFilePicker() {
+  fileInputRef.value?.click();
+}
+
+/** 記錄選擇的檔案並更新檔名顯示 */
+function onFileChange(event) {
+  const file = event.target.files?.[0] ?? null;
+  event.target.value = "";
+
+  if (!file) return;
+
+  selectedFile = file;
+  state.hasFile = true;
+  state.fileName = file.name;
+  state.fileError = "";
+}
+
+/** 額外操作按鈕：回傳 isExtra，供呼叫端執行其他導向 */
 function onExtra() {
   settle(EXTRA);
 }
 
+/** 僅允許可關閉的彈窗以取消操作結束 */
 function onDismiss() {
   if (currentVariant.value.dismissible) settle(DISMISSED);
 }
 
-/** 將焦點限制在彈窗內，並支援 Escape 關閉。 */
+/** 攔截 Escape 與 Tab，防止焦點離開彈窗並允許適當關閉 */
 function onKeydown(event) {
   if (!state.open) return;
 
@@ -127,7 +215,7 @@ function onKeydown(event) {
 
   if (event.key !== "Tab") return;
 
-  const nodes = [cancelRef.value, extraRef.value, confirmRef.value].filter(Boolean);
+  const nodes = focusableNodes();
   if (!nodes.length) {
     event.preventDefault();
     dialogRef.value?.focus();
@@ -147,8 +235,26 @@ function onKeydown(event) {
   }
 }
 
-/** 依 Alert 類型設定初始焦點。 */
+/** 找出目前可操作的輸入欄位與按鈕，供 Tab 焦點循環使用 */
+function focusableNodes() {
+  if (!dialogRef.value) return [];
+  return [...dialogRef.value.querySelectorAll("button, input, select, textarea")].filter(
+    (node) => !node.disabled && node.tabIndex >= 0,
+  );
+}
+
+/** 依表單、選檔或 Alert 類型決定開啟時的初始焦點 */
 function focusPreferred() {
+  if (state.fields.length) {
+    dialogRef.value?.querySelector(".alert-input")?.focus();
+    return;
+  }
+
+  if (state.requireFile) {
+    dialogRef.value?.querySelector(".alert-file-trigger")?.focus();
+    return;
+  }
+
   const target = {
     cancel: cancelRef.value,
     confirm: confirmRef.value,
@@ -158,7 +264,7 @@ function focusPreferred() {
   (target || confirmRef.value || dialogRef.value)?.focus();
 }
 
-/** 開啟時鎖定背景捲動，關閉後還原。 */
+/** 彈窗開啟時鎖住背景捲動；關閉時恢復捲動及先前焦點 */
 watch(
   () => state.open,
   (open) => {
@@ -175,7 +281,7 @@ watch(
   },
 );
 
-/** 每次開啟新 Alert 都重新設定焦點。 */
+/** 彈窗每次重新開啟，都等 DOM 更新後再指定焦點 */
 watch(
   () => state.token,
   async (token) => {
@@ -185,6 +291,7 @@ watch(
   },
 );
 
+/** 掛載時註冊鍵盤事件；卸載時清理監聽與未完成彈窗 */
 onMounted(() => {
   window.addEventListener("keydown", onKeydown);
 });
@@ -200,6 +307,7 @@ onUnmounted(() => {
 </script>
 
 <template>
+  <!-- 將彈窗傳送到 body，避免受到原頁面版面與層級影響 -->
   <Teleport to="body">
     <div v-if="state.open" class="alert-backdrop" @click.self="onDismiss">
       <div :key="state.token" ref="dialogRef" class="alert-dialog"
@@ -221,6 +329,7 @@ onUnmounted(() => {
             </span>
           </div>
 
+          <!-- 成功或資訊類彈窗可選擇顯示統計資料 -->
           <dl v-if="state.rows.length" id="app-alert-rows" class="alert-stats">
             <div v-for="row in state.rows" :key="row.label">
               <dt>{{ row.label }}</dt>
@@ -228,6 +337,33 @@ onUnmounted(() => {
             </div>
           </dl>
 
+          <!-- 視設定呈現檔案上傳或動態輸入欄位 -->
+          <div v-if="state.requireFile || state.fields.length" class="alert-form">
+            <div v-if="state.requireFile" class="alert-field">
+              <span class="alert-label">JSON 檔案</span>
+              <div class="alert-file-row">
+                <button type="button" class="ticket-link alert-file-trigger" @click="openFilePicker">
+                  {{ state.fileButtonText }}
+                </button>
+                <p class="alert-file-name">{{ state.fileName || "尚未選擇檔案" }}</p>
+              </div>
+              <p v-if="state.fileError" class="alert-error">{{ state.fileError }}</p>
+              <input ref="fileInputRef" class="alert-file-input" type="file" tabindex="-1" :accept="state.fileAccept"
+                @change="onFileChange" />
+            </div>
+
+            <div v-for="field in state.fields" :key="field.key" class="alert-field">
+              <label class="alert-label" :for="`alert-field-${field.key}`">{{ field.label }}</label>
+              <input :id="`alert-field-${field.key}`" v-model="state.fieldValues[field.key]" class="alert-input"
+                :class="{ 'is-invalid': state.fieldErrors[field.key] }" :type="field.type || 'text'"
+                :inputmode="field.inputmode" :placeholder="field.placeholder" autocomplete="off"
+                :aria-invalid="Boolean(state.fieldErrors[field.key])" @input="state.fieldErrors[field.key] = ''" />
+              <p v-if="field.hint" class="alert-hint">{{ field.hint }}</p>
+              <p v-if="state.fieldErrors[field.key]" class="alert-error">{{ state.fieldErrors[field.key] }}</p>
+            </div>
+          </div>
+
+          <!-- 載入期間隱藏操作鈕，其餘類型依設定顯示取消、額外操作與確認 -->
           <template v-if="state.variant !== 'loading'" #action>
             <button v-if="state.cancelText" ref="cancelRef" type="button" class="ticket-link" @click="onDismiss">
               {{ state.cancelText }}
@@ -237,7 +373,8 @@ onUnmounted(() => {
               {{ state.extraText }}
             </button>
 
-            <button ref="confirmRef" type="button" class="ticket-link is-dark" @click="onConfirm">
+            <button ref="confirmRef" type="button" class="ticket-link is-dark" :disabled="confirmBlocked"
+              @click="onConfirm">
               {{ state.confirmText }}
             </button>
           </template>
@@ -360,6 +497,90 @@ onUnmounted(() => {
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
   text-align: left;
+}
+
+.alert-form {
+  display: grid;
+  gap: 0.85rem;
+  width: 100%;
+  margin-top: 0.95rem;
+}
+
+.alert-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--ticket-ink);
+  font-size: var(--text-control);
+  font-weight: 800;
+}
+
+.alert-file-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 0.8rem;
+}
+
+.alert-file-name {
+  min-width: 0;
+  margin: 0;
+  color: var(--c-ink);
+  font-size: var(--text-control);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.alert-input {
+  display: block;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.5rem 0.9rem;
+  border: 1.5px solid color-mix(in srgb, var(--ticket-ink) 35%, white);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--c-ink);
+  font: inherit;
+  font-size: var(--text-control);
+  line-height: 1.5;
+}
+
+.alert-input::placeholder {
+  color: color-mix(in srgb, var(--c-muted) 72%, white);
+}
+
+.alert-input:focus {
+  border-color: var(--ticket-ink);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ticket-ink) 22%, transparent);
+}
+
+.alert-input.is-invalid {
+  border-color: #e11d48;
+}
+
+.alert-hint {
+  margin: 0.35rem 0 0;
+  color: var(--c-muted);
+  font-size: var(--text-min);
+  font-weight: 700;
+}
+
+.alert-error {
+  margin: 0.35rem 0 0;
+  color: #9f1239;
+  font-size: var(--text-min);
+  font-weight: 700;
+}
+
+.alert-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .alert-dialog :deep(.ticket-stub) {

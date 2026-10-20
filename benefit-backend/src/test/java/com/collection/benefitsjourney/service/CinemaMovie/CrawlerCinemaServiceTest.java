@@ -162,9 +162,13 @@ class CrawlerCinemaServiceTest {
                 """.formatted(id, name, address);
     }
 
+    private String showtimeUrl(String sourceId) {
+        return "https://www.atmovies.com.tw/showtime/" + sourceId + "/";
+    }
+
     private CinemaResponse saved(int id, String sourceId, String name) {
         return new CinemaResponse(
-                id, sourceId, name, County.TAIPEI,
+                id, sourceId, showtimeUrl(sourceId), name, County.TAIPEI,
                 "台北市信義區松壽路20號", null, null,
                 "https://www.example.com/", true, true, null, null);
     }
@@ -173,7 +177,7 @@ class CrawlerCinemaServiceTest {
             int id, String sourceId, String name, String address, County county,
             String latitude, String longitude, String website) {
         return new CinemaResponse(
-                id, sourceId, name, county, address,
+                id, sourceId, showtimeUrl(sourceId), name, county, address,
                 latitude == null ? null : new BigDecimal(latitude),
                 longitude == null ? null : new BigDecimal(longitude),
                 website, true, true, null, null);
@@ -204,6 +208,7 @@ class CrawlerCinemaServiceTest {
             CinemaRequest request = captor.getValue();
 
             assertEquals("t02a01", request.sourceId());
+            assertEquals(showtimeUrl("t02a01"), request.sourceUrl());
             assertEquals("信義威秀", request.cinemaName());
             assertEquals(County.TAIPEI, request.county());
             assertEquals("台北市信義區松壽路20號", request.cinemaAddress());
@@ -235,6 +240,58 @@ class CrawlerCinemaServiceTest {
                     CinemaMovieReviewsService.CINEMA_NAME,
                     "信義威秀新名稱",
                     "舊名稱");
+            verifyNoMoreInteractions(cinemaMovieReviewsService);
+            verify(cinemaService, never()).updateCinema(anyInt(), any());
+            verify(cinemaService, never()).createCinema(any());
+        }
+
+        @Test
+        @DisplayName("既有影城沒有來源網址時直接補上，不送審")
+        void fillMissingSourceUrl() throws Exception {
+            oneArea();
+            area(AREA_01, cinemaHtml("t02a01", "信義威秀", "台北市信義區松壽路20號"));
+            mapNotExpected(MAP_01);
+
+            CinemaResponse existing = new CinemaResponse(
+                    100, "t02a01", null, "信義威秀", County.TAIPEI,
+                    "台北市信義區松壽路20號", new BigDecimal("25.0000000"), new BigDecimal("121.0000000"),
+                    "https://www.example.com/", true, true, null, null);
+            when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(existing));
+            CinemaResponse filled = saved(100, "t02a01", "信義威秀");
+            when(cinemaService.updateCinema(eq(100), any(CinemaRequest.class))).thenReturn(filled);
+
+            CinemaMovieCrawlerSyncResult<CinemaResponse> result = crawlerCinemaService.syncCinemas();
+
+            assertEquals(List.of(filled), result.items());
+            assertSummary(result, 1, 0, 0, 1, 0);
+            ArgumentCaptor<CinemaRequest> captor = ArgumentCaptor.forClass(CinemaRequest.class);
+            verify(cinemaService).updateCinema(eq(100), captor.capture());
+            assertEquals(showtimeUrl("t02a01"), captor.getValue().sourceUrl());
+            assertNull(captor.getValue().cinemaName());
+            verifyNoInteractions(cinemaMovieReviewsService);
+            verify(cinemaService, never()).createCinema(any());
+        }
+
+        @Test
+        @DisplayName("來源網址不同時只送審，不改正式資料")
+        void queueSourceUrlChange() throws Exception {
+            oneArea();
+            area(AREA_01, cinemaHtml("t02a01", "信義威秀", "台北市信義區松壽路20號"));
+            mapNotExpected(MAP_01);
+
+            CinemaResponse existing = new CinemaResponse(
+                    100, "t02a01", "https://old.example/cinema", "信義威秀", County.TAIPEI,
+                    "台北市信義區松壽路20號", new BigDecimal("25.0000000"), new BigDecimal("121.0000000"),
+                    "https://www.example.com/", true, true, null, null);
+            when(cinemaService.findBySourceId("t02a01")).thenReturn(Optional.of(existing));
+
+            CinemaMovieCrawlerSyncResult<CinemaResponse> result = crawlerCinemaService.syncCinemas();
+
+            assertEquals(List.of(existing), result.items());
+            assertSummary(result, 1, 0, 0, 1, 1);
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
+                    CinemaResourceType.CINEMA, 100, CinemaMovieReviewsService.SOURCE_URL,
+                    showtimeUrl("t02a01"), "https://old.example/cinema");
             verifyNoMoreInteractions(cinemaMovieReviewsService);
             verify(cinemaService, never()).updateCinema(anyInt(), any());
             verify(cinemaService, never()).createCinema(any());
