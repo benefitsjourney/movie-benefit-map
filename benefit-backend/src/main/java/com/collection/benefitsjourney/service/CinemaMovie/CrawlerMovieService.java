@@ -306,6 +306,7 @@ public class CrawlerMovieService {
 
         // 詳細頁可能是「中文正式名稱 English Title：劇情文字」。
         // 從中英文交界拆開，而不是從冒號或片名中的數字、英文拆開。
+        title = stripRepeatedTranslation(title);
         title = stripEnglishTranslation(title);
         title = removeRepeatedEnglishTitle(title);
 
@@ -327,9 +328,46 @@ public class CrawlerMovieService {
         }
         Matcher suffix = ENGLISH_TRANSLATION.matcher(title);
         if (suffix.matches() && CHINESE.matcher(suffix.group(1)).find()) {
+            // 「劇場版 BANG DREAM! ...」中的英文也是正式片名，不可只剩「劇場版」。
+            if (isEditionOnlyPrefix(suffix.group(1)))
+                return title;
             return suffix.group(1).trim();
         }
         return title;
+    }
+
+    /**
+     * 中英混合正式片名後面若接上同一英文名稱的譯名，只刪除重複部分。
+     * 英文大小寫與標點可能不同，例如：
+     * 「劇場版 BANG DREAM! AVE MUJICA PRIMA AURORA BanG Dream! Ave Mujica: prima
+     * aurora」。
+     */
+    private String stripRepeatedTranslation(String title) {
+        Matcher english = Pattern.compile("[A-Za-z]").matcher(title);
+        if (!CHINESE.matcher(title).find() || !english.find())
+            return title;
+        int englishStart = english.start();
+        for (int i = englishStart + 1; i < title.length(); i++) {
+            if (!Character.isWhitespace(title.charAt(i - 1)) || !Character.isLetter(title.charAt(i)))
+                continue;
+            String first = title.substring(englishStart, i).trim();
+            String second = title.substring(i).trim();
+            if (first.length() < 8 || first.split("\\s+").length < 2)
+                continue;
+            String normalizedFirst = normalizeEnglishTitle(first);
+            if (normalizedFirst.length() >= 8 && normalizedFirst.equals(normalizeEnglishTitle(second)))
+                return title.substring(0, i).trim();
+        }
+        return title;
+    }
+
+    private String normalizeEnglishTitle(String title) {
+        return Normalizer.normalize(title, Normalizer.Form.NFKC)
+                .toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+    }
+
+    private boolean isEditionOnlyPrefix(String title) {
+        return title.strip().matches("(?:劇場版|電影版|電影|動畫電影|特別篇)");
     }
 
     /** 清除英文片名重複前綴，保留資訊較完整的後半段。 */
