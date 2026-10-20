@@ -5,6 +5,7 @@ USE BenefitsJourney;
 CREATE TABLE movie (
     movie_id INT IDENTITY(1,1) NOT NULL,
     source_id NVARCHAR(64) NULL,
+    source_url NVARCHAR(512) NULL,
     movie_name NVARCHAR(256) NOT NULL,
     image_url NVARCHAR(512) NULL,
     is_visible BIT NOT NULL CONSTRAINT DF_movie_is_visible DEFAULT 1,

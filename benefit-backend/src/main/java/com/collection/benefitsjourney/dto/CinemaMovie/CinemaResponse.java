@@ -9,6 +9,7 @@ import com.collection.benefitsjourney.enums.County;
 public record CinemaResponse(
         Integer cinemaId,
         String sourceId,
+        String sourceUrl,
         String cinemaName,
         County county,
         String cinemaAddress,
@@ -24,6 +25,7 @@ public record CinemaResponse(
         return new CinemaResponse(
                 cinema.getCinemaId(),
                 cinema.getSourceId(),
+                cinema.getSourceUrl(),
                 cinema.getCinemaName(),
                 cinema.getCounty(),
                 cinema.getCinemaAddress(),

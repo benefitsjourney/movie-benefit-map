@@ -57,6 +57,8 @@ const timeFields = computed(() => {
 
 const imageUrl = computed(() => textOf(movie.value?.imageUrl));
 const imageHref = computed(() => httpUrl(imageUrl.value));
+const sourceUrl = computed(() => textOf(movie.value?.sourceUrl));
+const sourceHref = computed(() => httpUrl(sourceUrl.value));
 
 function apiMessage(error, fallback) {
   const message = error?.response?.data?.message;
@@ -245,6 +247,21 @@ onUnmounted(() => {
       </template>
 
       <section class="detail-section" :class="{ 'is-after-edit': editing }">
+        <h3>來源</h3>
+        <dl>
+          <div>
+            <dt>來源網址</dt>
+            <dd>
+              <a v-if="sourceHref" class="detail-link" :href="sourceHref" target="_blank" rel="noopener noreferrer">
+                {{ sourceUrl }}
+              </a>
+              <template v-else>{{ displayText(sourceUrl) }}</template>
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="detail-section">
         <h3>狀態與時間</h3>
         <dl>
           <div>

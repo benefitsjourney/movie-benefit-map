@@ -68,6 +68,8 @@ const timeFields = computed(() => {
 
 const websiteUrl = computed(() => textOf(cinema.value?.officialWebsiteUrl));
 const websiteHref = computed(() => httpUrl(websiteUrl.value));
+const sourceUrl = computed(() => textOf(cinema.value?.sourceUrl));
+const sourceHref = computed(() => httpUrl(sourceUrl.value));
 
 function coordText(value) {
   if (value == null || value === "") return "";
@@ -267,6 +269,21 @@ onUnmounted(() => {
       </template>
 
       <section class="detail-section" :class="{ 'is-after-edit': editing }">
+        <h3>來源</h3>
+        <dl>
+          <div>
+            <dt>來源網址</dt>
+            <dd>
+              <a v-if="sourceHref" class="detail-link" :href="sourceHref" target="_blank" rel="noopener noreferrer">
+                {{ sourceUrl }}
+              </a>
+              <template v-else>{{ displayText(sourceUrl) }}</template>
+            </dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="detail-section">
         <h3>狀態與時間</h3>
         <dl>
           <div>

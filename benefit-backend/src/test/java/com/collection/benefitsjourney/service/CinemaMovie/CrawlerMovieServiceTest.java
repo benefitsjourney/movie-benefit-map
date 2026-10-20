@@ -161,7 +161,8 @@ class CrawlerMovieServiceTest {
 
     private MovieResponse saved(int id, String sourceId, String name,
             String imageUrl, boolean visible, LocalDateTime date) {
-        return new MovieResponse(id, sourceId, name, imageUrl, visible, date, null, null);
+        return new MovieResponse(id, sourceId, BASE + "/movie/" + sourceId + "/",
+                name, imageUrl, visible, date, null, null);
     }
 
     private void givenStored(int id, String sourceId, String name) {
@@ -215,6 +216,7 @@ class CrawlerMovieServiceTest {
 
             MovieRequest request = captureCreated();
             assertEquals("fA001", request.sourceId());
+            assertEquals(DETAIL_A, request.sourceUrl());
             assertEquals("測試電影", request.movieName());
             assertEquals(poster("fA001"), request.imageUrl());
             assertEquals(Boolean.TRUE, request.isVisible());
@@ -439,6 +441,51 @@ class CrawlerMovieServiceTest {
             assertSame(existing, result.items().get(0));
             assertSummary(result, 1, 0, 0, 0, 0);
             verifyNoInteractions(cinemaMovieReviewsService);
+            verify(movieService, never()).createMovie(any());
+            verify(movieService, never()).updateMovie(any(), any());
+        }
+
+        @Test
+        @DisplayName("既有電影沒有來源網址時直接補上，不送審")
+        void fillMissingSourceUrl() throws Exception {
+            onlyNewPage("<a href='/movie/fA001/'>列表</a>");
+            pageAt(DETAIL_A, detail("測試電影 @movies", "2026/10/12"));
+            MovieResponse existing = new MovieResponse(
+                    1, "fA001", null, "測試電影", poster("fA001"), false, DATE_A, null, null);
+            givenExisting(existing);
+            MovieResponse filled = saved(1, "fA001", "測試電影", poster("fA001"), false, DATE_A);
+            when(movieService.updateMovie(eq(1), any(MovieRequest.class))).thenReturn(filled);
+
+            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawlerMovieService.syncMovies();
+
+            assertSame(filled, result.items().get(0));
+            assertSummary(result, 1, 0, 0, 1, 0);
+            ArgumentCaptor<MovieRequest> captor = ArgumentCaptor.forClass(MovieRequest.class);
+            verify(movieService).updateMovie(eq(1), captor.capture());
+            assertEquals(DETAIL_A, captor.getValue().sourceUrl());
+            assertNull(captor.getValue().movieName());
+            verifyNoInteractions(cinemaMovieReviewsService);
+            verify(movieService, never()).createMovie(any());
+        }
+
+        @Test
+        @DisplayName("來源網址不同時只送審，不改正式資料")
+        void queueSourceUrlChange() throws Exception {
+            onlyNewPage("<a href='/movie/fA001/'>列表</a>");
+            pageAt(DETAIL_A, detail("測試電影 @movies", "2026/10/12"));
+            MovieResponse existing = new MovieResponse(
+                    1, "fA001", "https://old.example/movie", "測試電影", poster("fA001"),
+                    false, DATE_A, null, null);
+            givenExisting(existing);
+
+            CinemaMovieCrawlerSyncResult<MovieResponse> result = crawlerMovieService.syncMovies();
+
+            assertEquals(List.of(existing), result.items());
+            assertSummary(result, 1, 0, 0, 1, 1);
+            verify(cinemaMovieReviewsService).submitCrawlerChange(
+                    CinemaResourceType.MOVIE, 1, CinemaMovieReviewsService.SOURCE_URL,
+                    DETAIL_A, "https://old.example/movie");
+            verify(movieService, never()).updateMovie(any(), any());
             verify(movieService, never()).createMovie(any());
         }
 

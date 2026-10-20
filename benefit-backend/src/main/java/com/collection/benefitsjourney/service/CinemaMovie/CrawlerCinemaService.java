@@ -202,7 +202,7 @@ public class CrawlerCinemaService {
 
     private CinemaResponse withCoordinates(CinemaResponse cinema, Coordinates coordinates) {
         return new CinemaResponse(
-                cinema.cinemaId(), cinema.sourceId(), cinema.cinemaName(),
+                cinema.cinemaId(), cinema.sourceId(), cinema.sourceUrl(), cinema.cinemaName(),
                 cinema.county(), cinema.cinemaAddress(),
                 coordinates.latitude(), coordinates.longitude(),
                 cinema.officialWebsiteUrl(), cinema.isActive(), cinema.isVisible(),
@@ -298,6 +298,7 @@ public class CrawlerCinemaService {
         return new CinemaResponse(
                 null,
                 sourceId,
+                cinemaUrl,
                 cinemaName,
                 county,
                 cinemaAddress,
@@ -317,11 +318,12 @@ public class CrawlerCinemaService {
             return existing
                     .map(cinema -> {
                         int reviewed = reviewChangedFields(cinema, response);
+                        CinemaResponse current = fillMissingSourceUrl(cinema, response);
                         stats.reviewed += reviewed;
-                        if (reviewed > 0) {
+                        if (reviewed > 0 || current != cinema) {
                             stats.updated++;
                         }
-                        return cinema;
+                        return current;
                     })
                     .orElseGet(() -> {
                         CinemaResponse created = cinemaService.createCinema(toCinemaRequest(response));
@@ -342,6 +344,7 @@ public class CrawlerCinemaService {
     private CinemaRequest toCinemaRequest(CinemaResponse response) {
         return new CinemaRequest(
                 response.sourceId(),
+                response.sourceUrl(),
                 response.cinemaName(),
                 response.county(),
                 response.cinemaAddress(),
@@ -390,7 +393,26 @@ public class CrawlerCinemaService {
                         crawled.officialWebsiteUrl(), current.officialWebsiteUrl())) {
             reviewed++;
         }
+
+        if (hasText(current.sourceUrl())
+                && reviewField(current.cinemaId(), CinemaMovieReviewsService.SOURCE_URL,
+                        crawled.sourceUrl(), current.sourceUrl())) {
+            reviewed++;
+        }
         return reviewed;
+    }
+
+    /** 舊資料還沒有來源網址時直接補上，不進審核。 */
+    private CinemaResponse fillMissingSourceUrl(CinemaResponse current, CinemaResponse crawled) {
+        if (!hasText(crawled.sourceUrl()) || hasText(current.sourceUrl())) {
+            return current;
+        }
+        return cinemaService.updateCinema(current.cinemaId(), new CinemaRequest(
+                null, crawled.sourceUrl(), null, null, null, null, null, null, null, null));
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     /** 略過未抓到或與正式資料相同的值，其他差異交給審核Service去重複 */

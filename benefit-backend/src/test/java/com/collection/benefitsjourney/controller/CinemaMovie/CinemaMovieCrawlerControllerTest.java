@@ -50,14 +50,15 @@ class CinemaMovieCrawlerControllerTest {
 
     private CinemaResponse cinema() {
         return new CinemaResponse(
-                100, "t02a01", "信義威秀", County.TAIPEI,
+                100, "t02a01", "https://www.atmovies.com.tw/showtime/t02a01/", "信義威秀", County.TAIPEI,
                 "台北市信義區松壽路20號", null, null,
                 "https://example.com", true, true, null, null);
     }
 
     private MovieResponse movie() {
         return new MovieResponse(
-                1, "fA001", "測試電影", "https://example.com/poster.jpg",
+                1, "fA001", "https://www.atmovies.com.tw/movie/fA001/", "測試電影",
+                "https://example.com/poster.jpg",
                 true, LocalDateTime.of(2026, 10, 12, 0, 0), null, null);
     }
 
@@ -82,6 +83,8 @@ class CinemaMovieCrawlerControllerTest {
                     .andExpect(jsonPath("$.message").doesNotExist())
                     .andExpect(jsonPath("$.items[0].cinemaId").value(100))
                     .andExpect(jsonPath("$.items[0].sourceId").value("t02a01"))
+                    .andExpect(jsonPath("$.items[0].sourceUrl")
+                            .value("https://www.atmovies.com.tw/showtime/t02a01/"))
                     .andExpect(jsonPath("$.items[0].cinemaName").value("信義威秀"))
                     .andExpect(jsonPath("$.items[0].county").value("TAIPEI"))
                     .andExpect(jsonPath("$.items[0].isActive").value(true));
@@ -159,6 +162,8 @@ class CinemaMovieCrawlerControllerTest {
                     .andExpect(jsonPath("$.message").doesNotExist())
                     .andExpect(jsonPath("$.items[0].movieId").value(1))
                     .andExpect(jsonPath("$.items[0].sourceId").value("fA001"))
+                    .andExpect(jsonPath("$.items[0].sourceUrl")
+                            .value("https://www.atmovies.com.tw/movie/fA001/"))
                     .andExpect(jsonPath("$.items[0].movieName").value("測試電影"))
                     .andExpect(jsonPath("$.items[0].isVisible").value(true))
                     .andExpect(jsonPath("$.items[0].releaseDate").exists());

@@ -275,6 +275,7 @@ class CinemaServiceTest {
         void shouldSaveAllFields() {
             CinemaRequest request = request();
             when(request.sourceId()).thenReturn("T002");
+            when(request.sourceUrl()).thenReturn("https://www.atmovies.com.tw/showtime/T002/");
             when(request.cinemaName()).thenReturn("京站威秀");
             when(request.county()).thenReturn(County.TAIPEI);
             when(request.cinemaAddress()).thenReturn("台北市大同區測試路1號");
@@ -293,6 +294,7 @@ class CinemaServiceTest {
             verify(cinemaRepository).save(captor.capture());
             CinemaBean saved = captor.getValue();
             assertEquals("T002", saved.getSourceId());
+            assertEquals("https://www.atmovies.com.tw/showtime/T002/", saved.getSourceUrl());
             assertEquals("京站威秀", saved.getCinemaName());
             assertEquals("台北市大同區測試路1號", saved.getCinemaAddress());
             assertEquals(0, new BigDecimal("25.048785").compareTo(saved.getLatitude()));
@@ -424,6 +426,7 @@ class CinemaServiceTest {
             when(request.latitude()).thenReturn(new BigDecimal("25.01"));
             when(request.longitude()).thenReturn(new BigDecimal("121.46"));
             when(request.officialWebsiteUrl()).thenReturn("https://new.example.com");
+            when(request.sourceUrl()).thenReturn("https://www.atmovies.com.tw/showtime/t02a01/");
             when(request.county()).thenReturn(County.NEW_TAIPEI);
             when(request.isActive()).thenReturn(false);
             when(request.isVisible()).thenReturn(false);
@@ -437,6 +440,7 @@ class CinemaServiceTest {
             assertEquals(0, new BigDecimal("25.01").compareTo(existing.getLatitude()));
             assertEquals(0, new BigDecimal("121.46").compareTo(existing.getLongitude()));
             assertEquals("https://new.example.com", existing.getOfficialWebsiteUrl());
+            assertEquals("https://www.atmovies.com.tw/showtime/t02a01/", existing.getSourceUrl());
             assertEquals(County.NEW_TAIPEI, existing.getCounty());
             assertEquals(Boolean.FALSE, existing.getIsActive());
             assertEquals(Boolean.FALSE, existing.getIsVisible());

@@ -43,6 +43,7 @@ public class CinemaMovieReviewsService {
     public static final String IS_VISIBLE = "is_visible";
     /** 電影來源 ID 衝突審核 */
     public static final String SOURCE_ID = "sourceId";
+    public static final String SOURCE_URL = "source_url";
     public static final String MOVIE_NAME = "movie_name";
     public static final String IMAGE_URL = "image_url";
     public static final String RELEASE_DATE = "release_date";
@@ -276,32 +277,35 @@ public class CinemaMovieReviewsService {
     private CinemaRequest cinemaRequest(String fieldName, String crawlerValue) {
         return switch (fieldName) {
             case CINEMA_NAME -> new CinemaRequest(
-                    null, requireText(crawlerValue), null, null, null, null, null, null, null);
+                    null, null, requireText(crawlerValue), null, null, null, null, null, null, null);
             case CINEMA_ADDRESS -> new CinemaRequest(
-                    null, null, null, crawlerValue, null, null, null, null, null);
+                    null, null, null, null, crawlerValue, null, null, null, null, null);
             case COUNTY -> new CinemaRequest(
-                    null, null, County.valueOf(crawlerValue), null, null, null, null, null, null);
+                    null, null, null, County.valueOf(crawlerValue), null, null, null, null, null, null);
             case LATITUDE -> new CinemaRequest(
-                    null, null, null, null, new BigDecimal(crawlerValue), null, null, null, null);
+                    null, null, null, null, null, new BigDecimal(crawlerValue), null, null, null, null);
             case LONGITUDE -> new CinemaRequest(
-                    null, null, null, null, null, new BigDecimal(crawlerValue), null, null, null);
+                    null, null, null, null, null, null, new BigDecimal(crawlerValue), null, null, null);
             case OFFICIAL_WEBSITE_URL -> new CinemaRequest(
-                    null, null, null, null, null, null, crawlerValue, null, null);
+                    null, null, null, null, null, null, null, crawlerValue, null, null);
+            case SOURCE_URL -> new CinemaRequest(
+                    null, requireText(crawlerValue), null, null, null, null, null, null, null, null);
             case IS_ACTIVE -> new CinemaRequest(
-                    null, null, null, null, null, null, null, parseBoolean(crawlerValue), null);
+                    null, null, null, null, null, null, null, null, parseBoolean(crawlerValue), null);
             case IS_VISIBLE -> new CinemaRequest(
-                    null, null, null, null, null, null, null, null, parseBoolean(crawlerValue));
+                    null, null, null, null, null, null, null, null, null, parseBoolean(crawlerValue));
             default -> throw badRequest("不支援的影城欄位：" + fieldName);
         };
     }
 
     private MovieRequest movieRequest(String fieldName, String crawlerValue) {
         return switch (fieldName) {
-            case MOVIE_NAME -> new MovieRequest(null, requireText(crawlerValue), null, null, null);
-            case IMAGE_URL -> new MovieRequest(null, null, crawlerValue, null, null);
+            case MOVIE_NAME -> new MovieRequest(null, null, requireText(crawlerValue), null, null, null);
+            case IMAGE_URL -> new MovieRequest(null, null, null, crawlerValue, null, null);
             case RELEASE_DATE -> new MovieRequest(
-                    null, null, null, null, LocalDateTime.parse(crawlerValue, DATE_TIME));
-            case IS_VISIBLE -> new MovieRequest(null, null, null, parseBoolean(crawlerValue), null);
+                    null, null, null, null, null, LocalDateTime.parse(crawlerValue, DATE_TIME));
+            case SOURCE_URL -> new MovieRequest(null, requireText(crawlerValue), null, null, null, null);
+            case IS_VISIBLE -> new MovieRequest(null, null, null, null, parseBoolean(crawlerValue), null);
             default -> throw badRequest("不支援的電影欄位：" + fieldName);
         };
     }

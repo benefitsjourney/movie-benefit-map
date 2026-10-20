@@ -43,6 +43,7 @@ const REVIEW_FIELD_LABELS = {
   latitude: "緯度",
   longitude: "經度",
   official_website_url: "官網",
+  source_url: "來源網址",
   is_active: "營業狀態",
   is_visible: "前台顯示",
   movie_name: "電影名稱",

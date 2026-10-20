@@ -91,6 +91,7 @@ public class MovieService {
         MovieBean movie = new MovieBean();
 
         movie.setSourceId(request.sourceId());
+        movie.setSourceUrl(request.sourceUrl());
         movie.setMovieName(request.movieName());
         movie.setImageUrl(request.imageUrl());
         movie.setReleaseDate(request.releaseDate());
@@ -128,6 +129,10 @@ public class MovieService {
                     });
 
             movie.setSourceId(request.sourceId());
+        }
+
+        if (request.sourceUrl() != null) {
+            movie.setSourceUrl(request.sourceUrl());
         }
 
         if (request.movieName() != null) {

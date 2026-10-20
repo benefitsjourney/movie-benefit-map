@@ -195,11 +195,12 @@ public class CrawlerMovieService {
                             : null;
                     if (existing != null) {
                         int reviewedFields = reviewExisting(info, existing);
+                        MovieResponse current = fillMissingSourceUrl(info, existing);
                         reviewed += reviewedFields;
-                        if (reviewedFields > 0) {
+                        if (reviewedFields > 0 || current != existing) {
                             updated++;
                         }
-                        results.add(existing);
+                        results.add(current);
                         continue;
                     }
 
@@ -214,7 +215,8 @@ public class CrawlerMovieService {
                     }
 
                     MovieResponse saved = movieService.createMovie(new MovieRequest(
-                            info.sourceId(), info.movieName(), info.imageUrl(), true, info.releaseDate()));
+                            info.sourceId(), info.url(), info.movieName(), info.imageUrl(), true,
+                            info.releaseDate()));
                     results.add(saved);
                     created++;
                     sourceIds.add(info.sourceId());
@@ -421,7 +423,25 @@ public class CrawlerMovieService {
                 info.releaseDate(), existing.releaseDate())) {
             reviewed++;
         }
+        if (hasText(existing.sourceUrl())
+                && reviewField(existing.movieId(), CinemaMovieReviewsService.SOURCE_URL,
+                        info.url(), existing.sourceUrl())) {
+            reviewed++;
+        }
         return reviewed;
+    }
+
+    /** 舊資料還沒有來源網址時直接補上，不進審核。 */
+    private MovieResponse fillMissingSourceUrl(MovieInfo info, MovieResponse existing) {
+        if (!hasText(info.url()) || hasText(existing.sourceUrl())) {
+            return existing;
+        }
+        return movieService.updateMovie(existing.movieId(), new MovieRequest(
+                null, info.url(), null, null, null, null));
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private boolean reviewField(Integer id, String field, Object crawled, Object current) {
