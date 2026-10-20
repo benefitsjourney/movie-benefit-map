@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import FrontLayout from '@/layouts/FrontLayout.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
 import AdminCinemaMovieCrawlerView from '@/views/admin/AdminCinemaMovieCrawlerView.vue'
+import AdminCrawlerLogView from '@/views/admin/AdminCrawlerLogView.vue'
 import AdminCinemaView from '@/views/admin/cinema-movie/AdminCinemaView.vue'
 import AdminCinemaDetail from '@/views/admin/cinema-movie/AdminCinemaDetail.vue'
 import AdminCinemaForm from '@/views/admin/cinema-movie/AdminCinemaForm.vue'
@@ -62,6 +63,11 @@ const router = createRouter({
           path: 'crawler',
           name: 'admin-crawler',
           component: AdminCinemaMovieCrawlerView,
+        },
+        {
+          path: 'crawler-logs',
+          name: 'admin-crawler-logs',
+          component: AdminCrawlerLogView,
         },
         {
           path: 'cinemas-movies/reviews',

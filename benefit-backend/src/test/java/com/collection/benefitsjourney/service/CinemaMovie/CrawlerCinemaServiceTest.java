@@ -44,9 +44,12 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieCrawlerSyncResult;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaResponse;
-import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieCrawlerSyncResult;
+import com.collection.benefitsjourney.enums.CrawlerStatus;
+import com.collection.benefitsjourney.enums.CrawlerType;
+import com.collection.benefitsjourney.service.CrawlerLogService;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -77,13 +80,17 @@ class CrawlerCinemaServiceTest {
     @Mock
     private CinemaMovieReviewsService cinemaMovieReviewsService;
 
+    @Mock
+    private CrawlerLogService crawlerLogService;
+
     private CrawlerCinemaService crawlerCinemaService;
     private Logger logger;
     private ListAppender<ILoggingEvent> logs;
 
     @BeforeEach
     void setUp() {
-        crawlerCinemaService = spy(new CrawlerCinemaService(cinemaService, cinemaMovieReviewsService));
+        crawlerCinemaService = spy(new CrawlerCinemaService(
+                cinemaService, cinemaMovieReviewsService, crawlerLogService));
         logger = (Logger) LoggerFactory.getLogger(CrawlerCinemaService.class);
         logs = new ListAppender<>();
         logs.start();
@@ -203,6 +210,10 @@ class CrawlerCinemaServiceTest {
             assertEquals(List.of(saved), result.items());
             assertSummary(result, 1, 1, 0, 0, 0);
             assertOnlyResultLog(result);
+            verify(crawlerLogService).recordRun(
+                    eq(CrawlerType.CINEMA), eq(CrawlerStatus.SUCCESS),
+                    eq(1), eq(1), eq(0), eq(0), eq(0),
+                    eq(result.message()), any(), any());
             ArgumentCaptor<CinemaRequest> captor = ArgumentCaptor.forClass(CinemaRequest.class);
             verify(cinemaService).createCinema(captor.capture());
             CinemaRequest request = captor.getValue();
@@ -491,6 +502,10 @@ class CrawlerCinemaServiceTest {
             assertEquals("t02a01", result.items().get(0).sourceId());
             assertSummary(result, 2, 1, 0, 0, 0);
             verify(cinemaService, times(2)).createCinema(any(CinemaRequest.class));
+            verify(crawlerLogService).recordRun(
+                    eq(CrawlerType.CINEMA), eq(CrawlerStatus.PARTIAL),
+                    eq(2), eq(1), eq(0), eq(0), eq(0),
+                    eq(result.message() + "寫入失敗 1 筆。"), any(), any());
         }
 
         @Test
@@ -721,6 +736,10 @@ class CrawlerCinemaServiceTest {
             assertEquals("找不到影城縣市資料，來源網站結構可能已變更", error.getReason());
             verifyNoInteractions(cinemaService);
             assertTrue(logs.list.stream().noneMatch(event -> event.getLevel() == Level.INFO));
+            verify(crawlerLogService).recordRun(
+                    eq(CrawlerType.CINEMA), eq(CrawlerStatus.FAILURE),
+                    eq(0), eq(0), eq(0), eq(0), eq(0),
+                    eq("找不到影城縣市資料，來源網站結構可能已變更"), any(), any());
         }
 
         @Test
