@@ -26,8 +26,8 @@ const PAGE_SIZE = 20;
 // 後端 BenefitType對應的中文名稱與卡片顏色
 const BENEFIT_TYPES = {
   REGULAR: { label: "一般場次", color: "yellow" },
-  SPECIAL_BY_DATE: { label: "特別場", color: "pink" },
-  SPECIAL_UNTIL_OUT: { label: "送完為止", color: "purple" },
+  SPECIAL_BY_DATE: { label: "入場贈送", color: "pink" },
+  SPECIAL_UNTIL_OUT: { label: "限量兌換", color: "purple" },
 };
 
 const filters = ref({ keyword: "", benefitType: "" });

@@ -8,6 +8,8 @@ import pinIcon from "@iconify-icons/mdi/map-marker-outline";
 import filmIcon from "@iconify-icons/mdi/filmstrip";
 import searchIcon from "@iconify-icons/mdi/magnify";
 import linkIcon from "@iconify-icons/mdi/open-in-new";
+import megaphoneIcon from "@iconify-icons/mdi/bullhorn-outline";
+import { openAppAlert } from "@/components/ui/Alert.vue";
 
 import http from "@/plugins/axios";
 import PageIntro from "@/components/layout/PageIntro.vue";
@@ -161,6 +163,68 @@ const filteredStocks = computed(() => {
   });
 });
 
+// ── 庫存回報 ──────────────────────────────────────
+// 可以回報的三種狀態（不能回報「未知」）
+const REPORT_OPTIONS = ["IN_STOCK", "LOW_STOCK", "EXHAUSTED"];
+
+// 目前展開回報選項的是哪一間影城（存 cinemaMovieBenefitId），null＝都沒展開
+const reportingId = ref(null);
+// 正在送出的那一間，避免連點
+const submittingId = ref(null);
+
+function openReport(stock) {
+  // 沒有 Token 就先提示登入，不用等後端回 401
+  if (!localStorage.getItem("token")) {
+    openAppAlert({
+      variant: "info",
+      title: "請先登入",
+      text: "登入會員後才能回報庫存。",
+      confirmText: "關閉",
+      cancelText: "",
+    });
+    return;
+  }
+  reportingId.value = reportingId.value === stock.cinemaMovieBenefitId ? null : stock.cinemaMovieBenefitId;
+}
+
+async function submitReport(stock, status) {
+  if (submittingId.value) return;
+  submittingId.value = stock.cinemaMovieBenefitId;
+
+  try {
+    // POST /inventory-reports：帶影城特典 ID 和狀態
+    await http.post("/inventory-reports", {
+      cinemaMovieBenefitId: stock.cinemaMovieBenefitId,
+      status,
+    });
+    // 成功後直接更新畫面上的狀態，不用重新整理
+    stock.status = status;
+    reportingId.value = null;
+    await openAppAlert({
+      variant: "success",
+      title: "感謝回報！",
+      text: `已將「${stock.cinemaName}」回報為「${statusOf(status).label}」。`,
+      confirmText: "關閉",
+      cancelText: "",
+    });
+  } catch (error) {
+    const code = error?.response?.status;
+    const text =
+      code === 401 ? "登入已過期，請重新登入。"
+        : code === 429 ? apiMessage(error, "同一間影城需間隔 15 分鐘才能再回報。")
+          : apiMessage(error, "回報失敗，請稍後再試。");
+    await openAppAlert({
+      variant: "error",
+      title: "無法回報",
+      text,
+      confirmText: "關閉",
+      cancelText: "",
+    });
+  } finally {
+    submittingId.value = null;
+  }
+}
+
 watch(() => route.params.id, loadBenefit, { immediate: true });
 
 onUnmounted(() => {
@@ -233,17 +297,30 @@ onUnmounted(() => {
           </div>
 
           <ul v-if="filteredStocks.length" class="stock-list">
-            <li v-for="stock in filteredStocks" :key="stock.cinemaMovieBenefitId" class="stock-item">
-              <div class="stock-main">
-                <strong class="stock-cinema">{{ displayText(stock.cinemaName) }}</strong>
-                <span class="stock-movie">
-                  <Icon :icon="filmIcon" aria-hidden="true" />
-                  {{ displayText(stock.movieName) }}
+                        <li v-for="stock in filteredStocks" :key="stock.cinemaMovieBenefitId" class="stock-item">
+              <div class="stock-row">
+                <div class="stock-main">
+                  <strong class="stock-cinema">{{ displayText(stock.cinemaName) }}</strong>
+                </div>
+                <span class="stock-badge" :class="`tone-${statusOf(stock.status).tone}`">
+                  {{ statusOf(stock.status).label }}
                 </span>
+                <button v-if="benefit.status === 'APPROVED'" type="button" class="report-toggle"
+                  :aria-expanded="reportingId === stock.cinemaMovieBenefitId" @click="openReport(stock)">
+                  <Icon :icon="megaphoneIcon" aria-hidden="true" />
+                  回報
+                </button>
               </div>
-              <span class="stock-badge" :class="`tone-${statusOf(stock.status).tone}`">
-                {{ statusOf(stock.status).label }}
-              </span>
+
+              <!-- 點「回報」後展開三個選項 -->
+              <div v-if="reportingId === stock.cinemaMovieBenefitId" class="report-options">
+                <span class="report-hint">現在現場的狀況是？</span>
+                <button v-for="option in REPORT_OPTIONS" :key="option" type="button" class="report-option"
+                  :class="`tone-${statusOf(option).tone}`" :disabled="submittingId === stock.cinemaMovieBenefitId"
+                  @click="submitReport(stock, option)">
+                  {{ statusOf(option).label }}
+                </button>
+              </div>
             </li>
           </ul>
           <p v-else class="stock-empty">沒有符合條件的影城，換個條件試試吧。</p>
@@ -386,7 +463,7 @@ onUnmounted(() => {
 /* ── 庫存：每間影城一列 ── */
 .stock-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
   gap: 0.65rem;
   margin: 0;
   padding: 0;
@@ -395,9 +472,8 @@ onUnmounted(() => {
 
 .stock-item {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.6rem;
   padding: 0.75rem 1rem;
   border: 1px solid var(--c-border);
   border-radius: 14px;
@@ -433,6 +509,75 @@ onUnmounted(() => {
   font-size: var(--text-min);
   font-weight: 800;
   white-space: nowrap;
+}
+
+
+.stock-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.stock-row .stock-main {
+  flex: 1;
+}
+
+.report-toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.2rem 0.65rem;
+  border: 1.5px solid #ff7049;
+  border-radius: 999px;
+  background: #fff;
+  color: #ff7049;
+  font-size: var(--text-min);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.report-toggle[aria-expanded="true"],
+.report-toggle:hover {
+  background: #ff7049;
+  color: #fff;
+}
+
+.report-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--c-border);
+}
+
+.report-hint {
+  margin-right: auto;
+  color: var(--c-muted);
+  font-size: var(--text-min);
+  font-weight: 700;
+}
+
+.report-option {
+  padding: 0.25rem 0.8rem;
+  border: 1.5px solid var(--chip-ink);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--chip-ink);
+  font-size: var(--text-min);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.report-option:hover:not(:disabled) {
+  background: var(--chip-ink);
+  color: #fff;
+}
+
+.report-option:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .stock-empty {
