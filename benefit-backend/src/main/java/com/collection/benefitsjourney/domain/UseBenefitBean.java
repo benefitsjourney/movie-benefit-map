@@ -47,6 +47,10 @@ public class UseBenefitBean {
     @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+    
+    // 軟刪除：null＝正常，有時間＝已刪除（有交換紀錄的收藏刪除時不會真的刪）
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
     @OneToMany(
         mappedBy = "useBenefit",

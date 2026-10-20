@@ -1,7 +1,9 @@
 package com.collection.benefitsjourney.service;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -10,6 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.collection.benefitsjourney.domain.BenefitBean;
+import com.collection.benefitsjourney.domain.ExchangeListingBean;
 import com.collection.benefitsjourney.domain.UseBenefitBean;
 import com.collection.benefitsjourney.domain.UseBenefitPhotoBean;
 import com.collection.benefitsjourney.dto.UseBenefitCreateRequest;
@@ -58,7 +61,7 @@ public class UseBenefitService {
         BenefitBean benefit = benefitRepository.findById(request.benefitId())
                 .orElseThrow(() -> ExceptionUtils.notFound("找不到特典：" + request.benefitId()));
 
-        if (useBenefitRepository.existsByUser_UsersIdAndBenefit_BenefitId(usersId, request.benefitId())) {
+        if (useBenefitRepository.existsByUser_UsersIdAndBenefit_BenefitIdAndDeletedAtIsNull(usersId, request.benefitId())) {
             throw ExceptionUtils.conflict("已經收藏過這個特典");
         }
 
@@ -80,17 +83,26 @@ public class UseBenefitService {
     }
 
     /**
-     * 刪除持有紀錄。
-     * 只能刪自己的，已經拿去建立交換刊登的不能刪（交換刊登綁著這筆持有紀錄）。
-     * 照片資料列會跟著一起刪（UseBenefitBean的photos有設orphanRemoval），Cloudinary上的檔案也會刪掉。
+     * 刪除持有紀錄（只能刪自己的）。
+     * 沒刊登過：真的刪除，照片和Cloudinary檔案一起刪。
+     * 刊登ACTIVE／HIDDEN／CLOSED：擋下（409），請先刪除刊登。
+     * 刊登DELETED：軟刪除，資料和照片保留給交換紀錄、私訊使用。
      */
     @Transactional
     public void delete(Integer usersId, Integer useBenefitId) {
         UseBenefitBean useBenefit = getMineOrThrow(usersId, useBenefitId);
 
-        if (exchangeListingRepository.findByUseBenefitBean(useBenefit).isPresent()) {
-            throw ExceptionUtils.conflict("這筆持有紀錄已建立交換刊登，無法刪除");
+        // 有交換刊登：刊登還在（可能重開）就擋；刊登已刪除就軟刪除，保留紀錄給交易和私訊
+        Optional<ExchangeListingBean> listing = exchangeListingRepository.findByUseBenefitBean(useBenefit);
+        if (listing.isPresent()) {
+            if (!"DELETED".equals(listing.get().getStatus())) {
+                throw ExceptionUtils.conflict("這筆收藏有交換刊登，請先刪除交換刊登");
+            }
+            useBenefit.setDeletedAt(LocalDateTime.now());
+            useBenefitRepository.save(useBenefit);
+            return;   // 照片和Cloudinary檔案都保留
         }
+        
         // 先記下要刪的Cloudinary檔案
         List<String> publicIds = useBenefit.getPhotos().stream()
                 .map(UseBenefitPhotoBean::getPublicId)
@@ -179,6 +191,10 @@ public class UseBenefitService {
 
         if (!useBenefit.getUser().getUsersId().equals(usersId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "只能操作自己的持有紀錄");
+        }
+        // 已刪除的收藏當作不存在
+        if (useBenefit.getDeletedAt() != null) {
+            throw ExceptionUtils.notFound("找不到持有紀錄：" + useBenefitId);
         }
         return useBenefit;
     }
