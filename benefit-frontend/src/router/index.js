@@ -9,6 +9,7 @@ import AdminMovieView from '@/views/admin/cinema-movie/AdminMovieView.vue'
 import AdminMovieDetail from '@/views/admin/cinema-movie/AdminMovieDetail.vue'
 import AdminMovieForm from '@/views/admin/cinema-movie/AdminMovieForm.vue'
 import AdminCrawlerReviewView from '@/views/admin/cinema-movie/AdminCrawlerReviewView.vue'
+import BenefitView from '@/views/BenefitView.vue'
 import CinemaView from '@/views/CinemaView.vue'
 import MapView from '@/views/MapView.vue'
 import MovieView from '@/views/MovieView.vue'
@@ -23,6 +24,11 @@ const router = createRouter({
         {
           path: '',
           redirect: '/map',
+        },
+        {
+          path: 'benefits',
+          name: 'benefits',
+          component: BenefitView,
         },
         {
           path: 'movies',
