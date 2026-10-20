@@ -1,5 +1,6 @@
 package com.collection.benefitsjourney.service;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -101,6 +102,40 @@ class CrawlerLogServiceTest {
             assertEquals("影城同步完成", saved.getMessage());
             assertEquals(EXECUTED_AT, saved.getExecutedAt());
             assertEquals(8, result.crawlerLogId());
+        }
+    }
+
+    @Nested
+    @DisplayName("recordRun")
+    class RecordRunTests {
+
+        @Test
+        @DisplayName("應寫入爬蟲結果，並裁切過長訊息")
+        void recordRun() {
+            when(crawlerLogRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+            String message = "影".repeat(1100);
+
+            crawlerLogService.recordRun(
+                    CrawlerType.MOVIE, CrawlerStatus.SUCCESS,
+                    3, 1, 1, 0, 1,
+                    message, EXECUTED_AT, FINISHED_AT);
+
+            ArgumentCaptor<CrawlerLogBean> captor = ArgumentCaptor.forClass(CrawlerLogBean.class);
+            verify(crawlerLogRepository).save(captor.capture());
+            assertEquals(1024, captor.getValue().getMessage().length());
+            assertEquals(CrawlerType.MOVIE, captor.getValue().getCrawlerType());
+            assertEquals(CrawlerStatus.SUCCESS, captor.getValue().getCrawlerStatus());
+        }
+
+        @Test
+        @DisplayName("寫入失敗時不把例外丟回爬蟲")
+        void ignoreWriteFailure() {
+            when(crawlerLogRepository.save(any())).thenThrow(new IllegalStateException("db down"));
+
+            assertDoesNotThrow(() -> crawlerLogService.recordRun(
+                    CrawlerType.CINEMA, CrawlerStatus.FAILURE,
+                    0, 0, 0, 0, 0,
+                    "無法連線至影城來源網站", EXECUTED_AT, FINISHED_AT));
         }
     }
 

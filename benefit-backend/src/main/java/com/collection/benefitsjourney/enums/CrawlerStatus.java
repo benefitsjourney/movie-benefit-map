@@ -9,5 +9,10 @@ public enum CrawlerStatus {
     FAILURE,
 
     /** 部分成功／失敗 */
-    PARTIAL
+    PARTIAL;
+
+    /** 爬蟲有跑完時，略過或寫入失敗視為部分成功。 */
+    public static CrawlerStatus completed(int skippedCount, int failedCount) {
+        return skippedCount > 0 || failedCount > 0 ? PARTIAL : SUCCESS;
+    }
 }
