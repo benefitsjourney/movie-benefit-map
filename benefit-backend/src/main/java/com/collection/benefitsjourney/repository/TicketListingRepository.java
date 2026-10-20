@@ -37,14 +37,18 @@ public interface TicketListingRepository extends JpaRepository<TicketListingBean
         // 電影名稱、影城名稱、會員姓名、刊登標題彼此 OR。
         // 日期區間若有提供，則必須同時符合日期條件。
         // cutoff 保留原本公開查詢只顯示明天或之後票券的規則。
-        @Query("""
-                        SELECT listing
-                        FROM TicketListingBean listing
-                        LEFT JOIN listing.movieBean movie
-                        LEFT JOIN listing.cinemaBean cinema
-                        LEFT JOIN listing.usersBean users
+        // 使用 SQL Server 原生 SQL。
+        @Query(value = """
+                        SELECT listing.*
+                        FROM ticket_listing listing
+                        LEFT JOIN movie m
+                        ON listing.movie_id = m.movie_id
+                        LEFT JOIN cinema c
+                        ON listing.cinema_id = c.cinema_id
+                        LEFT JOIN users u
+                        ON listing.users_id = u.users_id
                         WHERE listing.status = :status
-                        AND listing.ticketShowtime >= :cutoff
+                        AND listing.ticket_showtime >= :cutoff
                         AND (
                                 (
                                 :movieName IS NULL
@@ -54,17 +58,17 @@ public interface TicketListingRepository extends JpaRepository<TicketListingBean
                                 )
                                 OR (
                                 :movieName IS NOT NULL
-                                AND LOWER(movie.movieName)
+                                AND LOWER(m.movie_name)
                                         LIKE LOWER(CONCAT('%', :movieName, '%'))
                                 )
                                 OR (
                                 :cinemaName IS NOT NULL
-                                AND LOWER(cinema.cinemaName)
+                                AND LOWER(c.cinema_name)
                                         LIKE LOWER(CONCAT('%', :cinemaName, '%'))
                                 )
                                 OR (
                                 :usersName IS NOT NULL
-                                AND LOWER(users.name)
+                                AND LOWER(u.name)
                                         LIKE LOWER(CONCAT('%', :usersName, '%'))
                                 )
                                 OR (
@@ -75,13 +79,13 @@ public interface TicketListingRepository extends JpaRepository<TicketListingBean
                         )
                         AND (
                                 :startDateTime IS NULL
-                                OR listing.ticketShowtime >= :startDateTime
+                                OR listing.ticket_showtime >= :startDateTime
                         )
                         AND (
                                 :endDateExclusive IS NULL
-                                OR listing.ticketShowtime < :endDateExclusive
+                                OR listing.ticket_showtime < :endDateExclusive
                         )
-                        """)
+                        """, nativeQuery = true)
         List<TicketListingBean> searchActiveListings(
                         @Param("status") String status,
                         @Param("cutoff") LocalDateTime cutoff,
@@ -91,5 +95,4 @@ public interface TicketListingRepository extends JpaRepository<TicketListingBean
                         @Param("title") String title,
                         @Param("startDateTime") LocalDateTime startDateTime,
                         @Param("endDateExclusive") LocalDateTime endDateExclusive);
-
 }

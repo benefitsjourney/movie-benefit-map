@@ -86,18 +86,6 @@ public class TicketListingService {
 		return savedListing;
 	}
 
-	// // 查詢公開票券刊登，只顯示 ACTIVE 且放映日期為明天或之後
-	// public List<TicketListingBean> findActiveListings() {
-	// LocalDateTime cutoff = getTomorrowStartOfDay();
-	// List<TicketListingBean> listings =
-	// ticketListingRepository.findByStatusAndTicketShowtimeGreaterThanEqual(
-	// STATUS_ACTIVE, cutoff);
-
-	// listings.forEach(this::initializeListingUser);
-
-	// return listings;
-	// }
-
 	// 查詢公開票券刊登：保留原本無參數的呼叫方式
 	public List<TicketListingBean> findActiveListings() {
 		return findActiveListings(
@@ -129,13 +117,15 @@ public class TicketListingService {
 		boolean hasStartDate = startDate != null && !startDate.isBlank();
 		boolean hasEndDate = endDate != null && !endDate.isBlank();
 
-		// 起日與迄日必須同時提供，不能只提供其中一個
-		if (hasStartDate != hasEndDate) {
+		// 只有 endDate、沒有 startDate 時仍然拒絕
+		if (!hasStartDate && hasEndDate) {
 			throw new ResponseStatusException(
 					HttpStatus.BAD_REQUEST,
-					"放映起日與迄日必須同時提供");
+					"只提供放映迄日無法查詢，請提供放映起日");
 		}
-
+		// 有提供 startDate 時，必須先驗證日期格式。
+		// 如果沒有 endDate，則將 endDate 設為 startDate，
+		// 代表只查詢單日。
 		if (hasStartDate) {
 			LocalDate start;
 			LocalDate end;
@@ -148,24 +138,31 @@ public class TicketListingService {
 						HttpStatus.BAD_REQUEST,
 						"放映起日格式錯誤，請使用 yyyy-MM-dd");
 			}
+			if (hasEndDate) {
 
-			try {
-				end = LocalDate.parse(endDate);
-			} catch (DateTimeParseException exception) {
-				throw new ResponseStatusException(
-						HttpStatus.BAD_REQUEST,
-						"放映迄日格式錯誤，請使用 yyyy-MM-dd");
+				// 有起日及迄日：使用日期區間
+				try {
+					end = LocalDate.parse(endDate);
+				} catch (DateTimeParseException exception) {
+					throw new ResponseStatusException(
+							HttpStatus.BAD_REQUEST,
+							"放映迄日格式錯誤，請使用 yyyy-MM-dd");
+				}
+			} else {
+
+				// 只有起日：起日就是迄日，查詢單日
+				end = start;
 			}
-
 			LocalDate tomorrow = LocalDate.now(TAIPEI_ZONE).plusDays(1);
 
-			// 起日及迄日都必須是明天或之後
+			// 起日必須是明天或之後
 			if (start.isBefore(tomorrow)) {
 				throw new ResponseStatusException(
 						HttpStatus.BAD_REQUEST,
 						"放映起日必須是明天或之後");
 			}
 
+			// 迄日也必須是明天或之後
 			if (end.isBefore(tomorrow)) {
 				throw new ResponseStatusException(
 						HttpStatus.BAD_REQUEST,
@@ -179,9 +176,10 @@ public class TicketListingService {
 						"放映起日不可晚於放映迄日");
 			}
 
+			// 起日當天 00:00:00
 			startDateTime = start.atStartOfDay();
 
-			// 迄日包含整天，因此使用迄日隔天 00:00:00 作為排除上限
+			// 迄日包含整天，因此使用迄日隔天 00:00:00 作為排除上限，避免漏掉迄日當天的票券。
 			try {
 				endDateExclusive = end.plusDays(1).atStartOfDay();
 			} catch (DateTimeException exception) {
@@ -408,9 +406,7 @@ public class TicketListingService {
 		return !showtimeDate.isAfter(today);
 	}
 
-	// 取得台灣時間明天的 00:00:00。
-	// 資料庫使用 LocalDateTime 比較，
-	// 但分界點確保今天所有時間都視為過期。
+	// 取得台灣時間明天的 00:00:00，資料庫使用 LocalDateTime 比較，但分界點確保今天所有時間都視為過期。
 	private LocalDateTime getTomorrowStartOfDay() {
 
 		return LocalDate.now(TAIPEI_ZONE)

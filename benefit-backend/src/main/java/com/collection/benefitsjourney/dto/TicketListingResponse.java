@@ -14,11 +14,15 @@ public class TicketListingResponse {
     private Integer ticketListingId;
     private Integer usersId;
 
-    // 新增：刊登者會員名稱
+    // 刊登者會員名稱
     private String usersName;
 
     private Integer cinemaId;
+    // 影城名稱
+    private String cinemaName;
     private Integer movieId;
+    // 電影名稱
+    private String movieName;
     private String title;
     private String description;
     private String status;
@@ -32,6 +36,7 @@ public class TicketListingResponse {
 
         response.setTicketListingId(bean.getTicketListingId());
 
+        // 取得刊登者會員資料
         UsersBean usersBean = bean.getUsersBean();
 
         if (usersBean != null) {
@@ -39,12 +44,16 @@ public class TicketListingResponse {
             response.setUsersName(usersBean.getName());
         }
 
+        // 取得影城 ID 與名稱
         if (bean.getCinemaBean() != null) {
             response.setCinemaId(bean.getCinemaBean().getCinemaId());
+            response.setCinemaName(bean.getCinemaBean().getCinemaName());
         }
 
+        // 取得電影 ID 與名稱
         if (bean.getMovieBean() != null) {
             response.setMovieId(bean.getMovieBean().getMovieId());
+            response.setMovieName(bean.getMovieBean().getMovieName());
         }
 
         response.setTitle(bean.getTitle());

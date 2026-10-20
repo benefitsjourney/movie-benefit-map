@@ -27,42 +27,45 @@ public interface ExchangeListingRepository extends JpaRepository<ExchangeListing
      // 公開查詢交換刊登：
      // 刊登標題、會員姓名、特典名稱、特典類型彼此 OR。
      // 四項條件都沒有輸入時，查詢該狀態的全部刊登。
-     @Query("""
-               SELECT listing
-               FROM ExchangeListingBean listing
-               LEFT JOIN listing.useBenefitBean useBenefit
-               LEFT JOIN useBenefit.user users
-               LEFT JOIN useBenefit.benefit benefit
+     @Query(value = """
+               SELECT listing.*
+               FROM exchange_listing listing
+               LEFT JOIN use_benefit ub
+               ON listing.use_benefit_id = ub.use_benefit_id
+               LEFT JOIN users u
+               ON ub.user_id = u.users_id
+               LEFT JOIN benefit b
+               ON ub.benefit_id = b.benefit_id
                WHERE listing.status = :status
                AND (
-                    (
-                         :title IS NULL
-                         AND :usersName IS NULL
-                         AND :benefitName IS NULL
-                         AND :benefitType IS NULL
-                    )
-                    OR (
-                         :title IS NOT NULL
-                         AND LOWER(listing.title)
-                              LIKE LOWER(CONCAT('%', :title, '%'))
-                    )
-                    OR (
-                         :usersName IS NOT NULL
-                         AND LOWER(users.name)
-                              LIKE LOWER(CONCAT('%', :usersName, '%'))
-                    )
-                    OR (
-                         :benefitName IS NOT NULL
-                         AND LOWER(benefit.benefitName)
-                              LIKE LOWER(CONCAT('%', :benefitName, '%'))
-                    )
-                    OR (
-                         :benefitType IS NOT NULL
-                         AND LOWER(benefit.benefitType)
-                              LIKE LOWER(CONCAT('%', :benefitType, '%'))
-                    )
+               (
+                    :title IS NULL
+                    AND :usersName IS NULL
+                    AND :benefitName IS NULL
+                    AND :benefitType IS NULL
                )
-               """)
+               OR (
+                    :title IS NOT NULL
+                    AND LOWER(listing.title)
+                         LIKE LOWER(CONCAT('%', :title, '%'))
+               )
+               OR (
+                    :usersName IS NOT NULL
+                    AND LOWER(u.name)
+                         LIKE LOWER(CONCAT('%', :usersName, '%'))
+               )
+               OR (
+                    :benefitName IS NOT NULL
+                    AND LOWER(b.benefit_name)
+                         LIKE LOWER(CONCAT('%', :benefitName, '%'))
+               )
+               OR (
+                    :benefitType IS NOT NULL
+                    AND LOWER(b.benefit_type)
+                         LIKE LOWER(CONCAT('%', :benefitType, '%'))
+               )
+               )
+               """, nativeQuery = true)
      List<ExchangeListingBean> searchActiveListings(
                @Param("status") String status,
                @Param("title") String title,
