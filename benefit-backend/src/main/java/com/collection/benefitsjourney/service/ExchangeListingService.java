@@ -2,6 +2,7 @@ package com.collection.benefitsjourney.service;
 
 import java.util.List;
 
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,12 +61,22 @@ public class ExchangeListingService {
 		listing.setUseBenefitBean(useBenefitBean);
 
 		// 5. 儲存
-		return exchangeListingRepository.save(listing);
+		ExchangeListingBean savedListing = exchangeListingRepository.save(listing);
+
+		// 6. 預先載入回傳所需的特典及照片資料
+		initializeListingDetails(savedListing);
+
+		return savedListing;
 	}
 
 	// 查詢公開的交換刊登，只顯示 ACTIVE
 	public List<ExchangeListingBean> findActiveListings() {
-		return exchangeListingRepository.findByStatus("ACTIVE");
+		List<ExchangeListingBean> listings = exchangeListingRepository.findByStatus("ACTIVE");
+
+		// 預先載入每筆刊登的特典及照片資料
+		listings.forEach(this::initializeListingDetails);
+
+		return listings;
 	}
 
 	// 內部查詢：依 ID 查詢，不限制狀態，用於會員自己的修改及狀態操作
@@ -77,14 +88,26 @@ public class ExchangeListingService {
 
 	// 公開查詢單筆交換刊登，只允許 ACTIVE
 	public ExchangeListingBean findActiveById(Integer exchangeListingId) {
-		return exchangeListingRepository
+		ExchangeListingBean listing = exchangeListingRepository
 				.findByExchangeListingIdAndStatus(exchangeListingId, "ACTIVE")
-				.orElseThrow(() -> new IllegalArgumentException("找不到可公開查看的交換刊登"));
+				.orElseThrow(() -> new IllegalArgumentException(
+						"找不到可公開查看的交換刊登"));
+
+		// 預先載入回傳所需的特典及照片資料
+		initializeListingDetails(listing);
+
+		return listing;
 	}
 
 	// 查詢自己的交換刊登
 	public List<ExchangeListingBean> findMyListings(Integer usersId) {
-		return exchangeListingRepository.findByUseBenefitBean_User_UsersId(usersId);
+		List<ExchangeListingBean> listings = exchangeListingRepository
+				.findByUseBenefitBean_User_UsersId(usersId);
+
+		// 預先載入每筆刊登的特典及照片資料
+		listings.forEach(this::initializeListingDetails);
+
+		return listings;
 	}
 
 	// 修改自己的刊登內容
@@ -112,7 +135,12 @@ public class ExchangeListingService {
 		listing.setDescription(description);
 
 		// 5. 儲存
-		return exchangeListingRepository.save(listing);
+		ExchangeListingBean savedListing = exchangeListingRepository.save(listing);
+
+		// 6. 預先載入回傳所需的特典及照片資料
+		initializeListingDetails(savedListing);
+
+		return savedListing;
 	}
 
 	// 修改自己的刊登狀態
@@ -150,7 +178,46 @@ public class ExchangeListingService {
 		listing.setStatus(status);
 
 		// 6. 儲存
-		return exchangeListingRepository.save(listing);
+		ExchangeListingBean savedListing = exchangeListingRepository.save(listing);
+
+		// 7. 預先載入回傳所需的特典及照片資料
+		initializeListingDetails(savedListing);
+
+		return savedListing;
+	}
+
+	// 預先載入交換刊登回傳所需的特典與照片資料
+	// 確保 Service 交易結束後，Controller 轉換 Response 時仍可取得資料
+	private void initializeListingDetails(ExchangeListingBean listing) {
+
+		UseBenefitBean useBenefit = listing.getUseBenefitBean();
+
+		if (useBenefit == null) {
+			return;
+		}
+
+		Hibernate.initialize(useBenefit);
+
+		// 新增：載入持有特典的會員，供 Response 取得 usersName
+		UsersBean usersBean = useBenefit.getUser();
+
+		if (usersBean != null) {
+			Hibernate.initialize(usersBean);
+		}
+
+		// 載入特典基本資料
+		if (useBenefit.getBenefit() != null) {
+			Hibernate.initialize(useBenefit.getBenefit());
+		}
+
+		// 載入持有特典的照片清單
+		// 沒有照片時，空清單仍然可以正常使用
+		if (useBenefit.getPhotos() != null) {
+			Hibernate.initialize(useBenefit.getPhotos());
+
+			useBenefit.getPhotos().forEach(
+					Hibernate::initialize);
+		}
 	}
 
 	// 確認刊登是否為目前會員所有
