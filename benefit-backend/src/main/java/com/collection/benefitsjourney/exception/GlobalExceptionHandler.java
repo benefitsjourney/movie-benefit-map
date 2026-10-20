@@ -117,8 +117,6 @@ public class GlobalExceptionHandler {
             IllegalArgumentException exception,
             HttpServletRequest request) {
 
-    System.out.println("IllegalArgumentException message = [" + exception.getMessage() + "]");
-
         return buildError(
                 HttpStatus.BAD_REQUEST,
                 exception.getMessage() != null

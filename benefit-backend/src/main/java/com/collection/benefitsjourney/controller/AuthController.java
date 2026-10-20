@@ -15,10 +15,14 @@ import com.collection.benefitsjourney.dto.UserResponse;
 import com.collection.benefitsjourney.jwt.JsonWebTokenUtility;
 import com.collection.benefitsjourney.service.AuthService;
 import com.collection.benefitsjourney.service.GoogleTokenService;
+import com.collection.benefitsjourney.dto.ForgotPasswordRequest;
+import com.collection.benefitsjourney.dto.ResetPasswordRequest;
+import com.collection.benefitsjourney.service.PasswordResetService;
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdToken;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.util.Map;
 
         @RestController
         @RequestMapping("/auth")
@@ -27,15 +31,18 @@ import jakarta.validation.Valid;
         private final AuthService authService;
         private final JsonWebTokenUtility jsonWebTokenUtility;
         private final GoogleTokenService googleTokenService;
+        private final PasswordResetService passwordResetService;
 
         public AuthController(
                 AuthService authService,
                 JsonWebTokenUtility jsonWebTokenUtility,
-                GoogleTokenService googleTokenService) {
+                GoogleTokenService googleTokenService,
+                PasswordResetService passwordResetService) {
 
                 this.authService = authService;
                 this.jsonWebTokenUtility = jsonWebTokenUtility;
                 this.googleTokenService = googleTokenService;
+                this.passwordResetService = passwordResetService;
         }
 
 
@@ -174,14 +181,26 @@ import jakarta.validation.Valid;
 
         // 忘記密碼
         @PostMapping("/password/forgot")
-        public void forgotPassword() {
+        public ResponseEntity<Map<String, String>> forgotPassword(
+        @Valid @RequestBody ForgotPasswordRequest request) {
 
+        passwordResetService.forgotPassword(request.getEmail());
+
+        return ResponseEntity.ok(Map.of(
+                "message", "如果此 Email 已註冊，系統將寄送密碼重設連結"));
         }
 
 
         // 重設密碼
         @PostMapping("/password/reset")
-        public void resetPassword() {
+        public ResponseEntity<Map<String, String>> resetPassword(
+        @Valid @RequestBody ResetPasswordRequest request) {
 
+        passwordResetService.resetPassword(
+                request.getToken(),
+                request.getNewPassword());
+
+        return ResponseEntity.ok(Map.of(
+                "message", "密碼重設成功，請使用新密碼登入"));
         }
 }

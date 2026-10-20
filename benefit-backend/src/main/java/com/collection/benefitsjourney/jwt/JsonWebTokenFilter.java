@@ -26,10 +26,10 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 this.usersRepository = usersRepository;
         }
 
-    @Override
-    protected boolean shouldNotFilter(
-            HttpServletRequest request)
-            throws ServletException {
+        @Override
+        protected boolean shouldNotFilter(
+                HttpServletRequest request)
+                throws ServletException {
 
         String uri = request.getRequestURI();
         String method = request.getMethod();
