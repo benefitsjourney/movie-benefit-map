@@ -38,7 +38,7 @@ public class CrawlerCinemaService {
 
     /** HTTP 請求最大等待時間 */
     private static final int REQUEST_TIMEOUT_MS = 10_000;
-    private static final int HTTP_CONCURRENCY = 5;
+    private static final int HTTP_CONCURRENCY = 8;
     private static final String USER_AGENT = "Mozilla/5.0";
 
     /** 爬蟲網站影城列表頁面 */
@@ -151,25 +151,28 @@ public class CrawlerCinemaService {
                 existing.put(cinema.sourceId(), cinemaService.findBySourceId(cinema.sourceId()));
             }
 
-            List<CompletableFuture<CinemaResponse>> coordinateTasks = cinemas.stream()
-                    .map(cinema -> CompletableFuture.supplyAsync(() -> {
-                        CinemaResponse current = existing.get(cinema.sourceId()).orElse(null);
-                        if (!refreshCoordinates && current != null
-                                && current.latitude() != null && current.longitude() != null) {
-                            return cinema; // null 座標表示本次沒抓，不會建立座標變更審核。
-                        }
-                        Coordinates location = getCoordinates(cinema.sourceId());
-                        if (location == null) {
-                            return cinema;
-                        }
-                        return withCoordinates(cinema, location);
-                    }, executor))
-                    .toList();
+            // 只對需要補座標或強制重抓的影城建立 HTTP 任務，避免浪費執行緒
+            Map<String, CompletableFuture<Coordinates>> coordinateTasks = new LinkedHashMap<>();
+            for (CinemaResponse cinema : cinemas) {
+                CinemaResponse current = existing.get(cinema.sourceId()).orElse(null);
+                boolean hasCoordinates = current != null
+                        && current.latitude() != null && current.longitude() != null;
+                if (refreshCoordinates || !hasCoordinates) {
+                    coordinateTasks.put(cinema.sourceId(), CompletableFuture.supplyAsync(
+                            () -> getCoordinates(cinema.sourceId()), executor));
+                }
+            }
 
-            List<CinemaResponse> resolved = coordinateTasks.stream()
-                    .map(task -> task.join())
+            List<CinemaResponse> resolved = cinemas.stream()
+                    .map(cinema -> {
+                        CompletableFuture<Coordinates> task = coordinateTasks.get(cinema.sourceId());
+                        if (task == null) {
+                            return cinema; // 本次沒抓座標，不觸發座標變更審核。
+                        }
+                        Coordinates location = task.join();
+                        return location == null ? cinema : withCoordinates(cinema, location);
+                    })
                     .toList();
-
             SyncStats stats = new SyncStats();
             stats.skipped = omitted;
             List<CinemaResponse> saved = resolved.stream()

@@ -1,12 +1,20 @@
 package com.collection.benefitsjourney.service.CinemaMovie;
 
 import java.io.IOException;
+import java.io.ByteArrayInputStream;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -15,6 +23,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CompletionService;
+import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -43,7 +53,14 @@ public class CrawlerMovieService {
     private static final String BASE_URL = "https://www.atmovies.com.tw";
     private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36";
     private static final int TIMEOUT_MS = 12_000;
-    private static final int THREADS = 6;
+    private static final int THREADS = 12;
+
+    /** 所有請求共用連線池，避免每部電影詳細頁都重新建立 HTTP 連線。 */
+    private static final HttpClient HTTP_CLIENT = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(8))
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .version(HttpClient.Version.HTTP_2)
+            .build();
 
     private static final List<String> ENTRY_URLS = List.of(
             BASE_URL + "/movie/new/",
@@ -80,6 +97,10 @@ public class CrawlerMovieService {
     }
 
     private record StoredMovie(Integer id, String sourceId, String name) {
+    }
+
+    /** 一次讀取資料庫的片名索引與來源 ID，避免對每部新電影重複查詢。 */
+    private record StoredMovies(Map<String, StoredMovie> byName, Set<String> sourceIds) {
     }
 
     private final MovieService movieService;
@@ -134,12 +155,17 @@ public class CrawlerMovieService {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "電影網站沒有回傳可用列表");
             }
 
-            Map<String, Future<MovieInfo>> details = new LinkedHashMap<>();
+            // 使用完成順序處理詳細頁，不因列表前面的慢請求阻塞已完成的電影。
+            CompletionService<MovieInfo> detailQueue = new ExecutorCompletionService<>(executor);
+            Map<Future<MovieInfo>, String> detailUrls = new IdentityHashMap<>();
             for (MovieInfo item : discovered.values()) {
-                details.put(item.sourceId(), executor.submit(() -> fetchDetail(item)));
+                Future<MovieInfo> future = detailQueue.submit(() -> fetchDetail(item));
+                detailUrls.put(future, item.url());
             }
 
-            Map<String, StoredMovie> names = loadStoredMovies();
+            StoredMovies stored = loadStoredMovies();
+            Map<String, StoredMovie> names = stored.byName();
+            Set<String> sourceIds = stored.sourceIds();
             List<MovieResponse> results = new ArrayList<>();
             int fetched = 0;
             int created = 0;
@@ -148,15 +174,25 @@ public class CrawlerMovieService {
             int reviewed = 0;
             int duplicates = 0;
 
-            for (MovieInfo candidate : discovered.values()) {
-                MovieInfo info = await(details.get(candidate.sourceId()), candidate.url());
+            for (int i = 0; i < discovered.size(); i++) {
+                Future<MovieInfo> completed;
+                try {
+                    completed = detailQueue.take();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "電影爬蟲執行遭中斷", e);
+                }
+                MovieInfo info = await(completed, detailUrls.remove(completed));
                 if (info == null || info.movieName() == null) {
                     skipped++;
                     continue;
                 }
                 fetched++;
                 try {
-                    MovieResponse existing = movieService.findBySourceId(info.sourceId()).orElse(null);
+                    // 已載入所有 sourceId，僅既有電影才查詢完整資料進行差異審核。
+                    MovieResponse existing = sourceIds.contains(info.sourceId())
+                            ? movieService.findBySourceId(info.sourceId()).orElse(null)
+                            : null;
                     if (existing != null) {
                         int reviewedFields = reviewExisting(info, existing);
                         reviewed += reviewedFields;
@@ -181,6 +217,7 @@ public class CrawlerMovieService {
                             info.sourceId(), info.movieName(), info.imageUrl(), true, info.releaseDate()));
                     results.add(saved);
                     created++;
+                    sourceIds.add(info.sourceId());
                     names.put(normalizeName(info.movieName()),
                             new StoredMovie(saved.movieId(), info.sourceId(), info.movieName()));
                 } catch (Exception e) {
@@ -348,15 +385,18 @@ public class CrawlerMovieService {
                 .replaceAll("[\\p{P}\\p{Z}\\s]+", "");
     }
 
-    private Map<String, StoredMovie> loadStoredMovies() {
+    private StoredMovies loadStoredMovies() {
         Map<String, StoredMovie> names = new LinkedHashMap<>();
+        Set<String> sourceIds = new HashSet<>();
         jdbcTemplate.query("SELECT movie_id, source_id, movie_name FROM movie", rs -> {
             StoredMovie movie = new StoredMovie(rs.getInt("movie_id"),
                     rs.getString("source_id"), rs.getString("movie_name"));
+            if (movie.sourceId() != null)
+                sourceIds.add(movie.sourceId());
             if (movie.name() != null)
                 names.putIfAbsent(normalizeName(movie.name()), movie);
         });
-        return names;
+        return new StoredMovies(names, sourceIds);
     }
 
     private boolean submitDuplicateReview(MovieInfo info, StoredMovie duplicate) {
@@ -399,7 +439,22 @@ public class CrawlerMovieService {
     }
 
     Document connect(String url) throws IOException {
-        return Jsoup.connect(url).userAgent(USER_AGENT).referrer(BASE_URL + "/")
-                .timeout(TIMEOUT_MS).followRedirects(true).get();
+        HttpRequest request = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofMillis(TIMEOUT_MS))
+                .header("User-Agent", USER_AGENT)
+                .header("Referer", BASE_URL + "/")
+                .GET()
+                .build();
+        try {
+            HttpResponse<byte[]> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofByteArray());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IOException("HTTP " + response.statusCode() + "：" + url);
+            }
+            // 讓 Jsoup 依來源頁的 charset 自動解碼，避免中文片名亂碼。
+            return Jsoup.parse(new ByteArrayInputStream(response.body()), null, response.uri().toString());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("電影網頁連線遭中斷：" + url, e);
+        }
     }
 }
