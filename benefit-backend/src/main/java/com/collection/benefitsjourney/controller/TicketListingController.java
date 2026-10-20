@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.collection.benefitsjourney.domain.TicketListingBean;
@@ -54,9 +55,21 @@ public class TicketListingController {
 
 	// 查詢所有公開的票券刊登
 	@GetMapping
-	public ResponseEntity<List<TicketListingResponse>> findActiveListings() {
+	public ResponseEntity<List<TicketListingResponse>> findActiveListings(
+			@RequestParam(required = false) String movieName,
+			@RequestParam(required = false) String cinemaName,
+			@RequestParam(required = false) String usersName,
+			@RequestParam(required = false) String title,
+			@RequestParam(required = false) String startDate,
+			@RequestParam(required = false) String endDate) {
 
-		List<TicketListingResponse> responses = ticketListingService.findActiveListings()
+		List<TicketListingResponse> responses = ticketListingService.findActiveListings(
+				movieName,
+				cinemaName,
+				usersName,
+				title,
+				startDate,
+				endDate)
 				.stream()
 				.map(TicketListingResponse::from)
 				.toList();

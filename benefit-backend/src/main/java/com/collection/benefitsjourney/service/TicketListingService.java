@@ -1,13 +1,17 @@
 package com.collection.benefitsjourney.service;
 
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 
 import org.hibernate.Hibernate;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.collection.benefitsjourney.domain.CinemaBean;
 import com.collection.benefitsjourney.domain.MovieBean;
@@ -82,15 +86,139 @@ public class TicketListingService {
 		return savedListing;
 	}
 
-	// 查詢公開票券刊登，只顯示 ACTIVE 且放映日期為明天或之後
+	// // 查詢公開票券刊登，只顯示 ACTIVE 且放映日期為明天或之後
+	// public List<TicketListingBean> findActiveListings() {
+	// LocalDateTime cutoff = getTomorrowStartOfDay();
+	// List<TicketListingBean> listings =
+	// ticketListingRepository.findByStatusAndTicketShowtimeGreaterThanEqual(
+	// STATUS_ACTIVE, cutoff);
+
+	// listings.forEach(this::initializeListingUser);
+
+	// return listings;
+	// }
+
+	// 查詢公開票券刊登：保留原本無參數的呼叫方式
 	public List<TicketListingBean> findActiveListings() {
+		return findActiveListings(
+				null, null, null, null, null, null);
+	}
+
+	// 查詢公開票券刊登，可依文字條件及放映日期區間查詢
+	public List<TicketListingBean> findActiveListings(
+			String movieName,
+			String cinemaName,
+			String usersName,
+			String title,
+			String startDate,
+			String endDate) {
+
+		// 空白文字視為未輸入條件
+		movieName = normalizeKeyword(movieName);
+		cinemaName = normalizeKeyword(cinemaName);
+		usersName = normalizeKeyword(usersName);
+		title = normalizeKeyword(title);
+
+		// 仍然以台灣時間明天 00:00:00 作為公開查詢下限
 		LocalDateTime cutoff = getTomorrowStartOfDay();
-		List<TicketListingBean> listings = ticketListingRepository.findByStatusAndTicketShowtimeGreaterThanEqual(
-				STATUS_ACTIVE, cutoff);
+
+		LocalDateTime startDateTime = null;
+		LocalDateTime endDateExclusive = null;
+
+		// 只有使用者有提供日期時，才額外套用日期區間
+		boolean hasStartDate = startDate != null && !startDate.isBlank();
+		boolean hasEndDate = endDate != null && !endDate.isBlank();
+
+		// 起日與迄日必須同時提供，不能只提供其中一個
+		if (hasStartDate != hasEndDate) {
+			throw new ResponseStatusException(
+					HttpStatus.BAD_REQUEST,
+					"放映起日與迄日必須同時提供");
+		}
+
+		if (hasStartDate) {
+			LocalDate start;
+			LocalDate end;
+
+			// 驗證日期格式必須為 yyyy-MM-dd
+			try {
+				start = LocalDate.parse(startDate);
+			} catch (DateTimeParseException exception) {
+				throw new ResponseStatusException(
+						HttpStatus.BAD_REQUEST,
+						"放映起日格式錯誤，請使用 yyyy-MM-dd");
+			}
+
+			try {
+				end = LocalDate.parse(endDate);
+			} catch (DateTimeParseException exception) {
+				throw new ResponseStatusException(
+						HttpStatus.BAD_REQUEST,
+						"放映迄日格式錯誤，請使用 yyyy-MM-dd");
+			}
+
+			LocalDate tomorrow = LocalDate.now(TAIPEI_ZONE).plusDays(1);
+
+			// 起日及迄日都必須是明天或之後
+			if (start.isBefore(tomorrow)) {
+				throw new ResponseStatusException(
+						HttpStatus.BAD_REQUEST,
+						"放映起日必須是明天或之後");
+			}
+
+			if (end.isBefore(tomorrow)) {
+				throw new ResponseStatusException(
+						HttpStatus.BAD_REQUEST,
+						"放映迄日必須是明天或之後");
+			}
+
+			// 起日不可晚於迄日
+			if (start.isAfter(end)) {
+				throw new ResponseStatusException(
+						HttpStatus.BAD_REQUEST,
+						"放映起日不可晚於放映迄日");
+			}
+
+			startDateTime = start.atStartOfDay();
+
+			// 迄日包含整天，因此使用迄日隔天 00:00:00 作為排除上限
+			try {
+				endDateExclusive = end.plusDays(1).atStartOfDay();
+			} catch (DateTimeException exception) {
+				throw new ResponseStatusException(
+						HttpStatus.BAD_REQUEST,
+						"放映迄日超出可查詢範圍");
+			}
+		}
+
+		// Repository 會套用：
+		// 1. ACTIVE 狀態
+		// 2. 明天或之後的公開日期限制
+		// 3. 文字條件彼此 OR
+		// 4. 有指定日期時，日期區間另外以 AND 篩選
+		List<TicketListingBean> listings = ticketListingRepository
+				.searchActiveListings(
+						STATUS_ACTIVE,
+						cutoff,
+						movieName,
+						cinemaName,
+						usersName,
+						title,
+						startDateTime,
+						endDateExclusive);
 
 		listings.forEach(this::initializeListingUser);
 
 		return listings;
+	}
+
+	// 將空白查詢轉為 null
+	private String normalizeKeyword(String keyword) {
+		if (keyword == null || keyword.isBlank()) {
+			return null;
+		}
+
+		return keyword.trim();
 	}
 
 	// 查詢單筆票券刊登，內部查詢：依 ID 查詢，不限制狀態

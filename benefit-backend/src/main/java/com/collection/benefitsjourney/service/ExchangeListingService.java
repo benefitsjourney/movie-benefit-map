@@ -69,14 +69,57 @@ public class ExchangeListingService {
 		return savedListing;
 	}
 
-	// 查詢公開的交換刊登，只顯示 ACTIVE
+	// // 查詢公開的交換刊登，只顯示 ACTIVE
+	// public List<ExchangeListingBean> findActiveListings() {
+	// List<ExchangeListingBean> listings =
+	// exchangeListingRepository.findByStatus("ACTIVE");
+
+	// // 預先載入每筆刊登的特典及照片資料
+	// listings.forEach(this::initializeListingDetails);
+
+	// return listings;
+	// }
+
+	// 查詢公開交換刊登：維持原本呼叫方式，方便既有測試使用
 	public List<ExchangeListingBean> findActiveListings() {
-		List<ExchangeListingBean> listings = exchangeListingRepository.findByStatus("ACTIVE");
+		return findActiveListings(null, null, null, null);
+	}
+
+	// 查詢公開交換刊登，可依四項文字條件查詢
+	public List<ExchangeListingBean> findActiveListings(
+			String title,
+			String usersName,
+			String benefitName,
+			String benefitType) {
+
+		// 空白字串視為未輸入條件
+		title = normalizeKeyword(title);
+		usersName = normalizeKeyword(usersName);
+		benefitName = normalizeKeyword(benefitName);
+		benefitType = normalizeKeyword(benefitType);
+
+		// Repository 會處理文字條件 OR，並且只查詢 ACTIVE
+		List<ExchangeListingBean> listings = exchangeListingRepository
+				.searchActiveListings(
+						"ACTIVE",
+						title,
+						usersName,
+						benefitName,
+						benefitType);
 
 		// 預先載入每筆刊登的特典及照片資料
 		listings.forEach(this::initializeListingDetails);
 
 		return listings;
+	}
+
+	// 將空白查詢轉為 null
+	private String normalizeKeyword(String keyword) {
+		if (keyword == null || keyword.isBlank()) {
+			return null;
+		}
+
+		return keyword.trim();
 	}
 
 	// 內部查詢：依 ID 查詢，不限制狀態，用於會員自己的修改及狀態操作
