@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.collection.benefitsjourney.domain.CinemaBean;
+import com.collection.benefitsjourney.domain.CinemaMovieBenefitBean;
 import com.collection.benefitsjourney.enums.County;
 
 public interface CinemaRepository extends JpaRepository<CinemaBean, Integer> {
@@ -42,6 +43,23 @@ public interface CinemaRepository extends JpaRepository<CinemaBean, Integer> {
     List<CinemaBean> findAllForMap(
             @Param("keyword") String keyword,
             @Param("county") County county);
+
+    /** 一次取出指定影城的上架特典，電影與特典名稱為 null 時不篩選，有值時以 LIKE 模糊比對 */
+    @Query("""
+            SELECT c FROM CinemaMovieBenefitBean c
+            JOIN FETCH c.cinema ci
+            JOIN FETCH c.movie m
+            JOIN FETCH c.benefit b
+            WHERE ci.cinemaId IN :cinemaIds
+            AND b.status = 'APPROVED'
+            AND (:movieKeyword IS NULL OR m.movieName LIKE :movieKeyword)
+            AND (:benefitKeyword IS NULL OR b.benefitName LIKE :benefitKeyword)
+            ORDER BY ci.cinemaId ASC, b.benefitId ASC, c.cinemaMovieBenefitId ASC
+            """)
+    List<CinemaMovieBenefitBean> findApprovedForMap(
+            @Param("cinemaIds") List<Integer> cinemaIds,
+            @Param("movieKeyword") String movieKeyword,
+            @Param("benefitKeyword") String benefitKeyword);
 
     /** 依外部來源的影城辨認ID尋找影城 */
     Optional<CinemaBean> findBySourceId(String sourceId);

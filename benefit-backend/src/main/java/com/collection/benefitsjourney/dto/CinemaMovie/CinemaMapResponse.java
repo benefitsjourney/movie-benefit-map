@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import com.collection.benefitsjourney.domain.CinemaBean;
+import com.collection.benefitsjourney.dto.InventoryStatusResponse;
 import com.collection.benefitsjourney.enums.County;
 
 public record CinemaMapResponse(
@@ -20,9 +21,19 @@ public record CinemaMapResponse(
             County county,
             BigDecimal latitude,
             BigDecimal longitude,
-            Double distance) {
+            Double distance,
+            int benefitCount,
+            List<InventoryStatusResponse> benefits) {
 
-        public static Cinema from(CinemaBean cinema, Double distance) {
+        public static Cinema from(
+                CinemaBean cinema,
+                Double distance,
+                List<InventoryStatusResponse> benefits) {
+
+            List<InventoryStatusResponse> safeBenefits = benefits == null
+                    ? List.of()
+                    : List.copyOf(benefits);
+
             return new Cinema(
                     cinema.getCinemaId(),
                     cinema.getCinemaName(),
@@ -30,7 +41,9 @@ public record CinemaMapResponse(
                     cinema.getCounty(),
                     cinema.getLatitude(),
                     cinema.getLongitude(),
-                    distance);
+                    distance,
+                    safeBenefits.size(),
+                    safeBenefits);
         }
     }
 }
