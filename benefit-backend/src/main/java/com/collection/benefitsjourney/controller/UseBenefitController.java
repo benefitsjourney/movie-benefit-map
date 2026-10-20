@@ -56,7 +56,8 @@ public class UseBenefitController {
 
     @DeleteMapping("/{useBenefitId}")
     @Operation(summary = "刪除持有紀錄",
-            description = "只能刪自己的（否則403）。已建立交換刊登的不能刪（409）。照片會一起從Cloudinary刪除")
+    		description = "只能刪自己的（否則403）。有交換刊登且尚未刪除的不能刪（409）。"
+                    + "刊登已刪除的會改為隱藏，保留交換紀錄")
     public ResponseEntity<Void> delete(
             @PathVariable Integer useBenefitId,
             HttpServletRequest httpRequest) {
