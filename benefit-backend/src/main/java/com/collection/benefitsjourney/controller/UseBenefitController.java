@@ -3,6 +3,7 @@ package com.collection.benefitsjourney.controller;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -11,10 +12,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.collection.benefitsjourney.dto.UseBenefitCreateRequest;
+import com.collection.benefitsjourney.dto.UseBenefitPhotoResponse;
 import com.collection.benefitsjourney.dto.UseBenefitResponse;
 import com.collection.benefitsjourney.service.UseBenefitService;
 
@@ -26,7 +30,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/use-benefits")
 @RequiredArgsConstructor
-@Tag(name = "收藏庫（會員）", description = "持有紀錄的新增、查詢、刪除")
+@Tag(name = "收藏庫（會員）", description = "持有紀錄和照片的新增、查詢、刪除")
 public class UseBenefitController {
 
     private final UseBenefitService useBenefitService;
@@ -52,13 +56,38 @@ public class UseBenefitController {
 
     @DeleteMapping("/{useBenefitId}")
     @Operation(summary = "刪除持有紀錄",
-            description = "只能刪自己的（否則403）。已建立交換刊登的不能刪（409）")
+            description = "只能刪自己的（否則403）。已建立交換刊登的不能刪（409）。照片會一起從Cloudinary刪除")
     public ResponseEntity<Void> delete(
             @PathVariable Integer useBenefitId,
             HttpServletRequest httpRequest) {
 
         Integer usersId = getUsersId(httpRequest);
         useBenefitService.delete(usersId, useBenefitId);
+        return ResponseEntity.noContent().build();
+    }
+    
+    @PostMapping(value = "/{useBenefitId}/photos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "上傳一張照片",
+            description = "一次上傳一張（要多張就呼叫多次）。只接受JPG、PNG、WEBP、GIF，最大10MB、每筆收藏最多5張")
+    public ResponseEntity<UseBenefitPhotoResponse> addPhoto(
+            @PathVariable Integer useBenefitId,
+            @RequestParam("file") MultipartFile file,
+            HttpServletRequest httpRequest) {
+
+        Integer usersId = getUsersId(httpRequest);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(useBenefitService.addPhoto(usersId, useBenefitId, file));
+    }
+
+    @DeleteMapping("/{useBenefitId}/photos/{photoId}")
+    @Operation(summary = "刪除一張照片", description = "同時刪除Cloudinary上的檔案。更換照片＝刪除舊的＋上傳新的")
+    public ResponseEntity<Void> deletePhoto(
+            @PathVariable Integer useBenefitId,
+            @PathVariable Integer photoId,
+            HttpServletRequest httpRequest) {
+
+        Integer usersId = getUsersId(httpRequest);
+        useBenefitService.deletePhoto(usersId, useBenefitId, photoId);
         return ResponseEntity.noContent().build();
     }
 
