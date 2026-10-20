@@ -3,6 +3,7 @@ package com.collection.benefitsjourney.service.CinemaMovie;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -29,6 +30,9 @@ import com.collection.benefitsjourney.dto.CinemaMovie.CinemaResponse;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieCrawlerSyncResult;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaResourceType;
 import com.collection.benefitsjourney.enums.County;
+import com.collection.benefitsjourney.enums.CrawlerStatus;
+import com.collection.benefitsjourney.enums.CrawlerType;
+import com.collection.benefitsjourney.service.CrawlerLogService;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -87,7 +91,7 @@ public class CrawlerCinemaService {
     }
 
     /** 單一縣市頁抓到的影城，以及連結存在但沒能撈成影城的筆數。 */
-    private record AreaCinemas(List<CinemaResponse> cinemas, int omitted) {
+    private record AreaCinemas(List<CinemaResponse> cinemas, int omitted, boolean areaFailed) {
     }
 
     private record CountyMapping(String keyword, County county) {
@@ -99,11 +103,15 @@ public class CrawlerCinemaService {
     /** 比對既有影城欄位差異並建立審核紀錄。 */
     private final CinemaMovieReviewsService cinemaMovieReviewsService;
 
+    private final CrawlerLogService crawlerLogService;
+
     public CrawlerCinemaService(
             CinemaService cinemaService,
-            CinemaMovieReviewsService cinemaMovieReviewsService) {
+            CinemaMovieReviewsService cinemaMovieReviewsService,
+            CrawlerLogService crawlerLogService) {
         this.cinemaService = cinemaService;
         this.cinemaMovieReviewsService = cinemaMovieReviewsService;
+        this.crawlerLogService = crawlerLogService;
     }
 
     /** 一般同步：已有完整座標就不重新抓取地圖頁。 */
@@ -113,6 +121,9 @@ public class CrawlerCinemaService {
 
     /** 完整同步可指定重新檢查所有影城座標。 */
     public CinemaMovieCrawlerSyncResult<CinemaResponse> syncCinemas(boolean refreshCoordinates) {
+        LocalDateTime executedAt = LocalDateTime.now();
+        SyncStats stats = new SyncStats();
+        int fetched = 0;
         long startTime = System.nanoTime();
         ExecutorService executor = Executors.newFixedThreadPool(HTTP_CONCURRENCY);
         try {
@@ -136,9 +147,14 @@ public class CrawlerCinemaService {
                 AreaCinemas area = task.join();
                 crawled.addAll(area.cinemas());
                 omitted += area.omitted();
+                if (area.areaFailed()) {
+                    stats.areaFailed++;
+                }
             }
 
             List<CinemaResponse> cinemas = deduplicateBySourceId(crawled);
+            fetched = cinemas.size();
+            stats.skipped = omitted;
 
             if (cinemas.isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY,
@@ -173,8 +189,6 @@ public class CrawlerCinemaService {
                         return location == null ? cinema : withCoordinates(cinema, location);
                     })
                     .toList();
-            SyncStats stats = new SyncStats();
-            stats.skipped = omitted;
             List<CinemaResponse> saved = resolved.stream()
                     .map(cinema -> syncCinemaToDatabase(cinema, existing.get(cinema.sourceId()), stats))
                     .filter(Objects::nonNull)
@@ -189,15 +203,77 @@ public class CrawlerCinemaService {
                     cinemas.size(), stats.created, stats.skipped, stats.updated, stats.reviewed,
                     elapsedSeconds(startTime), saved);
             log.info("影城同步完成：{}", result.message());
+            recordCinemaRun(result, stats, executedAt);
             return result;
 
-        } catch (HttpStatusException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "影城來源網站連線異常", e);
-        } catch (IOException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "無法連線至影城來源網站", e);
+        } catch (Exception e) {
+            RuntimeException failure = toCrawlerException(e);
+            recordCinemaFailure(failure, stats, fetched, executedAt);
+            throw failure;
         } finally {
             executor.shutdown();
         }
+    }
+
+    private void recordCinemaRun(
+            CinemaMovieCrawlerSyncResult<?> result, SyncStats stats, LocalDateTime executedAt) {
+        int failed = stats.failed + stats.areaFailed;
+        String message = result.message();
+        if (stats.failed > 0) {
+            message += "寫入失敗 " + stats.failed + " 筆。";
+        }
+        if (stats.areaFailed > 0) {
+            message += "縣市列表抓取失敗 " + stats.areaFailed + " 區。";
+        }
+        crawlerLogService.recordRun(
+                CrawlerType.CINEMA,
+                CrawlerStatus.completed(result.skippedCount(), failed),
+                result.fetchedCount(),
+                result.createdCount(),
+                result.updatedCount(),
+                result.skippedCount(),
+                result.reviewCount(),
+                message,
+                executedAt,
+                LocalDateTime.now());
+    }
+
+    private void recordCinemaFailure(
+            RuntimeException error, SyncStats stats, int fetched, LocalDateTime executedAt) {
+        String message = CrawlerLogService.failureMessage(error);
+        if (stats.failed > 0) {
+            message = CrawlerLogService.withNote(message, "寫入失敗 " + stats.failed + " 筆。");
+        }
+        if (stats.areaFailed > 0) {
+            message = CrawlerLogService.withNote(message, "縣市列表抓取失敗 " + stats.areaFailed + " 區。");
+        }
+        crawlerLogService.recordRun(
+                CrawlerType.CINEMA,
+                CrawlerStatus.FAILURE,
+                fetched,
+                stats.created,
+                stats.updated,
+                stats.skipped,
+                stats.reviewed,
+                message,
+                executedAt,
+                LocalDateTime.now());
+    }
+
+    private RuntimeException toCrawlerException(Exception error) {
+        if (error instanceof ResponseStatusException response) {
+            return response;
+        }
+        if (error instanceof HttpStatusException) {
+            return new ResponseStatusException(HttpStatus.BAD_GATEWAY, "影城來源網站連線異常", error);
+        }
+        if (error instanceof IOException) {
+            return new ResponseStatusException(HttpStatus.BAD_GATEWAY, "無法連線至影城來源網站", error);
+        }
+        if (error instanceof RuntimeException runtime) {
+            return runtime;
+        }
+        return new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "影城爬蟲執行失敗", error);
     }
 
     private CinemaResponse withCoordinates(CinemaResponse cinema, Coordinates coordinates) {
@@ -251,20 +327,20 @@ public class CrawlerCinemaService {
                     cinemas.add(cinema);
                 }
             }
-            return new AreaCinemas(cinemas, omitted);
+            return new AreaCinemas(cinemas, omitted, false);
         } catch (HttpStatusException e) {
             log.warn(
                     "縣市影城列表回傳 HTTP {}：{}",
                     e.getStatusCode(),
                     areaUrl,
                     e);
-            return new AreaCinemas(List.of(), 0);
+            return new AreaCinemas(List.of(), 0, true);
         } catch (IOException e) {
             log.warn(
                     "縣市影城列表抓取失敗：{}",
                     areaUrl,
                     e);
-            return new AreaCinemas(List.of(), 0);
+            return new AreaCinemas(List.of(), 0, true);
         }
     }
 
@@ -331,6 +407,7 @@ public class CrawlerCinemaService {
                         return created;
                     });
         } catch (DataIntegrityViolationException e) {
+            stats.failed++;
             log.warn(
                     "影城資料違反資料庫限制，略過同步：{} ({})",
                     response.cinemaName(),
@@ -563,5 +640,7 @@ public class CrawlerCinemaService {
         private int skipped;
         private int updated;
         private int reviewed;
+        private int failed;
+        private int areaFailed;
     }
 }

@@ -61,21 +61,45 @@ const props = defineProps({
 const slots = useSlots();
 const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.coral);
 
+// yyyy-MM-dd HH:mm:ss。含儲存格內距，避免時間被省略號截掉。
+const CLOCK_TEXT = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+const CLOCK_COLUMN_REM = 17;
+
+function declaredRem(column) {
+  const match = String(column.minWidth ?? "").match(/^(\d+(?:\.\d+)?)rem$/);
+  return match ? Number(match[1]) : undefined;
+}
+
+function showsFullTime(column) {
+  if (hasCellSlot(column)) return false;
+  return props.rows.some((row) => CLOCK_TEXT.test(cellText(column, row)));
+}
+
+function columnRem(column) {
+  const declared = declaredRem(column);
+  if (!showsFullTime(column)) return declared;
+  return Math.max(declared ?? 0, CLOCK_COLUMN_REM);
+}
+
 // ── 表格與儲存格 ───────────────────────────────────────────────
 const tableStyle = computed(() => {
-  const widths = props.columns.map(({ minWidth }) =>
-    String(minWidth ?? "").match(/^(\d+(?:\.\d+)?)rem$/)?.[1],
-  );
+  const widths = props.columns.map(columnRem);
   if (widths.some((width) => width === undefined)) return undefined;
 
-  const total = widths.reduce((sum, width) => sum + Number(width), 0);
+  const total = widths.reduce((sum, width) => sum + width, 0);
   return total > 0 ? { width: `${total}rem` } : undefined;
 });
 
-const columnStyle = (column) =>
-  column.minWidth ? { width: column.minWidth } : undefined;
+const columnStyle = (column) => {
+  const width = columnRem(column);
+  return width == null ? undefined : { width: `${width}rem` };
+};
 
 const hasCellSlot = (column) => Boolean(slots[`cell-${column.key}`]);
+
+function isFullTime(column, row) {
+  return CLOCK_TEXT.test(cellText(column, row));
+}
 
 function cellClass(column) {
   return {
@@ -83,7 +107,7 @@ function cellClass(column) {
     "is-end": column.align === "end",
     "is-emphasis": column.emphasis,
     "is-nowrap": column.nowrap,
-    "is-clip": !hasCellSlot(column),
+    "is-clip": !hasCellSlot(column) && !showsFullTime(column),
   };
 }
 
@@ -281,6 +305,11 @@ onBeforeUnmount(() => {
               {{ cellText(column, row) }}
             </a>
 
+            <!-- 完整時間 -->
+            <span v-else-if="isFullTime(column, row)" class="sheet-time">
+              {{ cellText(column, row) }}
+            </span>
+
             <!-- 一般文字欄位 -->
             <span v-else class="sheet-clip" v-on="tooltipHoverEvents">
               {{ cellText(column, row) }}
@@ -411,6 +440,11 @@ td.is-nowrap {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-time {
+  display: block;
   white-space: nowrap;
 }
 

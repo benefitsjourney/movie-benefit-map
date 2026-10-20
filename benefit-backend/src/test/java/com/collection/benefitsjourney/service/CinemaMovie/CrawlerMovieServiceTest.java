@@ -45,6 +45,9 @@ import org.springframework.web.server.ResponseStatusException;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieCrawlerSyncResult;
 import com.collection.benefitsjourney.dto.CinemaMovie.MovieRequest;
 import com.collection.benefitsjourney.dto.CinemaMovie.MovieResponse;
+import com.collection.benefitsjourney.enums.CrawlerStatus;
+import com.collection.benefitsjourney.enums.CrawlerType;
+import com.collection.benefitsjourney.service.CrawlerLogService;
 
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
@@ -83,13 +86,17 @@ class CrawlerMovieServiceTest {
     @Mock
     private JdbcTemplate jdbcTemplate;
 
+    @Mock
+    private CrawlerLogService crawlerLogService;
+
     private CrawlerMovieService crawlerMovieService;
     private Logger logger;
     private ListAppender<ILoggingEvent> logs;
 
     @BeforeEach
     void setUp() {
-        crawlerMovieService = spy(new CrawlerMovieService(movieService, cinemaMovieReviewsService, jdbcTemplate));
+        crawlerMovieService = spy(new CrawlerMovieService(
+                movieService, cinemaMovieReviewsService, jdbcTemplate, crawlerLogService));
         logger = (Logger) LoggerFactory.getLogger(CrawlerMovieService.class);
         logs = new ListAppender<>();
         logs.start();
@@ -213,6 +220,10 @@ class CrawlerMovieServiceTest {
             assertEquals(List.of(created), result.items());
             assertSummary(result, 1, 1, 0, 0, 0);
             assertOnlyResultLog(result);
+            verify(crawlerLogService).recordRun(
+                    eq(CrawlerType.MOVIE), eq(CrawlerStatus.SUCCESS),
+                    eq(1), eq(1), eq(0), eq(0), eq(0),
+                    eq(result.message()), any(), any());
 
             MovieRequest request = captureCreated();
             assertEquals("fA001", request.sourceId());
@@ -659,6 +670,10 @@ class CrawlerMovieServiceTest {
             assertEquals(HttpStatus.BAD_GATEWAY, error.getStatusCode());
             assertEquals("電影網站沒有回傳可用列表", error.getReason());
             verifyNoInteractions(movieService);
+            verify(crawlerLogService).recordRun(
+                    eq(CrawlerType.MOVIE), eq(CrawlerStatus.FAILURE),
+                    eq(0), eq(0), eq(0), eq(0), eq(0),
+                    eq("電影網站沒有回傳可用列表"), any(), any());
         }
 
         @Test
@@ -746,6 +761,10 @@ class CrawlerMovieServiceTest {
             assertEquals("fB002", result.items().get(0).sourceId());
             assertSummary(result, 2, 1, 0, 0, 0);
             verify(movieService, org.mockito.Mockito.times(2)).createMovie(any(MovieRequest.class));
+            verify(crawlerLogService).recordRun(
+                    eq(CrawlerType.MOVIE), eq(CrawlerStatus.PARTIAL),
+                    eq(2), eq(1), eq(0), eq(0), eq(0),
+                    eq(result.message() + "寫入失敗 1 筆。"), any(), any());
         }
 
         @Test

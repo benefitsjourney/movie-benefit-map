@@ -43,6 +43,9 @@ import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieCrawlerSyncResu
 import com.collection.benefitsjourney.dto.CinemaMovie.MovieRequest;
 import com.collection.benefitsjourney.dto.CinemaMovie.MovieResponse;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaResourceType;
+import com.collection.benefitsjourney.enums.CrawlerStatus;
+import com.collection.benefitsjourney.enums.CrawlerType;
+import com.collection.benefitsjourney.service.CrawlerLogService;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -106,17 +109,27 @@ public class CrawlerMovieService {
     private final MovieService movieService;
     private final CinemaMovieReviewsService cinemaMovieReviewsService;
     private final JdbcTemplate jdbcTemplate;
+    private final CrawlerLogService crawlerLogService;
 
     public CrawlerMovieService(MovieService movieService,
             CinemaMovieReviewsService cinemaMovieReviewsService,
-            JdbcTemplate jdbcTemplate) {
+            JdbcTemplate jdbcTemplate,
+            CrawlerLogService crawlerLogService) {
         this.movieService = movieService;
         this.cinemaMovieReviewsService = cinemaMovieReviewsService;
         this.jdbcTemplate = jdbcTemplate;
+        this.crawlerLogService = crawlerLogService;
     }
 
     /** 列表找影片，詳細頁確認完整名稱及資料。 */
     public CinemaMovieCrawlerSyncResult<MovieResponse> syncMovies() {
+        LocalDateTime executedAt = LocalDateTime.now();
+        int fetched = 0;
+        int created = 0;
+        int skipped = 0;
+        int updated = 0;
+        int reviewed = 0;
+        int failed = 0;
         long started = System.nanoTime();
         ExecutorService executor = Executors.newFixedThreadPool(THREADS);
         try {
@@ -167,11 +180,6 @@ public class CrawlerMovieService {
             Map<String, StoredMovie> names = stored.byName();
             Set<String> sourceIds = stored.sourceIds();
             List<MovieResponse> results = new ArrayList<>();
-            int fetched = 0;
-            int created = 0;
-            int skipped = 0;
-            int updated = 0;
-            int reviewed = 0;
             int duplicates = 0;
 
             for (int i = 0; i < discovered.size(); i++) {
@@ -223,6 +231,7 @@ public class CrawlerMovieService {
                     names.put(normalizeName(info.movieName()),
                             new StoredMovie(saved.movieId(), info.sourceId(), info.movieName()));
                 } catch (Exception e) {
+                    failed++;
                     log.warn("電影同步失敗：{} ({})", info.url(), info.movieName(), e);
                 }
             }
@@ -233,10 +242,54 @@ public class CrawlerMovieService {
             CinemaMovieCrawlerSyncResult<MovieResponse> result = CinemaMovieCrawlerSyncResult.of(
                     fetched, created, skipped, updated, reviewed, elapsedSeconds(started), results);
             log.info("電影同步完成：{}", result.message());
+            recordMovieRun(result, failed, executedAt);
             return result;
+        } catch (RuntimeException e) {
+            recordMovieFailure(e, fetched, created, updated, skipped, reviewed, executedAt);
+            throw e;
         } finally {
             executor.shutdownNow();
         }
+    }
+
+    private void recordMovieRun(
+            CinemaMovieCrawlerSyncResult<?> result, int failed, LocalDateTime executedAt) {
+        String message = result.message();
+        if (failed > 0) {
+            message += "寫入失敗 " + failed + " 筆。";
+        }
+        crawlerLogService.recordRun(
+                CrawlerType.MOVIE,
+                CrawlerStatus.completed(result.skippedCount(), failed),
+                result.fetchedCount(),
+                result.createdCount(),
+                result.updatedCount(),
+                result.skippedCount(),
+                result.reviewCount(),
+                message,
+                executedAt,
+                LocalDateTime.now());
+    }
+
+    private void recordMovieFailure(
+            RuntimeException error,
+            int fetched,
+            int created,
+            int updated,
+            int skipped,
+            int reviewed,
+            LocalDateTime executedAt) {
+        crawlerLogService.recordRun(
+                CrawlerType.MOVIE,
+                CrawlerStatus.FAILURE,
+                fetched,
+                created,
+                updated,
+                skipped,
+                reviewed,
+                CrawlerLogService.failureMessage(error),
+                executedAt,
+                LocalDateTime.now());
     }
 
     private <T> T await(Future<T> job, String url) {
