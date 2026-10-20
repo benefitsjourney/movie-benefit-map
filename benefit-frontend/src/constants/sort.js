@@ -58,6 +58,22 @@ export const ADMIN_CINEMA_SORT_OPTIONS = [
   ...UPDATED_AT_OPTIONS,
 ];
 
+export const ADMIN_CRAWLER_LOG_SORT_DEFAULT = {
+  orderBy: "EXECUTED_AT",
+  sort: "DESC",
+  label: "執行時間（新 → 舊）",
+};
+
+export const ADMIN_CRAWLER_LOG_SORT_OPTIONS = [
+  { value: "EXECUTED_AT:ASC", label: "執行時間（舊 → 新）" },
+  { value: "FINISHED_AT:DESC", label: "結束時間（新 → 舊）" },
+  { value: "FINISHED_AT:ASC", label: "結束時間（舊 → 新）" },
+  { value: "CRAWLER_TYPE:ASC", label: "爬蟲類型" },
+  { value: "CRAWLER_STATUS:ASC", label: "執行狀態" },
+  { value: "CRAWLER_LOG_ID:ASC", label: "編號（小 → 大）" },
+  { value: "CRAWLER_LOG_ID:DESC", label: "編號（大 → 小）" },
+];
+
 export const ADMIN_CRAWLER_REVIEW_SORT_DEFAULT = {
   orderBy: "CREATED_AT",
   sort: "DESC",
