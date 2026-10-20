@@ -6,9 +6,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.collection.benefitsjourney.dto.BenefitListResponse;
 import com.collection.benefitsjourney.dto.BenefitResponse;
 import com.collection.benefitsjourney.dto.PageResponse;
 import com.collection.benefitsjourney.enums.BenefitStatus;
+import com.collection.benefitsjourney.enums.BenefitType;
 import com.collection.benefitsjourney.service.BenefitService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,14 +25,19 @@ public class BenefitController {
 
     private final BenefitService benefitService;
 
-    @Operation(summary = "查詢已上架特典清單", description = "只查status=APPROVED的特典")
+    @Operation(summary = "查詢已上架特典清單",
+            description = "只查status=APPROVED的特典。keyword會同時搜尋特典名稱與電影名稱")
     @GetMapping("/benefits")
-    public ResponseEntity<PageResponse<BenefitResponse>> getBenefits(
+    public ResponseEntity<PageResponse<BenefitListResponse>> getBenefits(
+            @Parameter(description = "關鍵字（特典名稱或電影名稱）")
+            @RequestParam(required = false) String keyword,
+            @Parameter(description = "特典類型")
+            @RequestParam(required = false) BenefitType benefitType,
     		@Parameter(description = "頁碼")
             @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每頁筆數")
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(benefitService.getApprovedBenefits(page, size));
+        return ResponseEntity.ok(benefitService.getApprovedBenefits(keyword, benefitType, page, size));
     }
 
     @Operation(summary = "查詢單一特典詳情")

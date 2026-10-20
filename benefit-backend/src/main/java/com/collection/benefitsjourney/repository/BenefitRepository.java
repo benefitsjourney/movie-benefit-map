@@ -110,5 +110,32 @@ public interface BenefitRepository extends JpaRepository<BenefitBean, Integer> {
     @Query("UPDATE BenefitReportBean r SET r.benefit = NULL WHERE r.benefit.benefitId = :benefitId")
     int detachReportsFromBenefit(@Param("benefitId") Integer benefitId);
     
+    /**
+     * GET /benefits、GET /benefits/admin：特典列表搜尋（前台、後台共用）
+     * status：APPROVED／EXPIRED；keyword搜特典名稱或電影名稱；status、keyword、benefitType傳null代表不篩選
+     */
+    @Query(value = """
+            SELECT b FROM BenefitBean b
+            WHERE (:status IS NULL OR b.status = :status)
+            AND (:benefitType IS NULL OR b.benefitType = :benefitType)
+            AND (:keyword IS NULL
+                 OR b.benefitName LIKE :keyword
+                 OR EXISTS (SELECT 1 FROM CinemaMovieBenefitBean c
+                            WHERE c.benefit = b AND c.movie.movieName LIKE :keyword))
+            """, countQuery = """
+            SELECT COUNT(b) FROM BenefitBean b
+            WHERE (:status IS NULL OR b.status = :status)
+            AND (:benefitType IS NULL OR b.benefitType = :benefitType)
+            AND (:keyword IS NULL
+                 OR b.benefitName LIKE :keyword
+                 OR EXISTS (SELECT 1 FROM CinemaMovieBenefitBean c
+                            WHERE c.benefit = b AND c.movie.movieName LIKE :keyword))
+            """)
+    Page<BenefitBean> searchBenefits(
+            @Param("status") String status,
+            @Param("keyword") String keyword,
+            @Param("benefitType") String benefitType,
+            Pageable pageable);
+    
     
 }

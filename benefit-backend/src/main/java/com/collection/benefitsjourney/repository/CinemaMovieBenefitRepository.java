@@ -41,4 +41,12 @@ public interface CinemaMovieBenefitRepository extends JpaRepository<CinemaMovieB
             """)
     List<CinemaMovieBenefitBean> findApprovedStatusByCinema(
     		@Param("cinemaId") Integer cinemaId);
+    
+    /** 一次查出多個特典各自對應的電影（列表頁顯示電影名稱用，避免每筆各查一次） */
+    @Query("""
+            SELECT DISTINCT c.benefit.benefitId, c.movie.movieId, c.movie.movieName
+            FROM CinemaMovieBenefitBean c
+            WHERE c.benefit.benefitId IN :benefitIds
+            """)
+    List<Object[]> findMoviesByBenefitIds(@Param("benefitIds") List<Integer> benefitIds);
 }
