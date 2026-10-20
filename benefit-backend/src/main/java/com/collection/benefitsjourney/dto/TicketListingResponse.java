@@ -3,6 +3,7 @@ package com.collection.benefitsjourney.dto;
 import java.time.LocalDateTime;
 
 import com.collection.benefitsjourney.domain.TicketListingBean;
+import com.collection.benefitsjourney.domain.UsersBean;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -12,6 +13,10 @@ import lombok.Setter;
 public class TicketListingResponse {
     private Integer ticketListingId;
     private Integer usersId;
+
+    // 新增：刊登者會員名稱
+    private String usersName;
+
     private Integer cinemaId;
     private Integer movieId;
     private String title;
@@ -27,8 +32,11 @@ public class TicketListingResponse {
 
         response.setTicketListingId(bean.getTicketListingId());
 
-        if (bean.getUsersBean() != null) {
-            response.setUsersId(bean.getUsersBean().getUsersId());
+        UsersBean usersBean = bean.getUsersBean();
+
+        if (usersBean != null) {
+            response.setUsersId(usersBean.getUsersId());
+            response.setUsersName(usersBean.getName());
         }
 
         if (bean.getCinemaBean() != null) {
