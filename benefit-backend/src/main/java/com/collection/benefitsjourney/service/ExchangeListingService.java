@@ -76,7 +76,7 @@ public class ExchangeListingService {
 		return savedListing;
 	}
 
-	// 查詢公開交換刊登：維持原本呼叫方式，方便既有測試使用
+	// 查詢公開交換刊登
 	public List<ExchangeListingBean> findActiveListings() {
 		return findActiveListings(null, null, null, null);
 	}
@@ -135,7 +135,7 @@ public class ExchangeListingService {
 		return listings;
 	}
 
-	// 內部查詢：依 ID 查詢，不限制狀態，用於會員自己的修改及狀態操作
+	// 依 ID 查詢，不限制狀態，供會員自己的修改及狀態操作使用
 	public ExchangeListingBean findById(Integer exchangeListingId) {
 		return exchangeListingRepository
 				.findById(exchangeListingId)
@@ -212,9 +212,8 @@ public class ExchangeListingService {
 		// 2. 確認是不是自己的
 		checkOwner(usersId, listing);
 
-		// 3. 檢查狀態是否合法
+		// 3. 檢查狀態是否合法，只允許 ACTIVE、CLOSED、DELETED
 		if (!"ACTIVE".equals(status)
-				&& !"HIDDEN".equals(status)
 				&& !"CLOSED".equals(status)
 				&& !"DELETED".equals(status)) {
 

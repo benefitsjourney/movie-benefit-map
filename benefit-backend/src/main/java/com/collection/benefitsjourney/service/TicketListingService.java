@@ -30,7 +30,6 @@ import lombok.RequiredArgsConstructor;
 public class TicketListingService {
 
 	private static final String STATUS_ACTIVE = "ACTIVE";
-	private static final String STATUS_HIDDEN = "HIDDEN";
 	private static final String STATUS_CLOSED = "CLOSED";
 	private static final String STATUS_DELETED = "DELETED";
 
@@ -335,7 +334,6 @@ public class TicketListingService {
 
 		// 3. 檢查狀態是否合法
 		if (!STATUS_ACTIVE.equals(status)
-				&& !STATUS_HIDDEN.equals(status)
 				&& !STATUS_CLOSED.equals(status)
 				&& !STATUS_DELETED.equals(status)) {
 
