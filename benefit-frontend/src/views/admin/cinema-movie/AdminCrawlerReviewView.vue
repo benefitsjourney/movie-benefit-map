@@ -17,6 +17,7 @@ import {
   parseSort,
 } from "@/constants/sort";
 import { useApiCollection } from "@/composables/useApiCollection";
+import { apiMessage, authText, collectionLoadError } from "@/utils/apiError";
 import { openAppAlert } from "@/components/ui/Alert.vue";
 import PageIntro from "@/components/layout/PageIntro.vue";
 import ResultBanner from "@/components/layout/ResultBanner.vue";
@@ -90,11 +91,6 @@ function reviewEntityRoute(row) {
 
 function isReviewed(row) {
   return row?.reviewStatus != null && row.reviewStatus !== "PENDING";
-}
-
-function apiMessage(error, fallback) {
-  const message = error?.response?.data?.message;
-  return typeof message === "string" && message.trim() ? message.trim() : fallback;
 }
 
 const filters = ref({
@@ -208,6 +204,7 @@ const {
   totalPages,
   loading,
   error,
+  errorStatus,
   retry,
 } = useApiCollection("/cinema-movie/reviews", requestParams, { page });
 
@@ -218,6 +215,8 @@ const hasFilters = computed(
 const resultUnit = computed(() =>
   hasFilters.value ? "筆符合條件的審核" : "筆審核",
 );
+
+const loadError = computed(() => collectionLoadError(errorStatus.value, "目前無法取得爬蟲審核"));
 
 function choiceDisabled(row) {
   return isReviewed(row) || actingId.value === row.cinemaMovieReviewId;
@@ -287,7 +286,7 @@ async function changeStatus(row, reviewStatus) {
     await openAppAlert({
       variant: "error",
       title: prompt.errorTitle,
-      text: apiMessage(requestError, "請確認連線後再試一次。"),
+      text: authText(requestError) || apiMessage(requestError, "請確認連線後再試一次。"),
       confirmText: "關閉",
       cancelText: "",
     });
@@ -338,7 +337,7 @@ async function changeStatus(row, reviewStatus) {
 
     <StatePanel v-if="loading && !reviews.length" variant="loading" message="正在載入爬蟲審核…" :icon="clipboardIcon"
       color="purple" />
-    <StatePanel v-else-if="error" variant="error" title="目前無法取得爬蟲審核" message="請確認連線後再試一次。" color="purple"
+    <StatePanel v-else-if="error" variant="error" :title="loadError.title" :message="loadError.message" color="purple"
       @retry="retry" />
   </section>
 </template>

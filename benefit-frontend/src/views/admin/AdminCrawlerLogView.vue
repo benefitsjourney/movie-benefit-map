@@ -13,6 +13,7 @@ import {
   parseSort,
 } from "@/constants/sort";
 import { useApiCollection } from "@/composables/useApiCollection";
+import { collectionLoadError } from "@/utils/apiError";
 import PageIntro from "@/components/layout/PageIntro.vue";
 import ResultBanner from "@/components/layout/ResultBanner.vue";
 import SearchFilter from "@/components/layout/SearchFilter.vue";
@@ -162,6 +163,7 @@ const {
   totalPages,
   loading,
   error,
+  errorStatus,
   retry,
 } = useApiCollection("/crawler-logs", requestParams, { page });
 
@@ -172,6 +174,8 @@ const hasFilters = computed(
 const resultUnit = computed(() =>
   hasFilters.value ? "筆符合條件的紀錄" : "筆紀錄",
 );
+
+const loadError = computed(() => collectionLoadError(errorStatus.value, "目前無法取得爬蟲紀錄"));
 
 function goToPage(next) {
   if (!Number.isInteger(next) || next < 1 || next > totalPages.value || next === page.value) return;
@@ -185,77 +189,31 @@ function goToPage(next) {
 
 <template>
   <section>
-    <PageIntro
-      kicker="✦ CRAWLER LOG"
-      lead="爬蟲"
-      mark="紀錄"
-      description="查看各次爬蟲的執行狀態、筆數與訊息。"
-      :icon-left="historyIcon"
-      :icon-right="clockIcon"
-      :icon-top="tableIcon"
-      theme="purple"
-    />
+    <PageIntro kicker="✦ CRAWLER LOG" lead="爬蟲" mark="紀錄" description="查看各次爬蟲的執行狀態、筆數與訊息。" :icon-left="historyIcon"
+      :icon-right="clockIcon" :icon-top="tableIcon" theme="purple" />
 
-    <ResultBanner
-      v-if="!(loading && !logs.length) && !error"
-      :icon="historyIcon"
-      title="爬蟲執行紀錄"
-      :count="totalElements"
-      :unit-text="resultUnit"
-      empty-text="目前沒有符合條件的紀錄。"
-      theme="purple"
-    />
+    <ResultBanner v-if="!(loading && !logs.length) && !error" :icon="historyIcon" title="爬蟲執行紀錄" :count="totalElements"
+      :unit-text="resultUnit" empty-text="目前沒有符合條件的紀錄。" theme="purple" />
 
-    <SearchFilter
-      v-if="!(loading && !logs.length) && !error"
-      v-model="appliedFilters"
-      title="篩選紀錄"
-      :title-icon="filterIcon"
-      submit-label="查詢紀錄"
-      :fields="filterFields"
-      theme="purple"
-    >
+    <SearchFilter v-if="!(loading && !logs.length) && !error" v-model="appliedFilters" title="篩選紀錄"
+      :title-icon="filterIcon" submit-label="查詢紀錄" :fields="filterFields" theme="purple">
       <div ref="listTop" class="log-sheet">
-        <DataTable
-          caption="爬蟲紀錄資料表"
-          :columns="columns"
-          :rows="logs"
-          row-key="crawlerLogId"
-          empty-text="目前沒有符合條件的紀錄。"
-          :loading="loading"
-          theme="purple"
-        >
+        <DataTable caption="爬蟲紀錄資料表" :columns="columns" :rows="logs" row-key="crawlerLogId" empty-text="目前沒有符合條件的紀錄。"
+          :loading="loading" theme="purple">
           <template #cell-crawlerStatus="{ row }">
             {{ crawlerStatusLabel(row.crawlerStatus) || "—" }}
           </template>
         </DataTable>
       </div>
 
-      <Pagination
-        v-if="totalPages > 1"
-        :page="page"
-        :total-pages="totalPages"
-        label="爬蟲紀錄分頁"
-        color="purple"
-        @update:page="goToPage"
-      />
+      <Pagination v-if="totalPages > 1" :page="page" :total-pages="totalPages" label="爬蟲紀錄分頁" color="purple"
+        @update:page="goToPage" />
     </SearchFilter>
 
-    <StatePanel
-      v-if="loading && !logs.length"
-      variant="loading"
-      message="正在載入爬蟲紀錄…"
-      :icon="historyIcon"
-      color="purple"
-    />
-    <StatePanel
-      v-else-if="error"
-      variant="error"
-      title="目前無法取得爬蟲紀錄"
-      message="請確認連線後再試一次。"
-      color="purple"
-      @retry="retry"
-    />
+    <StatePanel v-if="loading && !logs.length" variant="loading" message="正在載入爬蟲紀錄…" :icon="historyIcon"
+      color="purple" />
+    <StatePanel v-else-if="error" variant="error" :title="loadError.title" :message="loadError.message" color="purple"
+      @retry="retry" />
   </section>
 </template>
 

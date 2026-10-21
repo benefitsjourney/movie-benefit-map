@@ -17,11 +17,14 @@ import com.collection.benefitsjourney.dto.CinemaMovie.MovieResponse;
 import com.collection.benefitsjourney.dto.PageResponse;
 import com.collection.benefitsjourney.enums.CinemaMovie.MovieSort;
 import com.collection.benefitsjourney.enums.SortOrder;
+import com.collection.benefitsjourney.exception.ExceptionUtils;
 import com.collection.benefitsjourney.service.CinemaMovie.MovieService;
+import com.collection.benefitsjourney.service.UsersService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.groups.Default;
 
@@ -31,9 +34,11 @@ import jakarta.validation.groups.Default;
 public class MovieController {
 
     private final MovieService movieService;
+    private final UsersService usersService;
 
-    public MovieController(MovieService movieService) {
+    public MovieController(MovieService movieService, UsersService usersService) {
         this.movieService = movieService;
+        this.usersService = usersService;
     }
 
     @GetMapping
@@ -49,7 +54,10 @@ public class MovieController {
 
             @Parameter(description = "頁碼") @RequestParam(defaultValue = "1") int page,
 
-            @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "24") int size) {
+            @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "24") int size,
+            HttpServletRequest httpRequest) {
+
+        ExceptionUtils.requireAdmin(httpRequest, usersService);
 
         return ResponseEntity.ok(
                 movieService.findAll(
@@ -87,16 +95,20 @@ public class MovieController {
     @GetMapping("/{id}")
     @Operation(summary = "取得指定id電影資料")
     public ResponseEntity<MovieResponse> findById(
-            @PathVariable Integer id) {
+            @PathVariable Integer id,
+            HttpServletRequest httpRequest) {
 
+        ExceptionUtils.requireAdmin(httpRequest, usersService);
         return ResponseEntity.ok(movieService.findById(id));
     }
 
     @PostMapping("")
     @Operation(summary = "新增電影")
     public ResponseEntity<MovieResponse> createMovie(
-            @Validated({ Default.class, MovieRequest.OnCreate.class }) @RequestBody MovieRequest request) {
+            @Validated({ Default.class, MovieRequest.OnCreate.class }) @RequestBody MovieRequest request,
+            HttpServletRequest httpRequest) {
 
+        ExceptionUtils.requireAdmin(httpRequest, usersService);
         return ResponseEntity.ok(movieService.createMovie(request));
     }
 
@@ -104,8 +116,10 @@ public class MovieController {
     @Operation(summary = "修改電影")
     public ResponseEntity<MovieResponse> updateMovie(
             @PathVariable Integer id,
-            @Valid @RequestBody MovieRequest request) {
+            @Valid @RequestBody MovieRequest request,
+            HttpServletRequest httpRequest) {
 
+        ExceptionUtils.requireAdmin(httpRequest, usersService);
         return ResponseEntity.ok(movieService.updateMovie(id, request));
     }
 }

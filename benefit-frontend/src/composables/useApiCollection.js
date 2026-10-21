@@ -14,6 +14,7 @@ export function useApiCollection(endpoint, params, { fetchAll = false, page = nu
   const totalPages = ref(0);
   const loading = ref(true);
   const error = ref(false);
+  const errorStatus = ref(null);
   const reloadKey = ref(0);
 
   // 依頁碼放入固定位置，完成先後不影響合併順序。
@@ -54,6 +55,7 @@ export function useApiCollection(endpoint, params, { fetchAll = false, page = nu
 
       loading.value = true;
       error.value = false;
+      errorStatus.value = null;
       let redirecting = false;
 
       try {
@@ -81,9 +83,10 @@ export function useApiCollection(endpoint, params, { fetchAll = false, page = nu
         items.value = nextItems;
         totalPages.value = pages;
         totalElements.value = Number(data?.totalElements) || nextItems.length;
-      } catch {
+      } catch (requestError) {
         if (signal.aborted) return;
         error.value = true;
+        errorStatus.value = requestError?.response?.status ?? null;
         items.value = [];
         totalElements.value = 0;
         totalPages.value = 0;
@@ -98,5 +101,5 @@ export function useApiCollection(endpoint, params, { fetchAll = false, page = nu
     reloadKey.value += 1;
   }
 
-  return { items, totalElements, totalPages, loading, error, retry };
+  return { items, totalElements, totalPages, loading, error, errorStatus, retry };
 }

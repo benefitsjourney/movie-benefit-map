@@ -17,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -26,6 +27,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -39,9 +41,11 @@ import com.collection.benefitsjourney.enums.CrawlerType;
 import com.collection.benefitsjourney.enums.SortOrder;
 import com.collection.benefitsjourney.jwt.JsonWebTokenFilter;
 import com.collection.benefitsjourney.service.CrawlerLogService;
+import com.collection.benefitsjourney.service.UsersService;
 
 @WebMvcTest(controllers = CrawlerLogController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = JsonWebTokenFilter.class))
 @AutoConfigureMockMvc(addFilters = false)
+@Import(AdminRequestConfig.class)
 class CrawlerLogControllerTest {
 
     @Autowired
@@ -49,6 +53,14 @@ class CrawlerLogControllerTest {
 
     @MockitoBean
     private CrawlerLogService crawlerLogService;
+
+    @MockitoBean
+    private UsersService usersService;
+
+    @BeforeEach
+    void setUpAdmin() {
+        AdminRequestConfig.stubAdmin(usersService);
+    }
 
     @Nested
     @DisplayName("GET /crawler-logs")

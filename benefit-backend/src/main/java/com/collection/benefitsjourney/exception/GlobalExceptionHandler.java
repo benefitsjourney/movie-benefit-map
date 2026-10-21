@@ -102,11 +102,17 @@ public class GlobalExceptionHandler {
             HttpServletRequest request) {
 
         HttpStatus status = resolveStatus(exception.getStatusCode());
+        String message = exception.getReason();
+
+        // 403 沒有 reason 時，使用管理員權限的統一訊息
+        if (status == HttpStatus.FORBIDDEN && (message == null || message.isBlank())) {
+            message = ExceptionUtils.FORBIDDEN_MESSAGE;
+        }
 
         return buildError(
                 status,
-                exception.getReason() != null
-                        ? exception.getReason()
+                message != null && !message.isBlank()
+                        ? message
                         : status.getReasonPhrase(),
                 request);
     }

@@ -6,10 +6,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaResourceType;
+import com.collection.benefitsjourney.exception.ExceptionUtils;
 import com.collection.benefitsjourney.service.CinemaMovie.CinemaMovieExcelService;
+import com.collection.benefitsjourney.service.UsersService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -19,10 +22,15 @@ import lombok.RequiredArgsConstructor;
 public class CinemaMovieExcelController {
 
     private final CinemaMovieExcelService excelService;
+    private final UsersService usersService;
 
     @GetMapping(produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     @Operation(summary = "匯出Excel資料")
-    public ResponseEntity<byte[]> export(@RequestParam CinemaResourceType type) {
+    public ResponseEntity<byte[]> export(
+            @RequestParam CinemaResourceType type,
+            HttpServletRequest httpRequest) {
+
+        ExceptionUtils.requireAdmin(httpRequest, usersService);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION,

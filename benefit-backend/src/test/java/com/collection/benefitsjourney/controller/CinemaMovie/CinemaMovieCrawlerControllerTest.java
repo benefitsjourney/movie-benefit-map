@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -29,14 +31,17 @@ import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieCrawlerSyncResu
 import com.collection.benefitsjourney.dto.CinemaMovie.MovieResponse;
 import com.collection.benefitsjourney.enums.County;
 import com.collection.benefitsjourney.jwt.JsonWebTokenFilter;
+import com.collection.benefitsjourney.controller.AdminRequestConfig;
 import com.collection.benefitsjourney.service.CinemaMovie.CrawlerCinemaService;
 import com.collection.benefitsjourney.service.CinemaMovie.CrawlerMovieService;
+import com.collection.benefitsjourney.service.UsersService;
 
 @WebMvcTest(controllers = CinemaMovieCrawlerController.class,
         excludeFilters = @ComponentScan.Filter(
                 type = FilterType.ASSIGNABLE_TYPE,
                 classes = JsonWebTokenFilter.class))
 @AutoConfigureMockMvc(addFilters = false)
+@Import(AdminRequestConfig.class)
 class CinemaMovieCrawlerControllerTest {
 
     @Autowired
@@ -47,6 +52,14 @@ class CinemaMovieCrawlerControllerTest {
 
     @MockitoBean
     private CrawlerMovieService crawlerMovieService;
+
+    @MockitoBean
+    private UsersService usersService;
+
+    @BeforeEach
+    void setUpAdmin() {
+        AdminRequestConfig.stubAdmin(usersService);
+    }
 
     private CinemaResponse cinema() {
         return new CinemaResponse(
