@@ -19,10 +19,16 @@ export const THEMES = {
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
 import { Icon } from "@iconify/vue";
+import { useRouter } from "vue-router";
+import { useAuth } from "@/composables/useAuth";
+import http from "@/plugins/axios";
+import loginIcon from "@iconify-icons/mdi/login";
+import logoutIcon from "@iconify-icons/mdi/logout";
 import filmIcon from "@iconify-icons/mdi/filmstrip";
 import menuIcon from "@iconify-icons/mdi/menu";
 import closeIcon from "@iconify-icons/mdi/close";
 import chevronIcon from "@iconify-icons/mdi/chevron-down";
+
 
 const props = defineProps({
   links: {
@@ -53,6 +59,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  showSwitch: {
+  type: Boolean,
+  default: true,
+  },
   theme: {
     type: String,
     default: "yellow",
@@ -63,6 +73,24 @@ const props = defineProps({
 const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.yellow);
 
 const route = useRoute();
+
+const router = useRouter();
+const auth = useAuth();
+
+async function handleLogout() {
+  try {
+    // 通知後端登出
+    await http.post("/auth/logout");
+  } catch (error) {
+    // 即使後端請求失敗，也要清除前端登入狀態
+    console.warn("後端登出請求失敗，仍會清除前端登入狀態。", error);
+  } finally {
+    auth.logout();
+    closeMenu();
+    await router.push("/map");
+  }
+}
+
 const menuOpen = ref(false);
 const openDropdown = ref(null);
 
@@ -164,7 +192,13 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="nav-actions">
-        <RouterLink :to="switchTo" class="nav-switch" @click="closeMenu">
+        <RouterLink v-if="!auth.isLoggedIn.value" to="/login" class="nav-switch" @click="closeMenu">
+        <Icon :icon="loginIcon" aria-hidden="true" /> 註冊／登入 </RouterLink>
+
+        <button v-else type="button" class="nav-switch nav-auth-button" @click="handleLogout" >
+        <Icon :icon="logoutIcon" aria-hidden="true" /> 登出 </button>
+
+        <RouterLink v-if="showSwitch" :to="switchTo" class="nav-switch" @click="closeMenu">
           <Icon :icon="switchIcon" aria-hidden="true" />
           {{ switchLabel }}
         </RouterLink>
@@ -432,6 +466,12 @@ button.nav-pill {
     transform var(--ease),
     color var(--ease),
     background-color var(--ease);
+}
+.nav-auth-button {
+  border: 0;
+  cursor: pointer;
+  font-family: inherit;
+  line-height: inherit;
 }
 
 .nav-switch svg {

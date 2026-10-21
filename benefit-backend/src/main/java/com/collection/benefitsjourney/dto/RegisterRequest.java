@@ -1,13 +1,13 @@
 
 package com.collection.benefitsjourney.dto;
 
+import java.time.LocalDate;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.time.LocalDate;
 
 @Getter
 @Setter
@@ -19,10 +19,10 @@ public class RegisterRequest {
 
     // 密碼
     @NotBlank
+    @Size(min = 8, max = 16, message = "密碼長度須為 8～16 碼")
     private String password;
 
-    // 姓名 / 暱稱
-    @NotBlank
+    // 姓名 / 暱稱（選填，未填時使用登入帳號）
     private String name;
 
     // Email
@@ -30,8 +30,7 @@ public class RegisterRequest {
     @Email
     private String email;
 
-    // 生日
-    @NotNull
+    // 生日(選填)
     private LocalDate birthDate;
 }
 
