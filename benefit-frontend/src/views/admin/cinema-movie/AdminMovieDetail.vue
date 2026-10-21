@@ -15,6 +15,7 @@ import AppButton from "@/components/ui/Button.vue";
 import Switch from "@/components/ui/Switch.vue";
 import MovieForm from "@/components/forms/MovieForm.vue";
 import http from "@/plugins/axios";
+import { apiMessage, authText, detailLoadError } from "@/utils/apiError";
 import { dateTimeText, displayText, httpUrl, textOf } from "@/components/ui/DataTable.vue";
 
 const route = useRoute();
@@ -26,6 +27,7 @@ const movieId = computed(() => {
 
 const loading = ref(false);
 const loadFailed = ref(false);
+const loadErrorTitle = ref("目前無法取得電影資料");
 const loadErrorMessage = ref("請確認連線後再試一次。");
 const movie = ref(null);
 const editing = ref(false);
@@ -60,15 +62,6 @@ const imageHref = computed(() => httpUrl(imageUrl.value));
 const sourceUrl = computed(() => textOf(movie.value?.sourceUrl));
 const sourceHref = computed(() => httpUrl(sourceUrl.value));
 
-function apiMessage(error, fallback) {
-  const message = error?.response?.data?.message;
-  return typeof message === "string" && message.trim() ? message.trim() : fallback;
-}
-
-function isUnauthorized(error) {
-  return error?.response?.status === 401;
-}
-
 async function loadMovie() {
   const serial = ++requestSerial;
   editing.value = false;
@@ -77,6 +70,7 @@ async function loadMovie() {
   if (movieId.value == null) {
     loading.value = false;
     loadFailed.value = true;
+    loadErrorTitle.value = "目前無法取得電影資料";
     loadErrorMessage.value = "網址中的電影編號不正確。";
     return;
   }
@@ -91,7 +85,9 @@ async function loadMovie() {
   } catch (error) {
     if (serial !== requestSerial) return;
     loadFailed.value = true;
-    loadErrorMessage.value = apiMessage(error, "請確認連線後再試一次。");
+    const copy = detailLoadError(error, "目前無法取得電影資料");
+    loadErrorTitle.value = copy.title;
+    loadErrorMessage.value = copy.message;
   } finally {
     if (serial === requestSerial) loading.value = false;
   }
@@ -126,11 +122,12 @@ async function saveMovie(payload) {
       cancelText: "",
     });
   } catch (error) {
-    if (isUnauthorized(error)) {
+    const notice = authText(error);
+    if (notice) {
       await openAppAlert({
         variant: "error",
         title: "無法儲存",
-        text: "請登入管理員帳號",
+        text: notice,
         confirmText: "關閉",
         cancelText: "",
       });
@@ -170,7 +167,7 @@ async function toggleVisible(next) {
     await openAppAlert({
       variant: "error",
       title: "無法更新顯示狀態",
-      text: isUnauthorized(error) ? "請登入管理員帳號" : apiMessage(error, "請確認連線後再試一次。"),
+      text: authText(error) || apiMessage(error, "請確認連線後再試一次。"),
       confirmText: "關閉",
       cancelText: "",
     });
@@ -192,8 +189,8 @@ onUnmounted(() => {
       :icon-right="calendarIcon" :icon-top="eyeIcon" theme="purple" />
 
     <StatePanel v-if="loading" variant="loading" message="正在載入電影資料…" :icon="filmIcon" color="purple" />
-    <StatePanel v-else-if="loadFailed" variant="error" title="目前無法取得電影資料" :message="loadErrorMessage" color="purple"
-      @retry="loadMovie" />
+    <StatePanel v-else-if="loadFailed" variant="error" :title="loadErrorTitle" :message="loadErrorMessage"
+      color="purple" @retry="loadMovie" />
 
     <DetailCard v-else-if="movie" :title="displayText(movie.movieName)" :title-icon="filmIcon"
       :back-to="{ name: 'admin-movies' }" back-label="返回電影一覽" theme="purple">
@@ -203,8 +200,7 @@ onUnmounted(() => {
             @click="cancelEdit">
             取消
           </AppButton>
-          <AppButton type="submit" form="movie-edit-form" color="purple" :icon="contentSaveIcon"
-            :disabled="submitting">
+          <AppButton type="submit" form="movie-edit-form" color="purple" :icon="contentSaveIcon" :disabled="submitting">
             {{ submitting ? "儲存中…" : "儲存" }}
           </AppButton>
         </template>

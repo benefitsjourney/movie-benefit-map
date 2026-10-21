@@ -6,7 +6,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-// 用於切換 ACTIVE、HIDDEN、CLOSED、DELETED 狀態。
+// 用於切換 ACTIVE CLOSED DELETED 狀態。
 public class TicketListingStatusRequest {
     @NotBlank(message = "刊登狀態不可空白")
     private String status;

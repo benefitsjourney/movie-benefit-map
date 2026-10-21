@@ -457,7 +457,7 @@ function makePopup(cinema) {
   if (cinema.benefitCount) {
     const detail = L.DomUtil.create("button", "popup-action", actions);
     detail.type = "button";
-    detail.textContent = "庫存查詢";
+    detail.textContent = "特典庫存查詢";
     L.DomEvent.disableClickPropagation(detail);
     L.DomEvent.on(detail, "click", (event) => {
       L.DomEvent.stop(event);
@@ -867,9 +867,9 @@ onBeforeUnmount(() => {
       </aside>
     </div>
 
-    <BenefitDialog v-if="detailCinema" :title="detailCinema.cinemaName || '影城'"
-      :detail="dialogDetail(detailCinema)" :benefits="detailCinema.benefits" headline-key="movieName"
-      headline-fallback="尚未提供電影名稱" close-label="返回地圖" @close="closeBenefitDetail" />
+    <BenefitDialog v-if="detailCinema" :title="detailCinema.cinemaName || '影城'" :detail="dialogDetail(detailCinema)"
+      :benefits="detailCinema.benefits" headline-key="movieName" headline-fallback="尚未提供電影名稱" close-label="返回地圖"
+      @close="closeBenefitDetail" />
   </section>
 </template>
 

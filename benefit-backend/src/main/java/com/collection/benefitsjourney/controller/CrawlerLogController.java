@@ -16,11 +16,14 @@ import com.collection.benefitsjourney.enums.CrawlerLogSort;
 import com.collection.benefitsjourney.enums.CrawlerStatus;
 import com.collection.benefitsjourney.enums.CrawlerType;
 import com.collection.benefitsjourney.enums.SortOrder;
+import com.collection.benefitsjourney.exception.ExceptionUtils;
 import com.collection.benefitsjourney.service.CrawlerLogService;
+import com.collection.benefitsjourney.service.UsersService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.groups.Default;
 
 @RestController
@@ -28,9 +31,11 @@ import jakarta.validation.groups.Default;
 @Tag(name = "爬蟲紀錄")
 public class CrawlerLogController {
     private final CrawlerLogService crawlerLogService;
+    private final UsersService usersService;
 
-    public CrawlerLogController(CrawlerLogService crawlerLogService) {
+    public CrawlerLogController(CrawlerLogService crawlerLogService, UsersService usersService) {
         this.crawlerLogService = crawlerLogService;
+        this.usersService = usersService;
     }
 
     @GetMapping
@@ -46,7 +51,10 @@ public class CrawlerLogController {
 
             @Parameter(description = "頁碼") @RequestParam(defaultValue = "1") int page,
 
-            @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "20") int size) {
+            @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "20") int size,
+            HttpServletRequest httpRequest) {
+
+        ExceptionUtils.requireAdmin(httpRequest, usersService);
 
         return ResponseEntity.ok(
                 crawlerLogService.findAll(
@@ -61,8 +69,10 @@ public class CrawlerLogController {
     @PostMapping("")
     @Operation(summary = "新增爬蟲紀錄")
     public ResponseEntity<CrawlerLogResponse> createCrawlerLog(
-            @Validated({ Default.class, CrawlerLogRequest.OnCreate.class }) @RequestBody CrawlerLogRequest request) {
+            @Validated({ Default.class, CrawlerLogRequest.OnCreate.class }) @RequestBody CrawlerLogRequest request,
+            HttpServletRequest httpRequest) {
 
+        ExceptionUtils.requireAdmin(httpRequest, usersService);
         return ResponseEntity.ok(crawlerLogService.createCrawlerLog(request));
     }
 }

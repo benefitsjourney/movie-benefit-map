@@ -33,7 +33,7 @@ public class TicketListingBean {
 	@Column(name = "title", columnDefinition = "NVARCHAR(100)", nullable = false, comment = "票劵標題")
 	private String title;
 
-	@Column(name = "description",columnDefinition = "NVARCHAR(500)", comment = "刊登說明")
+	@Column(name = "description", columnDefinition = "NVARCHAR(500)", comment = "刊登說明")
 	private String description;
 
 	@ManyToOne(fetch = FetchType.LAZY)
@@ -51,8 +51,8 @@ public class TicketListingBean {
 	@Column(name = "ticket_showtime", nullable = false, comment = "電影時間")
 	private LocalDateTime ticketShowtime;
 
-//	開啟(ACTIVE)  = 現在正在刊登 / 隱藏(HIDDEN)  = 暫時不刊登 / 關閉(CLOSED )  = 刊登已經結束 / 刪除(DELETED) = 使用者不要這筆刊登
-	@Column(name = "status",columnDefinition = "NVARCHAR(20)", nullable = false, comment = "刊登狀態")
+	// 開啟(ACTIVE) = 現在正在刊登 / 關閉(CLOSED ) = 刊登已經結束 / 刪除(DELETED) = 使用者不要這筆刊登
+	@Column(name = "status", columnDefinition = "NVARCHAR(20)", nullable = false, comment = "刊登狀態")
 	private String status;
 
 	@Column(name = "created_at", updatable = false, nullable = false, comment = "建立時間")
