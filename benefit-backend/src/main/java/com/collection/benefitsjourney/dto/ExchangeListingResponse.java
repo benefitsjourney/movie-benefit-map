@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.collection.benefitsjourney.domain.BenefitBean;
 import com.collection.benefitsjourney.domain.ExchangeListingBean;
 import com.collection.benefitsjourney.domain.UseBenefitBean;
 import com.collection.benefitsjourney.domain.UseBenefitPhotoBean;
@@ -28,8 +29,12 @@ public class ExchangeListingResponse {
     private String usersName;
 
     // 持有特典的基本資料
+    private Integer benefitId;
     private String benefitName;
     private String benefitType;
+
+    // 特典官方圖片網址
+    private String officialImageUrl;
 
     // 持有特典的照片 URL 清單
     private List<String> useBenefitPhotoUrls = new ArrayList<>();
@@ -59,15 +64,17 @@ public class ExchangeListingResponse {
                 response.setUsersName(usersBean.getName());
             }
 
-            // 取得特典名稱及類型
-            if (useBenefit.getBenefit() != null) {
-                response.setBenefitName(
-                        useBenefit.getBenefit().getBenefitName());
-                response.setBenefitType(
-                        useBenefit.getBenefit().getBenefitType());
+            // 取得特典 ID、名稱、類型及官方圖片網址
+            BenefitBean benefit = useBenefit.getBenefit();
+
+            if (benefit != null) {
+                response.setBenefitId(benefit.getBenefitId());
+                response.setBenefitName(benefit.getBenefitName());
+                response.setBenefitType(benefit.getBenefitType());
+                response.setOfficialImageUrl(benefit.getOfficialImageUrl());
             }
 
-            // 取得持有特典的照片網址
+            // 取得持有特典的會員照片網址
             if (useBenefit.getPhotos() != null) {
                 response.setUseBenefitPhotoUrls(
                         useBenefit.getPhotos().stream()

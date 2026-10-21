@@ -1,13 +1,17 @@
 package com.collection.benefitsjourney.service;
 
+import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 
 import org.hibernate.Hibernate;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.collection.benefitsjourney.domain.CinemaBean;
 import com.collection.benefitsjourney.domain.MovieBean;
@@ -26,7 +30,6 @@ import lombok.RequiredArgsConstructor;
 public class TicketListingService {
 
 	private static final String STATUS_ACTIVE = "ACTIVE";
-	private static final String STATUS_HIDDEN = "HIDDEN";
 	private static final String STATUS_CLOSED = "CLOSED";
 	private static final String STATUS_DELETED = "DELETED";
 
@@ -82,14 +85,156 @@ public class TicketListingService {
 		return savedListing;
 	}
 
-	// 查詢公開票券刊登，只顯示 ACTIVE 且放映日期為明天或之後
+	// 查詢公開票券刊登：保留原本無參數的呼叫方式
 	public List<TicketListingBean> findActiveListings() {
+		return findActiveListings(
+				null, null, null, null, null, null);
+	}
+
+	// 查詢公開票券刊登，可依文字條件及放映日期區間查詢
+	public List<TicketListingBean> findActiveListings(
+			String movieName,
+			String cinemaName,
+			String usersName,
+			String title,
+			String startDate,
+			String endDate) {
+
+		// 空白文字視為未輸入條件
+		movieName = normalizeKeyword(movieName);
+		cinemaName = normalizeKeyword(cinemaName);
+		usersName = normalizeKeyword(usersName);
+		title = normalizeKeyword(title);
+
+		// 仍然以台灣時間明天 00:00:00 作為公開查詢下限
 		LocalDateTime cutoff = getTomorrowStartOfDay();
-		List<TicketListingBean> listings = ticketListingRepository.findByStatusAndTicketShowtimeGreaterThanEqual(
-				STATUS_ACTIVE, cutoff);
+
+		LocalDateTime startDateTime = null;
+		LocalDateTime endDateExclusive = null;
+
+		// 只有使用者有提供日期時，才額外套用日期區間
+		boolean hasStartDate = startDate != null && !startDate.isBlank();
+		boolean hasEndDate = endDate != null && !endDate.isBlank();
+
+		// 只有 endDate、沒有 startDate 時仍然拒絕
+		if (!hasStartDate && hasEndDate) {
+			throw new ResponseStatusException(
+					HttpStatus.BAD_REQUEST,
+					"只提供放映迄日無法查詢，請提供放映起日");
+		}
+		// 有提供 startDate 時，必須先驗證日期格式。
+		// 如果沒有 endDate，則將 endDate 設為 startDate，
+		// 代表只查詢單日。
+		if (hasStartDate) {
+			LocalDate start;
+			LocalDate end;
+
+			// 驗證日期格式必須為 yyyy-MM-dd
+			try {
+				start = LocalDate.parse(startDate);
+			} catch (DateTimeParseException exception) {
+				throw new ResponseStatusException(
+						HttpStatus.BAD_REQUEST,
+						"放映起日格式錯誤，請使用 yyyy-MM-dd");
+			}
+			if (hasEndDate) {
+
+				// 有起日及迄日：使用日期區間
+				try {
+					end = LocalDate.parse(endDate);
+				} catch (DateTimeParseException exception) {
+					throw new ResponseStatusException(
+							HttpStatus.BAD_REQUEST,
+							"放映迄日格式錯誤，請使用 yyyy-MM-dd");
+				}
+			} else {
+
+				// 只有起日：起日就是迄日，查詢單日
+				end = start;
+			}
+			LocalDate tomorrow = LocalDate.now(TAIPEI_ZONE).plusDays(1);
+
+			// 起日必須是明天或之後
+			if (start.isBefore(tomorrow)) {
+				throw new ResponseStatusException(
+						HttpStatus.BAD_REQUEST,
+						"放映起日必須是明天或之後");
+			}
+
+			// 迄日也必須是明天或之後
+			if (end.isBefore(tomorrow)) {
+				throw new ResponseStatusException(
+						HttpStatus.BAD_REQUEST,
+						"放映迄日必須是明天或之後");
+			}
+
+			// 起日不可晚於迄日
+			if (start.isAfter(end)) {
+				throw new ResponseStatusException(
+						HttpStatus.BAD_REQUEST,
+						"放映起日不可晚於放映迄日");
+			}
+
+			// 起日當天 00:00:00
+			startDateTime = start.atStartOfDay();
+
+			// 迄日包含整天，因此使用迄日隔天 00:00:00 作為排除上限，避免漏掉迄日當天的票券。
+			try {
+				endDateExclusive = end.plusDays(1).atStartOfDay();
+			} catch (DateTimeException exception) {
+				throw new ResponseStatusException(
+						HttpStatus.BAD_REQUEST,
+						"放映迄日超出可查詢範圍");
+			}
+		}
+
+		// Repository 會套用：
+		// 1. ACTIVE 狀態
+		// 2. 明天或之後的公開日期限制
+		// 3. 文字條件彼此 OR
+		// 4. 有指定日期時，日期區間另外以 AND 篩選
+		List<TicketListingBean> listings = ticketListingRepository
+				.searchActiveListings(
+						STATUS_ACTIVE,
+						cutoff,
+						movieName,
+						cinemaName,
+						usersName,
+						title,
+						startDateTime,
+						endDateExclusive);
 
 		listings.forEach(this::initializeListingUser);
 
+		return listings;
+	}
+
+	// 將空白查詢轉為 null
+	private String normalizeKeyword(String keyword) {
+		if (keyword == null || keyword.isBlank()) {
+			return null;
+		}
+
+		return keyword.trim();
+	}
+
+	// 查詢指定 ACTIVE 會員的公開票券刊登。
+	// 僅回傳 ACTIVE 且放映時間在台灣時間明天 00:00:00（含）之後的票券。
+	public List<TicketListingBean> findActiveListingsByMember(Integer usersId) {
+
+		UsersBean usersBean = usersRepository.findById(usersId)
+				.orElseThrow(() -> new IllegalArgumentException("找不到此會員"));
+
+		if (!STATUS_ACTIVE.equals(usersBean.getStatus())) {
+			throw new IllegalArgumentException("找不到此會員");
+		}
+
+		LocalDateTime cutoff = getTomorrowStartOfDay();
+		List<TicketListingBean> listings = ticketListingRepository
+				.findByUsersBean_UsersIdAndStatusAndTicketShowtimeGreaterThanEqual(
+						usersId, STATUS_ACTIVE, cutoff);
+
+		listings.forEach(this::initializeListingUser);
 		return listings;
 	}
 
@@ -189,7 +334,6 @@ public class TicketListingService {
 
 		// 3. 檢查狀態是否合法
 		if (!STATUS_ACTIVE.equals(status)
-				&& !STATUS_HIDDEN.equals(status)
 				&& !STATUS_CLOSED.equals(status)
 				&& !STATUS_DELETED.equals(status)) {
 
@@ -280,9 +424,7 @@ public class TicketListingService {
 		return !showtimeDate.isAfter(today);
 	}
 
-	// 取得台灣時間明天的 00:00:00。
-	// 資料庫使用 LocalDateTime 比較，
-	// 但分界點確保今天所有時間都視為過期。
+	// 取得台灣時間明天的 00:00:00，資料庫使用 LocalDateTime 比較，但分界點確保今天所有時間都視為過期。
 	private LocalDateTime getTomorrowStartOfDay() {
 
 		return LocalDate.now(TAIPEI_ZONE)

@@ -11,6 +11,7 @@ import com.collection.benefitsjourney.domain.UseBenefitBean;
 import com.collection.benefitsjourney.domain.UsersBean;
 import com.collection.benefitsjourney.repository.ExchangeListingRepository;
 import com.collection.benefitsjourney.repository.UseBenefitRepository;
+import com.collection.benefitsjourney.repository.UsersRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,6 +24,7 @@ public class ExchangeListingService {
 
 	private final ExchangeListingRepository exchangeListingRepository;
 	private final UseBenefitRepository useBenefitRepository;
+	private final UsersRepository usersRepository;
 
 	// 新增交換刊登
 	@Transactional
@@ -32,7 +34,12 @@ public class ExchangeListingService {
 		UseBenefitBean useBenefitBean = useBenefitRepository.findById(useBenefitId)
 				.orElseThrow(() -> new IllegalArgumentException("找不到持有紀錄"));
 
-		// 2. 確認這筆 UseBenefit 是目前登入會員的
+		// 2. 已軟刪除的持有紀錄不能拿來刊登
+		if (useBenefitBean.getDeletedAt() != null) {
+			throw new IllegalArgumentException("找不到持有紀錄");
+		}
+
+		// 3. 確認這筆 UseBenefit 是目前登入會員的
 		UsersBean usersBean = useBenefitBean.getUser();
 
 		if (usersBean == null
@@ -41,7 +48,7 @@ public class ExchangeListingService {
 					"無法使用其他會員的持有紀錄");
 		}
 
-		// 3. 確認這筆 UseBenefit 尚未被刊登
+		// 4. 確認這筆 UseBenefit 尚未被刊登
 		boolean alreadyListed = exchangeListingRepository
 				.findByUseBenefitBean(useBenefitBean)
 				.isPresent();
@@ -51,7 +58,7 @@ public class ExchangeListingService {
 					"這筆持有紀錄已經刊登過");
 		}
 
-		// 4. 建立交換刊登
+		// 5. 建立交換刊登
 		ExchangeListingBean listing = new ExchangeListingBean();
 
 		listing.setTitle(title);
@@ -60,18 +67,41 @@ public class ExchangeListingService {
 		listing.setStatus("ACTIVE");
 		listing.setUseBenefitBean(useBenefitBean);
 
-		// 5. 儲存
+		// 6. 儲存
 		ExchangeListingBean savedListing = exchangeListingRepository.save(listing);
 
-		// 6. 預先載入回傳所需的特典及照片資料
+		// 7. 預先載入回傳所需的特典及照片資料
 		initializeListingDetails(savedListing);
 
 		return savedListing;
 	}
 
-	// 查詢公開的交換刊登，只顯示 ACTIVE
+	// 查詢公開交換刊登
 	public List<ExchangeListingBean> findActiveListings() {
-		List<ExchangeListingBean> listings = exchangeListingRepository.findByStatus("ACTIVE");
+		return findActiveListings(null, null, null, null);
+	}
+
+	// 查詢公開交換刊登，可依四項文字條件查詢
+	public List<ExchangeListingBean> findActiveListings(
+			String title,
+			String usersName,
+			String benefitName,
+			String benefitType) {
+
+		// 空白字串視為未輸入條件
+		title = normalizeKeyword(title);
+		usersName = normalizeKeyword(usersName);
+		benefitName = normalizeKeyword(benefitName);
+		benefitType = normalizeKeyword(benefitType);
+
+		// Repository 會處理文字條件 OR，並且只查詢 ACTIVE
+		List<ExchangeListingBean> listings = exchangeListingRepository
+				.searchActiveListings(
+						"ACTIVE",
+						title,
+						usersName,
+						benefitName,
+						benefitType);
 
 		// 預先載入每筆刊登的特典及照片資料
 		listings.forEach(this::initializeListingDetails);
@@ -79,7 +109,33 @@ public class ExchangeListingService {
 		return listings;
 	}
 
-	// 內部查詢：依 ID 查詢，不限制狀態，用於會員自己的修改及狀態操作
+	// 將空白查詢轉為 null
+	private String normalizeKeyword(String keyword) {
+		if (keyword == null || keyword.isBlank()) {
+			return null;
+		}
+
+		return keyword.trim();
+	}
+
+	// 查詢指定 ACTIVE 會員的公開交換刊登。不存在或非 ACTIVE 會員一律不公開。
+	public List<ExchangeListingBean> findActiveListingsByMember(Integer usersId) {
+
+		UsersBean usersBean = usersRepository.findById(usersId)
+				.orElseThrow(() -> new IllegalArgumentException("找不到此會員"));
+
+		if (!"ACTIVE".equals(usersBean.getStatus())) {
+			throw new IllegalArgumentException("找不到此會員");
+		}
+
+		List<ExchangeListingBean> listings = exchangeListingRepository
+				.findByUseBenefitBean_User_UsersIdAndStatus(usersId, "ACTIVE");
+
+		listings.forEach(this::initializeListingDetails);
+		return listings;
+	}
+
+	// 依 ID 查詢，不限制狀態，供會員自己的修改及狀態操作使用
 	public ExchangeListingBean findById(Integer exchangeListingId) {
 		return exchangeListingRepository
 				.findById(exchangeListingId)
@@ -156,9 +212,8 @@ public class ExchangeListingService {
 		// 2. 確認是不是自己的
 		checkOwner(usersId, listing);
 
-		// 3. 檢查狀態是否合法
+		// 3. 檢查狀態是否合法，只允許 ACTIVE、CLOSED、DELETED
 		if (!"ACTIVE".equals(status)
-				&& !"HIDDEN".equals(status)
 				&& !"CLOSED".equals(status)
 				&& !"DELETED".equals(status)) {
 
@@ -198,7 +253,7 @@ public class ExchangeListingService {
 
 		Hibernate.initialize(useBenefit);
 
-		// 新增：載入持有特典的會員，供 Response 取得 usersName
+		// 載入持有特典的會員，供 Response 取得 usersName
 		UsersBean usersBean = useBenefit.getUser();
 
 		if (usersBean != null) {
