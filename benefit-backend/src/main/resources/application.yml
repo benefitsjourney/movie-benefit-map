@@ -1,6 +1,8 @@
 spring:
   application:
     name: benefit-backend
+  config:
+    import: optional:file:.env[.properties]
 
   # Email SMTP
   mail:
