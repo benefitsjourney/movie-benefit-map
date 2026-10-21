@@ -25,10 +25,12 @@ public class BenefitController {
 
     private final BenefitService benefitService;
 
-    @Operation(summary = "查詢已上架特典清單",
-            description = "只查status=APPROVED的特典。keyword會同時搜尋特典名稱與電影名稱")
+    @Operation(summary = "查詢特典清單",
+            description = "status可選APPROVED／EXPIRED，預設APPROVED。keyword會同時搜尋特典名稱與電影名稱")
     @GetMapping("/benefits")
     public ResponseEntity<PageResponse<BenefitListResponse>> getBenefits(
+    		@Parameter(description = "APPROVED（上架中，預設）／EXPIRED（已結束）")
+    		@RequestParam(defaultValue = "APPROVED") BenefitStatus status,
             @Parameter(description = "關鍵字（特典名稱或電影名稱）")
             @RequestParam(required = false) String keyword,
             @Parameter(description = "特典類型")
@@ -37,7 +39,7 @@ public class BenefitController {
             @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每頁筆數")
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(benefitService.getApprovedBenefits(keyword, benefitType, page, size));
+        return ResponseEntity.ok(benefitService.getApprovedBenefits(status, keyword, benefitType, page, size));
     }
 
     @Operation(summary = "查詢單一特典詳情")

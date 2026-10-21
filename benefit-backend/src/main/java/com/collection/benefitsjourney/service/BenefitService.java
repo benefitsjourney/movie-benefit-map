@@ -35,11 +35,15 @@ public class BenefitService {
     private final CinemaMovieBenefitRepository cinemaMovieBenefitRepository;
     private static final int MAX_PAGE_SIZE = 100;
 
-    /** 前台：查詢已上架特典清單（只查APPROVED，開放日新到舊），頁碼從1開始
+    /** 前台：查詢特典清單（預設APPROVED，開放日新到舊），頁碼從1開始
      *  keyword：搜特典名稱或電影名稱；benefitType：只看某種類型。兩個都可以不帶 */
     public PageResponse<BenefitListResponse> getApprovedBenefits(
-    		 String keyword, BenefitType benefitType, int page, int size) {
-        return search(BenefitStatus.APPROVED, keyword, benefitType, page, size);
+    		BenefitStatus status, String keyword, BenefitType benefitType, int page, int size) {
+    	// 前台只能查上架中或已結束，不能查到待審核之類的
+    	if (status != BenefitStatus.APPROVED && status != BenefitStatus.EXPIRED) {
+    	    throw ExceptionUtils.badRequest("status只能是APPROVED或EXPIRED");
+    	}
+        return search(status, keyword, benefitType, page, size);
     }
 
     /** 後台：查詢所有特典，status不帶＝全部（含已下架） */

@@ -30,19 +30,20 @@ const BENEFIT_TYPES = {
   SPECIAL_UNTIL_OUT: { label: "限量兌換", color: "purple" },
 };
 
-const filters = ref({ keyword: "", benefitType: "" });
+const filters = ref({ keyword: "", benefitType: "", status: "APPROVED" });
 const page = ref(1);
 const listTop = ref(null);
 // 圖片網址失效時改顯示預設圖
 const brokenImages = ref(new Set());
 
-// 搜尋條件改變時回到第 1 頁（寫法同組員的 MovieView）
+// 搜尋條件改變時回到第 1 頁（寫法同 MovieView）
 const appliedFilters = computed({
   get: () => filters.value,
   set: (next) => {
     filters.value = {
       keyword: next?.keyword ?? "",
       benefitType: next?.benefitType ?? "",
+      status: next?.status || "APPROVED",
     };
     page.value = 1;
   },
@@ -64,14 +65,26 @@ const filterFields = [
     icon: shapeIcon,
     options: Object.entries(BENEFIT_TYPES).map(([value, { label }]) => ({ value, label })),
   },
+    {
+    key: "status",
+    label: "狀態",
+    type: "select",
+    emptyLabel: null,
+    icon: calendarIcon,
+    options: [
+      { value: "APPROVED", label: "上架中" },
+      { value: "EXPIRED", label: "已結束" },
+    ],
+  },
 ];
 
-// GET /benefits：只回傳已上架的特典；沒填的條件不送
+// GET /benefits：回傳特典；沒填的條件不送
 const requestParams = computed(() => {
   const params = { page: page.value, size: PAGE_SIZE };
   const keyword = filters.value.keyword?.trim();
   if (keyword) params.keyword = keyword;
   if (filters.value.benefitType) params.benefitType = filters.value.benefitType;
+  params.status = filters.value.status;
   return params;
 });
 
