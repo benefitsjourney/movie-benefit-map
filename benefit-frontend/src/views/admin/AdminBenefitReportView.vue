@@ -92,7 +92,7 @@ const isPending = computed(() => filters.value.status === "PENDING");
 
 // 電影：有對應到資料庫就顯示編號，沒有就顯示回報單上的自訂名稱
 function movieText(row) {
-  if (row.movieId) return `#${row.movieId}`;
+  if (row.movieId) return row.movieName || `#${row.movieId}`;
   return row.customMovieName ? `${row.customMovieName}（新）` : "";
 }
 
@@ -287,7 +287,7 @@ const needsNewMovie = computed(() => !hasMovie.value);
 
 const movieSummary = computed(() => {
   if (selectedMovie.value) return `${selectedMovie.value.movieName}（#${selectedMovie.value.movieId}）`;
-  if (target.value?.movieId) return `資料庫電影 #${target.value.movieId}`;
+  if (target.value?.movieId) return `${target.value.movieName ?? "資料庫電影"}（#${target.value.movieId}）`;
   return "尚未對應到資料庫的電影";
 });
 
@@ -445,7 +445,7 @@ const modalTitle = computed(() => {
       color="purple" @retry="retry" />
 
     <!-- 審核視窗 -->
-    <AppModal v-model="reviewOpen" :title="modalTitle" :busy="submitting" width="48rem">
+    <AppModal v-model="reviewOpen" :title="modalTitle" :busy="submitting" width="48rem" :close-on-backdrop="false">
       <template v-if="target">
         <!-- 上方：圖片＋來源＋爬蟲備註 -->
         <div class="report-summary">

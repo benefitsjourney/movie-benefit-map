@@ -15,10 +15,17 @@ const props = defineProps({
   // 送出中時不能關閉，避免資料送到一半視窗就不見
   busy: { type: Boolean, default: false },
   width: { type: String, default: "36rem" },
+
+  // false＝點背景不會關閉（例如要填很多資料的視窗，避免誤關）
+  closeOnBackdrop: { type: Boolean, default: true },
 });
 
 function close() {
   if (!props.busy) open.value = false;
+}
+
+function onBackdrop() {
+  if (props.closeOnBackdrop) close();
 }
 
 function onKeydown(event) {
@@ -44,7 +51,7 @@ onBeforeUnmount(() => {
 
 <template>
   <Teleport to="body">
-    <div v-if="open" class="modal-backdrop" @click.self="close">
+    <div v-if="open" class="modal-backdrop" @click.self="onBackdrop">
       <div class="modal-dialog-box" role="dialog" aria-modal="true" :aria-label="title" :style="{ width }">
         <div class="modal-head">
           <h2>{{ title }}</h2>
