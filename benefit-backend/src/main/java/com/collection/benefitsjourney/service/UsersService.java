@@ -1,13 +1,16 @@
 package com.collection.benefitsjourney.service;
 
-import com.collection.benefitsjourney.domain.UsersBean;
-import com.collection.benefitsjourney.repository.UsersRepository;
-import com.collection.benefitsjourney.dto.UpdateProfileRequest;
-import org.springframework.stereotype.Service;
-
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.time.LocalDateTime;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
+import com.collection.benefitsjourney.domain.UsersBean;
+import com.collection.benefitsjourney.dto.UpdateProfileRequest;
+import com.collection.benefitsjourney.repository.UsersRepository;
 
 @Service
 public class UsersService {
@@ -131,8 +134,9 @@ public class UsersService {
                         );
 
         if (!"ADMIN".equals(usersBean.getRole())) {
-            throw new IllegalArgumentException(
-                    "沒有管理員權限"
+            throw new ResponseStatusException(
+            HttpStatus.FORBIDDEN,
+            "沒有管理員權限"
             );
         }
 
