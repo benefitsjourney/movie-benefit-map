@@ -69,7 +69,8 @@ async function createMovie(payload) {
     <PageIntro kicker="✦ NEW MOVIE" lead="新增" mark="電影" description="填寫電影基本資料，新增電影至資料庫。" :icon-left="filmIcon"
       :icon-right="calendarIcon" :icon-top="plusIcon" theme="purple" />
 
-    <DetailCard title="新增電影資料" :title-icon="formIcon" :back-to="{ name: 'admin-movies' }" back-label="返回電影一覽">
+    <DetailCard title="新增電影資料" :title-icon="formIcon" :back-to="{ name: 'admin-movies' }" back-label="返回電影一覽"
+      theme="purple">
       <template #actions>
         <AppButton type="submit" form="movie-create-form" color="purple" :icon="plusIcon" :disabled="submitting">
           {{ submitting ? "新增中…" : "新增電影" }}

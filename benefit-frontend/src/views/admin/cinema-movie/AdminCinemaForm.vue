@@ -69,7 +69,8 @@ async function createCinema(payload) {
     <PageIntro kicker="✦ NEW CINEMA" lead="新增" mark="影城" description="填寫影城基本資料，新增影城至資料庫。" :icon-left="movieIcon"
       :icon-right="pinIcon" :icon-top="plusIcon" theme="purple" />
 
-    <DetailCard title="新增影城資料" :title-icon="formIcon" :back-to="{ name: 'admin-cinemas' }" back-label="返回影城一覽">
+    <DetailCard title="新增影城資料" :title-icon="formIcon" :back-to="{ name: 'admin-cinemas' }" back-label="返回影城一覽"
+      theme="purple">
       <template #actions>
         <AppButton type="submit" form="cinema-create-form" color="purple" :icon="plusIcon" :disabled="submitting">
           {{ submitting ? "新增中…" : "新增影城" }}
