@@ -16,7 +16,9 @@ import com.collection.benefitsjourney.dto.PageResponse;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaResourceType;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaSort;
 import com.collection.benefitsjourney.enums.CinemaMovie.MovieSort;
+import com.collection.benefitsjourney.enums.CrawlerLogSort;
 import com.collection.benefitsjourney.enums.SortOrder;
+import com.collection.benefitsjourney.service.CrawlerLogService;
 
 import lombok.RequiredArgsConstructor;
 import tools.jackson.databind.JsonNode;
@@ -30,6 +32,7 @@ public class CinemaMovieExcelService {
 
     private final CinemaService cinemaService;
     private final MovieService movieService;
+    private final CrawlerLogService crawlerLogService;
     private final JsonMapper mapper;
 
     /** 匯出指定類型的全部資料 */
@@ -117,6 +120,12 @@ public class CinemaMovieExcelService {
                     null, null,
                     page, size,
                     MovieSort.SortBy.MOVIE_ID,
+                    SortOrder.ASC);
+
+            case CRAWLER_LOG -> crawlerLogService.findAll(
+                    null, null,
+                    page, size,
+                    CrawlerLogSort.SortBy.CRAWLER_LOG_ID,
                     SortOrder.ASC);
         };
     }
