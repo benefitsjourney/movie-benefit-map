@@ -34,7 +34,12 @@ public class ExchangeListingService {
 		UseBenefitBean useBenefitBean = useBenefitRepository.findById(useBenefitId)
 				.orElseThrow(() -> new IllegalArgumentException("找不到持有紀錄"));
 
-		// 2. 確認這筆 UseBenefit 是目前登入會員的
+		// 2. 已軟刪除的持有紀錄不能拿來刊登
+		if (useBenefitBean.getDeletedAt() != null) {
+			throw new IllegalArgumentException("找不到持有紀錄");
+		}
+
+		// 3. 確認這筆 UseBenefit 是目前登入會員的
 		UsersBean usersBean = useBenefitBean.getUser();
 
 		if (usersBean == null
@@ -43,7 +48,7 @@ public class ExchangeListingService {
 					"無法使用其他會員的持有紀錄");
 		}
 
-		// 3. 確認這筆 UseBenefit 尚未被刊登
+		// 4. 確認這筆 UseBenefit 尚未被刊登
 		boolean alreadyListed = exchangeListingRepository
 				.findByUseBenefitBean(useBenefitBean)
 				.isPresent();
@@ -53,7 +58,7 @@ public class ExchangeListingService {
 					"這筆持有紀錄已經刊登過");
 		}
 
-		// 4. 建立交換刊登
+		// 5. 建立交換刊登
 		ExchangeListingBean listing = new ExchangeListingBean();
 
 		listing.setTitle(title);
@@ -62,10 +67,10 @@ public class ExchangeListingService {
 		listing.setStatus("ACTIVE");
 		listing.setUseBenefitBean(useBenefitBean);
 
-		// 5. 儲存
+		// 6. 儲存
 		ExchangeListingBean savedListing = exchangeListingRepository.save(listing);
 
-		// 6. 預先載入回傳所需的特典及照片資料
+		// 7. 預先載入回傳所需的特典及照片資料
 		initializeListingDetails(savedListing);
 
 		return savedListing;
@@ -249,7 +254,7 @@ public class ExchangeListingService {
 
 		Hibernate.initialize(useBenefit);
 
-		// 新增：載入持有特典的會員，供 Response 取得 usersName
+		// 載入持有特典的會員，供 Response 取得 usersName
 		UsersBean usersBean = useBenefit.getUser();
 
 		if (usersBean != null) {
