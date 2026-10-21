@@ -15,6 +15,9 @@ import PageIntro from "@/components/layout/PageIntro.vue";
 import ResultBanner from "@/components/layout/ResultBanner.vue";
 import StatePanel from "@/components/layout/StatePanel.vue";
 import TicketCard from "@/components/ui/TicketCard.vue";
+import AppModal from "@/components/ui/AppModal.vue";
+import chevronLeftIcon from "@iconify-icons/mdi/chevron-left";
+import chevronRightIcon from "@iconify-icons/mdi/chevron-right";
 
 // 跟後端 UseBenefitService 的限制一樣，先在前端擋，少打一次 API
 const MAX_PHOTOS = 5;
@@ -76,37 +79,52 @@ function dateText(value) {
   return matched ? `${matched[1]}/${matched[2]}/${matched[3]}` : "";
 }
 
-// ── 上傳照片：POST /use-benefits/{id}/photos（multipart，一次一張）──
+// 後端一次只收一張，所以選多張時一張一張依序傳
 async function uploadPhoto(item, event) {
   const input = event.target;
-  const file = input.files?.[0];
+  const files = [...(input.files ?? [])];
   input.value = ""; // 清空，同一張照片才能再選一次
-  if (!file || busyId.value) return;
+  if (!files.length || busyId.value) return;
 
-  if ((item.photos?.length ?? 0) >= MAX_PHOTOS) {
+  // 最多還能傳幾張
+  const remaining = MAX_PHOTOS - (item.photos?.length ?? 0);
+  if (remaining <= 0) {
     await showError("無法上傳", `每筆收藏最多只能有 ${MAX_PHOTOS} 張照片。`);
     return;
   }
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    await showError("無法上傳", "只能上傳 JPG、PNG、WEBP、GIF 格式的圖片。");
-    return;
-  }
-  if (file.size > MAX_BYTES) {
-    await showError("無法上傳", "照片不可超過 10MB。");
-    return;
-  }
+
+  // 先挑掉格式或大小不對的
+  const valid = files.filter((f) => ALLOWED_TYPES.includes(f.type) && f.size <= MAX_BYTES);
+  const skipped = files.length - valid.length;
+  // 超過上限的部分不傳
+  const toUpload = valid.slice(0, remaining);
+  const overLimit = valid.length - toUpload.length;
 
   busyId.value = item.useBenefitId;
+  let failed = 0;
   try {
-    const form = new FormData();
-    form.append("file", file);
-    const { data } = await http.post(`/use-benefits/${item.useBenefitId}/photos`, form);
-    // 後端回傳新照片，直接加進畫面
-    item.photos = [...(item.photos ?? []), data];
-  } catch (error) {
-    await showError("上傳失敗", apiMessage(error, "請稍後再試一次。"));
+    for (const file of toUpload) {
+      try {
+        const form = new FormData();
+        form.append("file", file);
+        const { data } = await http.post(`/use-benefits/${item.useBenefitId}/photos`, form);
+        // 傳完一張就先加進畫面
+        item.photos = [...(item.photos ?? []), data];
+      } catch {
+        failed += 1;
+      }
+    }
   } finally {
     busyId.value = null;
+  }
+
+  // 有沒傳成功的，最後一次告訴使用者
+  const notes = [];
+  if (skipped) notes.push(`${skipped} 張格式不符或超過 10MB`);
+  if (overLimit) notes.push(`每筆最多 ${MAX_PHOTOS} 張，多選的 ${overLimit} 張沒有上傳`);
+  if (failed) notes.push(`${failed} 張上傳失敗`);
+  if (notes.length) {
+    await showError("部分照片沒有上傳", `${notes.join("、")}，其餘已上傳完成。`);
   }
 }
 
@@ -156,7 +174,30 @@ async function deleteItem(item) {
     busyId.value = null;
   }
 }
+// ── 看大圖：點縮圖或封面打開，可以左右切換 ──
+const viewerOpen = ref(false);
+const viewerItem = ref(null);
+const viewerIndex = ref(0);
 
+// 有自己拍的照片就看照片，沒有就看官方圖
+const viewerImages = computed(() => {
+  const item = viewerItem.value;
+  if (!item) return [];
+  if (item.photos?.length) return item.photos.map((p) => p.photoUrl);
+  return item.officialImageUrl ? [item.officialImageUrl] : [];
+});
+
+function openViewer(item, index = 0) {
+  viewerItem.value = item;
+  viewerIndex.value = index;
+  viewerOpen.value = true;
+}
+
+// step 是 -1（上一張）或 1（下一張），到底會繞回另一頭
+function moveViewer(step) {
+  const total = viewerImages.value.length;
+  if (total) viewerIndex.value = (viewerIndex.value + step + total) % total;
+}
 const count = computed(() => items.value.length);
 
 onMounted(loadCollection);
@@ -187,7 +228,7 @@ onMounted(loadCollection);
             :stamp="typeOf(item.benefitType).label" :title="item.benefitName">
             <template #poster>
               <img v-if="coverUrl(item)" :src="coverUrl(item)" :alt="`${item.benefitName} 圖片`" loading="lazy"
-                referrerpolicy="no-referrer" />
+                referrerpolicy="no-referrer" class="poster-click" @click="openViewer(item)" />
               <span v-else class="poster-fallback">
                 <Icon :icon="giftIcon" aria-hidden="true" />
               </span>
@@ -202,8 +243,10 @@ onMounted(loadCollection);
 
             <!-- 照片：縮圖＋刪除，最後一格是上傳按鈕 -->
             <div class="photo-strip">
-              <div v-for="photo in item.photos" :key="photo.useBenefitPhotoId" class="photo-thumb">
-                <img :src="photo.photoUrl" alt="收藏照片" loading="lazy" />
+              <div v-for="(photo, index) in item.photos" :key="photo.useBenefitPhotoId" class="photo-thumb">
+                <button type="button" class="photo-open" aria-label="查看大圖" @click="openViewer(item, index)">
+                  <img :src="photo.photoUrl" alt="收藏照片" loading="lazy" />
+                </button>
                 <button type="button" class="photo-delete" aria-label="刪除這張照片"
                   :disabled="busyId === item.useBenefitId" @click="deletePhoto(item, photo)">
                   <Icon :icon="closeIcon" aria-hidden="true" />
@@ -214,7 +257,7 @@ onMounted(loadCollection);
                 :class="{ 'is-busy': busyId === item.useBenefitId }">
                 <Icon :icon="cameraIcon" aria-hidden="true" />
                 <span>{{ busyId === item.useBenefitId ? "處理中…" : "加照片" }}</span>
-                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif"
+                <input type="file" multiple accept="image/jpeg,image/png,image/webp,image/gif"
                   :disabled="busyId === item.useBenefitId" @change="uploadPhoto(item, $event)" />
               </label>
             </div>
@@ -234,6 +277,21 @@ onMounted(loadCollection);
         </div>
       </template>
     </template>
+    <!-- 大圖 -->
+    <AppModal v-model="viewerOpen" :title="viewerItem?.benefitName ?? ''" width="48rem">
+      <div class="viewer">
+        <img :src="viewerImages[viewerIndex]" alt="收藏照片大圖" referrerpolicy="no-referrer" />
+        <template v-if="viewerImages.length > 1">
+          <button type="button" class="viewer-nav prev" aria-label="上一張" @click="moveViewer(-1)">
+            <Icon :icon="chevronLeftIcon" aria-hidden="true" />
+          </button>
+          <button type="button" class="viewer-nav next" aria-label="下一張" @click="moveViewer(1)">
+            <Icon :icon="chevronRightIcon" aria-hidden="true" />
+          </button>
+          <span class="viewer-count">{{ viewerIndex + 1 }} / {{ viewerImages.length }}</span>
+        </template>
+      </div>
+    </AppModal>
   </section>
 </template>
 
@@ -374,5 +432,74 @@ onMounted(loadCollection);
 
 .photo-add input:disabled {
   cursor: wait;
+}
+
+/* ── 看大圖 ── */
+.poster-click {
+  cursor: zoom-in;
+}
+
+.photo-open {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-in;
+}
+
+.viewer {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 16rem;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #1e2b45;
+}
+
+/* contain：完整顯示，不裁切，直式橫式都看得到全部 */
+.viewer img {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+}
+
+.viewer-nav {
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 85%);
+  color: #292b35;
+  font-size: 1.6rem;
+  cursor: pointer;
+}
+
+.viewer-nav.prev {
+  left: 0.6rem;
+}
+
+.viewer-nav.next {
+  right: 0.6rem;
+}
+
+.viewer-count {
+  position: absolute;
+  bottom: 0.6rem;
+  left: 50%;
+  translate: -50% 0;
+  padding: 0.1rem 0.7rem;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 55%);
+  color: #fff;
+  font-size: var(--text-min);
+  font-weight: 800;
 }
 </style>
