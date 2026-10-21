@@ -16,6 +16,7 @@ import AppButton from "@/components/ui/Button.vue";
 import Switch from "@/components/ui/Switch.vue";
 import CinemaForm from "@/components/forms/CinemaForm.vue";
 import http from "@/plugins/axios";
+import { apiMessage, authText, detailLoadError } from "@/utils/apiError";
 import { dateTimeText, displayText, httpUrl, textOf } from "@/components/ui/DataTable.vue";
 
 const route = useRoute();
@@ -27,6 +28,7 @@ const cinemaId = computed(() => {
 
 const loading = ref(false);
 const loadFailed = ref(false);
+const loadErrorTitle = ref("目前無法取得影城資料");
 const loadErrorMessage = ref("請確認連線後再試一次。");
 const cinema = ref(null);
 const editing = ref(false);
@@ -77,15 +79,6 @@ function coordText(value) {
   return Number.isFinite(number) ? number.toFixed(6) : String(value);
 }
 
-function apiMessage(error, fallback) {
-  const message = error?.response?.data?.message;
-  return typeof message === "string" && message.trim() ? message.trim() : fallback;
-}
-
-function isUnauthorized(error) {
-  return error?.response?.status === 401;
-}
-
 async function loadCinema() {
   const serial = ++requestSerial;
   editing.value = false;
@@ -94,6 +87,7 @@ async function loadCinema() {
   if (cinemaId.value == null) {
     loading.value = false;
     loadFailed.value = true;
+    loadErrorTitle.value = "目前無法取得影城資料";
     loadErrorMessage.value = "網址中的影城編號不正確。";
     return;
   }
@@ -108,7 +102,9 @@ async function loadCinema() {
   } catch (error) {
     if (serial !== requestSerial) return;
     loadFailed.value = true;
-    loadErrorMessage.value = apiMessage(error, "請確認連線後再試一次。");
+    const copy = detailLoadError(error, "目前無法取得影城資料");
+    loadErrorTitle.value = copy.title;
+    loadErrorMessage.value = copy.message;
   } finally {
     if (serial === requestSerial) loading.value = false;
   }
@@ -143,11 +139,12 @@ async function saveCinema(payload) {
       cancelText: "",
     });
   } catch (error) {
-    if (isUnauthorized(error)) {
+    const notice = authText(error);
+    if (notice) {
       await openAppAlert({
         variant: "error",
         title: "無法儲存",
-        text: "請登入管理員帳號",
+        text: notice,
         confirmText: "關閉",
         cancelText: "",
       });
@@ -187,7 +184,7 @@ async function toggleFlag(field, next) {
     await openAppAlert({
       variant: "error",
       title: field === "isActive" ? "無法更新營業狀態" : "無法更新顯示狀態",
-      text: isUnauthorized(error) ? "請登入管理員帳號" : apiMessage(error, "請確認連線後再試一次。"),
+      text: authText(error) || apiMessage(error, "請確認連線後再試一次。"),
       confirmText: "關閉",
       cancelText: "",
     });
@@ -211,8 +208,8 @@ onUnmounted(() => {
       :icon-right="pinIcon" :icon-top="eyeIcon" theme="purple" />
 
     <StatePanel v-if="loading" variant="loading" message="正在載入影城資料…" :icon="movieIcon" color="purple" />
-    <StatePanel v-else-if="loadFailed" variant="error" title="目前無法取得影城資料" :message="loadErrorMessage" color="purple"
-      @retry="loadCinema" />
+    <StatePanel v-else-if="loadFailed" variant="error" :title="loadErrorTitle" :message="loadErrorMessage"
+      color="purple" @retry="loadCinema" />
 
     <DetailCard v-else-if="cinema" :title="displayText(cinema.cinemaName)" :title-icon="movieIcon"
       :back-to="{ name: 'admin-cinemas' }" back-label="返回影城一覽" theme="purple">
@@ -313,4 +310,3 @@ onUnmounted(() => {
     </DetailCard>
   </section>
 </template>
-

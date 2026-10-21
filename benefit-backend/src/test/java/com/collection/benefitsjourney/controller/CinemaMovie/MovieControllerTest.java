@@ -33,6 +33,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -47,15 +48,26 @@ import com.collection.benefitsjourney.jwt.JsonWebTokenUtility;
 import com.collection.benefitsjourney.repository.UsersRepository;
 import com.collection.benefitsjourney.enums.CinemaMovie.MovieSort;
 import com.collection.benefitsjourney.enums.SortOrder;
+import com.collection.benefitsjourney.controller.AdminRequestConfig;
+import com.collection.benefitsjourney.exception.ExceptionUtils;
 import com.collection.benefitsjourney.service.CinemaMovie.MovieService;
+import com.collection.benefitsjourney.service.UsersService;
 
 @WebMvcTest(controllers = MovieController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = JsonWebTokenFilter.class))
 @AutoConfigureMockMvc(addFilters = false)
+@Import(AdminRequestConfig.class)
 class MovieControllerTest {
     @Autowired
     private MockMvc mockMvc;
     @MockitoBean
     private MovieService movieService;
+    @MockitoBean
+    private UsersService usersService;
+
+    @BeforeEach
+    void setUpAdmin() {
+        AdminRequestConfig.stubAdmin(usersService);
+    }
     @Nested
     @DisplayName("GET /movies")
     class FindAllTests {
@@ -884,6 +896,38 @@ class MovieControllerTest {
     }
 
     @Nested
+    @DisplayName("管理員權限")
+    class AdminPermissionTests {
+
+        @Test
+        @DisplayName("一般會員查詢電影清單應回傳 403")
+        void findAll_NonAdmin_ShouldReturn403() throws Exception {
+            UsersBean user = new UsersBean();
+            user.setRole("USER");
+            when(usersService.getUserById(AdminRequestConfig.ADMIN_ID)).thenReturn(user);
+
+            mockMvc.perform(get("/movies"))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.status").value(403))
+                    .andExpect(jsonPath("$.error").value("Forbidden"))
+                    .andExpect(jsonPath("$.message").value(ExceptionUtils.FORBIDDEN_MESSAGE));
+
+            verifyNoInteractions(movieService);
+        }
+
+        @Test
+        @DisplayName("一般會員仍可使用電影探索")
+        void explore_NonAdmin_ShouldReturn200() throws Exception {
+            UsersBean user = new UsersBean();
+            user.setRole("USER");
+            when(usersService.getUserById(AdminRequestConfig.ADMIN_ID)).thenReturn(user);
+
+            mockMvc.perform(get("/movies/explore"))
+                    .andExpect(status().isOk());
+        }
+    }
+
+    @Nested
     @DisplayName("JWT 權限測試")
     class JwtTests {
         private JsonWebTokenFilter filter;
@@ -899,25 +943,23 @@ class MovieControllerTest {
         }
 
         @Test
-        @DisplayName("GET /movies 無 Token 應放行")
-        void getMovies_WithoutToken_ShouldPass() throws Exception {
+        @DisplayName("GET /movies 無 Token 應回傳 401")
+        void getMovies_WithoutToken_ShouldReturn401() throws Exception {
             var request = new MockHttpServletRequest("GET", "/movies");
             var response = new MockHttpServletResponse();
             filter.doFilter(request, response, chain);
-            assertEquals(200, response.getStatus());
-            verify(chain).doFilter(request, response);
-            verifyNoInteractions(utility);
+            assertEquals(401, response.getStatus());
+            verifyNoInteractions(chain, utility);
         }
 
         @Test
-        @DisplayName("GET /movies/{id} 無 Token 應放行")
-        void getMovieById_WithoutToken_ShouldPass() throws Exception {
+        @DisplayName("GET /movies/{id} 無 Token 應回傳 401")
+        void getMovieById_WithoutToken_ShouldReturn401() throws Exception {
             var request = new MockHttpServletRequest("GET", "/movies/1");
             var response = new MockHttpServletResponse();
             filter.doFilter(request, response, chain);
-            assertEquals(200, response.getStatus());
-            verify(chain).doFilter(request, response);
-            verifyNoInteractions(utility);
+            assertEquals(401, response.getStatus());
+            verifyNoInteractions(chain, utility);
         }
 
         @Test

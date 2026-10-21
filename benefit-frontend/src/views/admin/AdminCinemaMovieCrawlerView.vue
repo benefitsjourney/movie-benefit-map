@@ -9,6 +9,7 @@ import fileUploadIcon from "@iconify-icons/mdi/file-upload-outline";
 import webIcon from "@iconify-icons/mdi/web";
 
 import http from "@/plugins/axios";
+import { apiMessage, authText } from "@/utils/apiError";
 import PageIntro from "@/components/layout/PageIntro.vue";
 import TicketCard from "@/components/ui/TicketCard.vue";
 import {
@@ -92,11 +93,6 @@ function createJob() {
     error: "",
     elapsedSeconds: 0,
   };
-}
-
-/** 將 API 錯誤轉換為使用者可閱讀的文字 */
-function errorMessage(error) {
-  return error.response?.data?.message || "更新失敗，請檢查連線。";
 }
 
 /** 將計時秒數顯示為整數 */
@@ -268,7 +264,7 @@ async function syncCrawler(crawler, payload) {
       router.push({ name: crawler.reviewTo });
   } catch (error) {
     job.status = "error";
-    job.error = errorMessage(error);
+    job.error = authText(error) || apiMessage(error, "更新失敗，請檢查連線。");
     const seconds = formatSeconds(stopElapsed(job));
     const failed = await openAppAlert({
       variant: "error",

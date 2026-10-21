@@ -193,7 +193,7 @@ async function openBenefitDetail(cinema) {
           <template #action>
             <button type="button" class="ticket-link is-dark" :disabled="!canViewBenefits(cinema)"
               @click="openBenefitDetail(cinema)">
-              庫存查詢
+              特典庫存查詢
             </button>
             <a v-if="cinema.officialWebsiteUrl" :href="cinema.officialWebsiteUrl" target="_blank"
               rel="noopener noreferrer" class="ticket-link">
@@ -211,10 +211,9 @@ async function openBenefitDetail(cinema) {
     <StatePanel v-if="loading && !cinemas.length" variant="loading" message="正在尋找影城…" :icon="filmIcon" />
     <StatePanel v-else-if="error" variant="error" title="目前無法取得影城資料" message="請確認連線後再試一次。" @retry="retry" />
 
-    <BenefitDialog v-if="detailCinema" :title="detailCinema.cinemaName || '影城'"
-      :detail="dialogDetail(detailCinema)" :benefits="detailCinema.benefits" headline-key="movieName"
-      headline-fallback="尚未提供電影名稱" :loading="detailLoading" :error="detailFailed" close-label="關閉"
-      empty-text="這間影城目前沒有特典" @close="closeBenefitDetail" />
+    <BenefitDialog v-if="detailCinema" :title="detailCinema.cinemaName || '影城'" :detail="dialogDetail(detailCinema)"
+      :benefits="detailCinema.benefits" headline-key="movieName" headline-fallback="尚未提供電影名稱" :loading="detailLoading"
+      :error="detailFailed" close-label="關閉" empty-text="這間影城目前沒有特典" @close="closeBenefitDetail" />
   </section>
 </template>
 

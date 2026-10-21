@@ -19,6 +19,7 @@ import {
   parseSort,
 } from "@/constants/sort";
 import { useApiCollection } from "@/composables/useApiCollection";
+import { apiMessage, authText, collectionLoadError } from "@/utils/apiError";
 import http from "@/plugins/axios";
 import PageIntro from "@/components/layout/PageIntro.vue";
 import ResultBanner from "@/components/layout/ResultBanner.vue";
@@ -178,6 +179,7 @@ const {
   totalPages,
   loading,
   error,
+  errorStatus,
   retry,
 } = useApiCollection("/cinemas", requestParams, { page });
 
@@ -193,14 +195,7 @@ const resultUnit = computed(() =>
   hasFilters.value ? "間符合條件的影城" : "間影城",
 );
 
-function apiMessage(error, fallback) {
-  const message = error?.response?.data?.message;
-  return typeof message === "string" && message.trim() ? message.trim() : fallback;
-}
-
-function isUnauthorized(error) {
-  return error?.response?.status === 401;
-}
+const loadError = computed(() => collectionLoadError(errorStatus.value, "目前無法取得影城資料"));
 
 function openCreate() {
   router.push({ name: "admin-cinema-create" });
@@ -227,7 +222,7 @@ async function toggleVisible(row, next) {
     await openAppAlert({
       variant: "error",
       title: "無法更新顯示狀態",
-      text: isUnauthorized(error) ? "請登入管理員帳號" : apiMessage(error, "請確認連線後再試一次。"),
+      text: authText(error) || apiMessage(error, "請確認連線後再試一次。"),
       confirmText: "關閉",
       cancelText: "",
     });
@@ -290,7 +285,7 @@ function goToPage(next) {
 
     <StatePanel v-if="loading && !cinemas.length" variant="loading" message="正在載入影城資料…" :icon="movieIcon"
       color="purple" />
-    <StatePanel v-else-if="error" variant="error" title="目前無法取得影城資料" message="請確認連線後再試一次。" color="purple"
+    <StatePanel v-else-if="error" variant="error" :title="loadError.title" :message="loadError.message" color="purple"
       @retry="retry" />
   </section>
 </template>

@@ -48,8 +48,6 @@ public class SecurityConfig {
         // // 影城
         // .requestMatchers(
         // HttpMethod.GET,
-        // "/cinemas",
-        // "/cinemas/{id}",
         // "/cinemas/map",
         // "/cinemas/explore"
         // ).permitAll()
@@ -57,11 +55,7 @@ public class SecurityConfig {
         // // 電影
         // .requestMatchers(
         // HttpMethod.GET,
-        // "/movies",
-        // "/movies/{id}",
-        // "/movies/explore",
-        // "/movies/{id}/benefits",
-        // "/movies/{id}/benefits/status"
+        // "/movies/explore"
         // ).permitAll()
 
         // // 特典
