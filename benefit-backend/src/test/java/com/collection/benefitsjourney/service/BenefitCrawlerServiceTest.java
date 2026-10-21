@@ -71,14 +71,14 @@ class BenefitCrawlerServiceTest {
     }
 
     @Test
-    @DisplayName("貼文圖片：優先順序photo_image.uri→image.uri→thumbnail→沒有media就是空")
+    @DisplayName("貼文圖片：優先順序photo_image.uri→image.uri，只有影片縮圖或沒有media就是空")
     void firstImageUrl() throws Exception {
         ObjectMapper om = new ObjectMapper();
         assertEquals("https://a/1.png", BenefitCrawlerService.firstImageUrl(om.readTree(
                 "{\"media\":[{\"thumbnail\":\"https://a/t.png\",\"photo_image\":{\"uri\":\"https://a/1.png\"}}]}")));
         assertEquals("https://a/2.png", BenefitCrawlerService.firstImageUrl(om.readTree(
                 "{\"media\":[{\"thumbnail\":\"https://a/t.png\",\"image\":{\"uri\":\"https://a/2.png\"}}]}")));
-        assertEquals("https://a/t.png", BenefitCrawlerService.firstImageUrl(om.readTree(
+        assertNull(BenefitCrawlerService.firstImageUrl(om.readTree(
                 "{\"media\":[{\"thumbnail\":\"https://a/t.png\"}]}")));
         assertNull(BenefitCrawlerService.firstImageUrl(om.readTree("{\"media\":[]}")));
         assertNull(BenefitCrawlerService.firstImageUrl(om.readTree("{}")));
