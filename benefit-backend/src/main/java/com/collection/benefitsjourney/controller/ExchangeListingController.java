@@ -68,6 +68,20 @@ public class ExchangeListingController {
 		return ResponseEntity.ok(responses);
 	}
 
+	// 查詢指定會員的公開交換刊登；目標會員必須為 ACTIVE。
+	@GetMapping("/member/{usersId}")
+	public ResponseEntity<List<ExchangeListingResponse>> findActiveListingsByMember(
+			@PathVariable Integer usersId) {
+
+		List<ExchangeListingResponse> responses = exchangeListingService
+				.findActiveListingsByMember(usersId)
+				.stream()
+				.map(ExchangeListingResponse::from)
+				.toList();
+
+		return ResponseEntity.ok(responses);
+	}
+
 	// 查詢單筆公開的交換刊登
 	@GetMapping("/{exchangeListingId}")
 	public ResponseEntity<ExchangeListingResponse> findActiveById(

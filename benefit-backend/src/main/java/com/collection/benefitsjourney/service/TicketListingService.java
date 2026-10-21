@@ -219,6 +219,26 @@ public class TicketListingService {
 		return keyword.trim();
 	}
 
+	// 查詢指定 ACTIVE 會員的公開票券刊登。
+	// 僅回傳 ACTIVE 且放映時間在台灣時間明天 00:00:00（含）之後的票券。
+	public List<TicketListingBean> findActiveListingsByMember(Integer usersId) {
+
+		UsersBean usersBean = usersRepository.findById(usersId)
+				.orElseThrow(() -> new IllegalArgumentException("找不到此會員"));
+
+		if (!STATUS_ACTIVE.equals(usersBean.getStatus())) {
+			throw new IllegalArgumentException("找不到此會員");
+		}
+
+		LocalDateTime cutoff = getTomorrowStartOfDay();
+		List<TicketListingBean> listings = ticketListingRepository
+				.findByUsersBean_UsersIdAndStatusAndTicketShowtimeGreaterThanEqual(
+						usersId, STATUS_ACTIVE, cutoff);
+
+		listings.forEach(this::initializeListingUser);
+		return listings;
+	}
+
 	// 查詢單筆票券刊登，內部查詢：依 ID 查詢，不限制狀態
 	public TicketListingBean findById(Integer ticketListingId) {
 		TicketListingBean listing = ticketListingRepository.findById(ticketListingId)

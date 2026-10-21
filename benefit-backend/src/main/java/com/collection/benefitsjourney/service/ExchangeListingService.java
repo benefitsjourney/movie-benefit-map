@@ -11,6 +11,7 @@ import com.collection.benefitsjourney.domain.UseBenefitBean;
 import com.collection.benefitsjourney.domain.UsersBean;
 import com.collection.benefitsjourney.repository.ExchangeListingRepository;
 import com.collection.benefitsjourney.repository.UseBenefitRepository;
+import com.collection.benefitsjourney.repository.UsersRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -23,6 +24,7 @@ public class ExchangeListingService {
 
 	private final ExchangeListingRepository exchangeListingRepository;
 	private final UseBenefitRepository useBenefitRepository;
+	private final UsersRepository usersRepository;
 
 	// 新增交換刊登
 	@Transactional
@@ -69,17 +71,6 @@ public class ExchangeListingService {
 		return savedListing;
 	}
 
-	// // 查詢公開的交換刊登，只顯示 ACTIVE
-	// public List<ExchangeListingBean> findActiveListings() {
-	// List<ExchangeListingBean> listings =
-	// exchangeListingRepository.findByStatus("ACTIVE");
-
-	// // 預先載入每筆刊登的特典及照片資料
-	// listings.forEach(this::initializeListingDetails);
-
-	// return listings;
-	// }
-
 	// 查詢公開交換刊登：維持原本呼叫方式，方便既有測試使用
 	public List<ExchangeListingBean> findActiveListings() {
 		return findActiveListings(null, null, null, null);
@@ -120,6 +111,23 @@ public class ExchangeListingService {
 		}
 
 		return keyword.trim();
+	}
+
+	// 查詢指定 ACTIVE 會員的公開交換刊登。不存在或非 ACTIVE 會員一律不公開。
+	public List<ExchangeListingBean> findActiveListingsByMember(Integer usersId) {
+
+		UsersBean usersBean = usersRepository.findById(usersId)
+				.orElseThrow(() -> new IllegalArgumentException("找不到此會員"));
+
+		if (!"ACTIVE".equals(usersBean.getStatus())) {
+			throw new IllegalArgumentException("找不到此會員");
+		}
+
+		List<ExchangeListingBean> listings = exchangeListingRepository
+				.findByUseBenefitBean_User_UsersIdAndStatus(usersId, "ACTIVE");
+
+		listings.forEach(this::initializeListingDetails);
+		return listings;
 	}
 
 	// 內部查詢：依 ID 查詢，不限制狀態，用於會員自己的修改及狀態操作

@@ -18,6 +18,10 @@ public interface TicketListingRepository extends JpaRepository<TicketListingBean
         // 查詢會員自己的票券刊登
         List<TicketListingBean> findByUsersBean_UsersId(Integer usersId);
 
+        // 查詢指定會員、指定狀態且放映時間不早於 cutoff 的票券刊登
+        List<TicketListingBean> findByUsersBean_UsersIdAndStatusAndTicketShowtimeGreaterThanEqual(
+                        Integer usersId, String status, LocalDateTime cutoff);
+
         // 查詢指定 ID 且符合指定狀態的票券刊登
         Optional<TicketListingBean> findByTicketListingIdAndStatus(Integer ticketListingId, String status);
 

@@ -77,6 +77,20 @@ public class TicketListingController {
 		return ResponseEntity.ok(responses);
 	}
 
+	// 查詢指定會員的公開票券刊登；目標會員必須為 ACTIVE。
+	@GetMapping("/member/{usersId}")
+	public ResponseEntity<List<TicketListingResponse>> findActiveListingsByMember(
+			@PathVariable Integer usersId) {
+
+		List<TicketListingResponse> responses = ticketListingService
+				.findActiveListingsByMember(usersId)
+				.stream()
+				.map(TicketListingResponse::from)
+				.toList();
+
+		return ResponseEntity.ok(responses);
+	}
+
 	// 查詢單筆公開的票券刊登
 	@GetMapping("/{ticketListingId}")
 	public ResponseEntity<TicketListingResponse> findActiveById(

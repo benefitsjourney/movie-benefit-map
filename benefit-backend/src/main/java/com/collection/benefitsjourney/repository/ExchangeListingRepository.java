@@ -21,6 +21,9 @@ public interface ExchangeListingRepository extends JpaRepository<ExchangeListing
      // 查詢某會員自己的交換刊登
      List<ExchangeListingBean> findByUseBenefitBean_User_UsersId(Integer usersId);
 
+     // 查詢指定會員且符合指定狀態的交換刊登
+     List<ExchangeListingBean> findByUseBenefitBean_User_UsersIdAndStatus(Integer usersId, String status);
+
      // 查詢指定 ID 且符合指定狀態的交換刊登
      Optional<ExchangeListingBean> findByExchangeListingIdAndStatus(Integer exchangeListingId, String status);
 
