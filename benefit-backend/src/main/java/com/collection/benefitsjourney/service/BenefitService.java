@@ -34,6 +34,12 @@ public class BenefitService {
     private final MovieRepository movieRepository;
     private final CinemaMovieBenefitRepository cinemaMovieBenefitRepository;
     private static final int MAX_PAGE_SIZE = 100;
+    
+    // 前台：開放日新到舊
+    private static final Sort BY_START_DATE = Sort.by(Sort.Direction.DESC, "startDate")
+            .and(Sort.by(Sort.Direction.DESC, "benefitId"));
+    // 後台：最新建立的在最上面（剛核准的特典馬上看得到）
+    private static final Sort BY_NEWEST = Sort.by(Sort.Direction.DESC, "benefitId");
 
     /** 前台：查詢特典清單（預設APPROVED，開放日新到舊），頁碼從1開始
      *  keyword：搜特典名稱或電影名稱；benefitType：只看某種類型。兩個都可以不帶 */
@@ -43,21 +49,18 @@ public class BenefitService {
     	if (status != BenefitStatus.APPROVED && status != BenefitStatus.EXPIRED) {
     	    throw ExceptionUtils.badRequest("status只能是APPROVED或EXPIRED");
     	}
-        return search(status, keyword, benefitType, page, size);
+        return search(status, keyword, benefitType, page, size, BY_START_DATE);
     }
 
     /** 後台：查詢所有特典，status不帶＝全部（含已下架） */
     public PageResponse<BenefitListResponse> getBenefitsForAdmin(
             BenefitStatus status, String keyword, BenefitType benefitType, int page, int size) {
-        return search(status, keyword, benefitType, page, size);
+        return search(status, keyword, benefitType, page, size, BY_NEWEST);
     }
 
     /** 前後台共用：依條件查特典，並帶出電影名稱 */
     private PageResponse<BenefitListResponse> search(
-    		 BenefitStatus status, String keyword, BenefitType benefitType, int page, int size) {
-    	
-        Sort sort = Sort.by(Sort.Direction.DESC, "startDate")
-                .and(Sort.by(Sort.Direction.DESC, "benefitId"));
+    		 BenefitStatus status, String keyword, BenefitType benefitType, int page, int size, Sort sort) {
 
         Page<BenefitBean> benefits = benefitRepository.searchBenefits(
                 status == null ? null : status.name(),
