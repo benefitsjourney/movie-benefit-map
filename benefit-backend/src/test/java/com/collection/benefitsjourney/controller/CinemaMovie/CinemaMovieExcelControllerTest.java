@@ -82,6 +82,22 @@ class CinemaMovieExcelControllerTest {
 
             verify(excelService).export(CinemaResourceType.MOVIE);
         }
+
+        @Test
+        @DisplayName("CRAWLER_LOG 應回傳 Excel、正確的檔名和二進位內容")
+        void exportCrawlerLog() throws Exception {
+            byte[] bytes = { 8, 9 };
+            when(excelService.export(CinemaResourceType.CRAWLER_LOG)).thenReturn(bytes);
+
+            mockMvc.perform(get("/cinema-movie/export").param("type", "CRAWLER_LOG"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(EXCEL_CONTENT_TYPE))
+                    .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"crawler_log.xlsx\""))
+                    .andExpect(content().bytes(bytes));
+
+            verify(excelService).export(CinemaResourceType.CRAWLER_LOG);
+        }
     }
 
     @Nested

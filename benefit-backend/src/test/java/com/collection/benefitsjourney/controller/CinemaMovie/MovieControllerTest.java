@@ -153,6 +153,44 @@ class MovieControllerTest {
     }
 
     @Nested
+    @DisplayName("GET /movies/explore")
+    class FindMovieBenefitsTests {
+
+        @Test
+        @DisplayName("未帶查詢參數時，應使用 Controller 預設值")
+        void defaultParameters() throws Exception {
+            mockMvc.perform(get("/movies/explore"))
+                    .andExpect(status().isOk());
+
+            verify(movieService).findMovieBenefits(
+                    null, null, null,
+                    1, 24,
+                    MovieSort.SortBy.MOVIE_ID,
+                    SortOrder.ASC);
+        }
+
+        @Test
+        @DisplayName("關鍵字、顯示狀態與有特典篩選應傳入探索 Service")
+        void filters() throws Exception {
+            mockMvc.perform(get("/movies/explore")
+                    .param("keyword", "鬼滅")
+                    .param("isVisible", "true")
+                    .param("hasBenefit", "true")
+                    .param("page", "2")
+                    .param("size", "30")
+                    .param("orderBy", "RELEASE_DATE")
+                    .param("sort", "DESC"))
+                    .andExpect(status().isOk());
+
+            verify(movieService).findMovieBenefits(
+                    "鬼滅", true, true,
+                    2, 30,
+                    MovieSort.SortBy.RELEASE_DATE,
+                    SortOrder.DESC);
+        }
+    }
+
+    @Nested
     @DisplayName("GET /movies/{id}")
     class FindByIdTests {
         @Test

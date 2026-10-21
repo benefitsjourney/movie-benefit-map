@@ -157,6 +157,44 @@ class CinemaControllerTest {
     }
 
     @Nested
+    @DisplayName("GET /cinemas/explore")
+    class FindCinemaBenefitsTests {
+
+        @Test
+        @DisplayName("未帶查詢參數時，應使用 Controller 預設值")
+        void defaultParameters() throws Exception {
+            mockMvc.perform(get("/cinemas/explore"))
+                    .andExpect(status().isOk());
+
+            verify(cinemaService).findCinemaBenefits(
+                    null, null, null,
+                    1, 20,
+                    CinemaSort.SortBy.CINEMA_ID,
+                    SortOrder.ASC);
+        }
+
+        @Test
+        @DisplayName("關鍵字、縣市與有特典篩選應傳入探索 Service")
+        void filters() throws Exception {
+            mockMvc.perform(get("/cinemas/explore")
+                    .param("keyword", "威秀")
+                    .param("county", "TAIPEI")
+                    .param("hasBenefit", "true")
+                    .param("page", "2")
+                    .param("size", "21")
+                    .param("orderBy", "COUNTY")
+                    .param("sort", "DESC"))
+                    .andExpect(status().isOk());
+
+            verify(cinemaService).findCinemaBenefits(
+                    "威秀", County.TAIPEI, true,
+                    2, 21,
+                    CinemaSort.SortBy.COUNTY,
+                    SortOrder.DESC);
+        }
+    }
+
+    @Nested
     @DisplayName("GET /cinemas/{id}")
     class FindByIdTests {
 

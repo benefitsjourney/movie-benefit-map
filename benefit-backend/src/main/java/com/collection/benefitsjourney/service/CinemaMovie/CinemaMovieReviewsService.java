@@ -171,6 +171,7 @@ public class CinemaMovieReviewsService {
                     case MOVIE -> movieService.updateMovie(
                             review.getEntityId(),
                             movieRequest(review.getFieldName(), review.getCrawlerValue()));
+                    case CRAWLER_LOG -> throw badRequest("爬蟲紀錄無法寫入影城或電影資料");
                 }
             } catch (IllegalArgumentException | DateTimeParseException exception) {
                 throw badRequest("爬蟲值無法寫入正式資料：" + review.getFieldName());

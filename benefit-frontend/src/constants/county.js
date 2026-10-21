@@ -27,7 +27,7 @@ export function countyLabel(county) {
 }
 
 const TICKET_COLOR_BY_REGION = {
-  blue: [
+  orange: [
     "KEELUNG", "TAIPEI", "NEW_TAIPEI",
     "TAOYUAN", "HSINCHU", "YILAN"
   ],
@@ -35,7 +35,7 @@ const TICKET_COLOR_BY_REGION = {
     "MIAOLI", "TAICHUNG", "CHANGHUA",
     "NANTOU", "YUNLIN"
   ],
-  orange: [
+  yellow: [
     "CHIAYI", "TAINAN", "KAOHSIUNG",
     "PINGTUNG", "HUALIEN", "TAITUNG",
     "PENGHU", "KINMEN", "LIENCHIANG"

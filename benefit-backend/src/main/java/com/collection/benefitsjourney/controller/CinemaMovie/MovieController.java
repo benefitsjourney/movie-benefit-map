@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.collection.benefitsjourney.dto.CinemaMovie.MovieExploreResponse;
 import com.collection.benefitsjourney.dto.CinemaMovie.MovieRequest;
 import com.collection.benefitsjourney.dto.CinemaMovie.MovieResponse;
 import com.collection.benefitsjourney.dto.PageResponse;
@@ -54,6 +55,29 @@ public class MovieController {
                 movieService.findAll(
                         keyword,
                         isVisible,
+                        page,
+                        size,
+                        orderBy,
+                        sort));
+    }
+
+    /** 前台電影探索 */
+    @GetMapping("/explore")
+    @Operation(summary = "取得前台電影探索列表")
+    public ResponseEntity<PageResponse<MovieExploreResponse>> findMovieBenefits(
+            @Parameter(description = "電影名稱模糊搜尋關鍵字") @RequestParam(required = false) String keyword,
+            @Parameter(description = "電影是否顯示") @RequestParam(required = false) Boolean isVisible,
+            @Parameter(description = "true 時只顯示有上架特典的電影") @RequestParam(required = false) Boolean hasBenefit,
+            @Parameter(description = "排序欄位") @RequestParam(defaultValue = "MOVIE_ID") MovieSort.SortBy orderBy,
+            @Parameter(description = "排序方向") @RequestParam(defaultValue = "ASC") SortOrder sort,
+            @Parameter(description = "頁碼") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "24") int size) {
+
+        return ResponseEntity.ok(
+                movieService.findMovieBenefits(
+                        keyword,
+                        isVisible,
+                        hasBenefit,
                         page,
                         size,
                         orderBy,
