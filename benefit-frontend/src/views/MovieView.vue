@@ -220,7 +220,7 @@ function goToPage(next) {
           <template #action>
             <button type="button" class="ticket-link is-dark" :disabled="!canViewBenefits(movie)"
               @click="openBenefitDetail(movie)">
-              庫存查詢
+              特典庫存查詢
             </button>
           </template>
         </TicketCard>
@@ -232,10 +232,9 @@ function goToPage(next) {
     <StatePanel v-if="loading && !movies.length" variant="loading" message="正在尋找電影…" :icon="filmIcon" />
     <StatePanel v-else-if="error" variant="error" title="目前無法取得電影資料" message="請確認連線後再試一次。" @retry="retry" />
 
-    <BenefitDialog v-if="detailMovie" :title="detailMovie.movieName || '電影'"
-      :detail="dialogDetail(detailMovie)" :benefits="detailMovie.benefits" headline-key="cinemaName"
-      headline-fallback="尚未提供影城名稱" :loading="detailLoading" :error="detailFailed" close-label="關閉"
-      empty-text="這部電影目前沒有特典" @close="closeBenefitDetail" />
+    <BenefitDialog v-if="detailMovie" :title="detailMovie.movieName || '電影'" :detail="dialogDetail(detailMovie)"
+      :benefits="detailMovie.benefits" headline-key="cinemaName" headline-fallback="尚未提供影城名稱" :loading="detailLoading"
+      :error="detailFailed" close-label="關閉" empty-text="這部電影目前沒有特典" @close="closeBenefitDetail" />
   </section>
 </template>
 
