@@ -2,7 +2,7 @@ spring:
   application:
     name: benefit-backend
   config:
-    import: optional:file:.env[.properties
+    import: optional:file:.env[.properties]
 
   # 上傳檔案大小上限（收藏照片、爬蟲JSON）
   # 照片的10MB上限會在UseBenefitService另外檢查，這裡抓比較大是給爬蟲JSON用
