@@ -30,12 +30,11 @@ public class SecurityConfig {
             );
 
             // .authorizeHttpRequests(auth -> auth
-            //     // 註冊與登入不需要 JWT
+            //     // 註冊與登入忘記密碼、重設密碼不需要 JWT
             //     .requestMatchers(
             //         "/auth/register",
             //         "/auth/login",
             //         "/auth/google",
-            //     // 忘記密碼、重設密碼
             //         "/auth/password/forgot",
             //         "/auth/password/reset"
             //     ).permitAll()

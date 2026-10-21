@@ -46,7 +46,7 @@ public class UsersBean {
     private String email;
 
     // Google OAuth 唯一識別 ID
-    @Column(name = "google_id")
+    @Column(name = "google_id", unique = true)
     private String googleId;
 
     // 生日

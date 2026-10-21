@@ -5,11 +5,11 @@ import java.util.Collections;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
 
-import com.collection.benefitsjourney.repository.UsersRepository;
 import com.collection.benefitsjourney.domain.UsersBean;
+import com.collection.benefitsjourney.repository.UsersRepository;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -26,10 +26,10 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 this.usersRepository = usersRepository;
         }
 
-    @Override
-    protected boolean shouldNotFilter(
-            HttpServletRequest request)
-            throws ServletException {
+        @Override
+        protected boolean shouldNotFilter(
+                HttpServletRequest request)
+                throws ServletException {
 
         String uri = request.getRequestURI();
         String method = request.getMethod();
@@ -88,7 +88,15 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 FilterChain filterChain)
                 throws ServletException, IOException {
 
+        System.out.println(">>> doFilterInternal ENTER <<<");
+
+        response.setHeader("X-Debug-Filter", "JsonWebTokenFilter");
+
         String auth = request.getHeader("Authorization");
+
+        System.out.println("=== 進入 doFilterInternal ===");
+        System.out.println("Method = " + request.getMethod());
+        System.out.println("Authorization exists = " + (auth != null));
 
         // 沒有 Bearer Token
         if (auth == null || !auth.startsWith("Bearer ")) {
@@ -98,7 +106,9 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
         }
 
         String token = auth.substring(7);
+        System.out.println("=== 開始驗證 JWT ===");
         String subject = jsonWebTokenUtility.validateToken(token);
+        System.out.println("JWT subject = " + subject);
 
         if (subject == null || subject.isBlank()) {
                 response.sendError(
@@ -129,6 +139,9 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
 
         String status = usersBean.getStatus();
 
+        System.out.println("JWT User Status = [" + status + "]");
+        System.out.println("JWT Filter Method = [" + request.getMethod() + "]");
+
         // 已停權或已刪除的會員不能使用舊 Token
         if ("BANNED".equals(status) || "DELETED".equals(status)) {
         response.sendError(
@@ -136,18 +149,24 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 "此帳號目前無法使用");
         return;
         }
-
+        
         // 已停用會員只能呼叫自己的狀態 API，重新啟用帳號
         boolean isMyStatusApi =
-                request.getMethod().equals("PATCH")
-                && request.getRequestURI().equals("/users/me/status");
-
-        if ("INACTIVE".equals(status) && !isMyStatusApi) {
-        response.sendError(
-                HttpServletResponse.SC_FORBIDDEN,
-                "此帳號已停用，請先重新啟用");
-        return;
-        }
+        request.getMethod().equals("PATCH")
+        && request.getRequestURI().equals("/users/me/status");
+        
+        boolean isLogoutApi =
+        request.getMethod().equals("POST")
+        && request.getRequestURI().equals("/auth/logout");
+        
+        System.out.println("isMyStatusApi = " + isMyStatusApi);
+        System.out.println("isLogoutApi = " + isLogoutApi);
+        if ("INACTIVE".equals(status) && !isMyStatusApi  && !isLogoutApi) {
+                response.sendError(
+                        HttpServletResponse.SC_FORBIDDEN,
+                        "此帳號已停用，請先重新啟用");
+                        return;
+                }
 
         // 將會員 ID 傳給 Controller
             request.setAttribute("usersId", usersId);

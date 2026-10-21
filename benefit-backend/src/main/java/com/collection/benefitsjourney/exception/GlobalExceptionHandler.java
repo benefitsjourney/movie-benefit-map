@@ -111,6 +111,20 @@ public class GlobalExceptionHandler {
                 request);
     }
 
+    /** 處理不合法的請求，例如 Google ID Token 驗證失敗 */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgument(
+            IllegalArgumentException exception,
+            HttpServletRequest request) {
+
+        return buildError(
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage() != null
+                        ? exception.getMessage()
+                        : "請求參數不正確",
+                request);
+    }
+
     /**
      * 真正未預期的錯誤才回 500。
      * Spring MVC 已帶狀態碼的 ErrorResponse 沿用該狀態，避免被轉成 500。

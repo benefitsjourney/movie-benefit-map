@@ -1,6 +1,20 @@
 spring:
   application:
     name: benefit-backend
+
+  # Email SMTP
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME} #環境變數設定在"會員"分頁有註解，不清楚再問群組
+    password: ${MAIL_PASSWORD} 
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
   # datasource
   datasource:
     driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
@@ -47,3 +61,6 @@ springdoc:
     multipart:
       max-file-size: 10MB
       max-request-size: 10MB
+# Google OAuth Client ID
+google:
+  client-id: 341264316511-s3ihs3fce68s9e47eimi4ad43m66uegi.apps.googleusercontent.com
