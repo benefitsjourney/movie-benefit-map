@@ -22,7 +22,7 @@ defineProps({
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  color: #5c4696;
+  color: var(--detail-accent, #ff7049);
   font-size: var(--text-control);
   font-weight: 800;
   line-height: 1.4;
@@ -34,12 +34,12 @@ defineProps({
 }
 
 .back-link:hover {
-  color: #8d72ed;
+  color: var(--detail-accent-deep, #9a4632);
 }
 
 .back-link:focus-visible {
   border-radius: 4px;
-  outline: 2px solid #8d72ed;
+  outline: 2px solid var(--detail-accent, #ff7049);
   outline-offset: 3px;
 }
 </style>

@@ -34,4 +34,11 @@ public class InventoryStatusController {
             @PathVariable Integer cinemaId) {
         return ResponseEntity.ok(inventoryStatusService.findByCinema(cinemaId));
     }
+
+    @GetMapping("/movies/{movieId}/benefits/status")
+    @Operation(summary = "查某電影的特典庫存狀態", description = "只列出上架中的特典")
+    public ResponseEntity<List<InventoryStatusResponse>> findByMovie(
+            @PathVariable Integer movieId) {
+        return ResponseEntity.ok(inventoryStatusService.findByMovie(movieId));
+    }
 }

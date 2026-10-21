@@ -18,6 +18,7 @@ import com.collection.benefitsjourney.controller.BenefitCrawlerController;
 import com.collection.benefitsjourney.controller.BenefitExportController;
 import com.collection.benefitsjourney.controller.BenefitReportAdminController;
 import com.collection.benefitsjourney.controller.BenefitReportController;
+import com.collection.benefitsjourney.controller.CrawlerLogController;
 import com.collection.benefitsjourney.controller.CinemaMovie.CinemaController;
 import com.collection.benefitsjourney.controller.CinemaMovie.CinemaMovieCrawlerController;
 import com.collection.benefitsjourney.controller.CinemaMovie.CinemaMovieReviewsController;
@@ -53,6 +54,7 @@ public class OpenApiConfig {
             CinemaMovieCrawlerController.class,
             CinemaMovieReviewsController.class,
             CinemaMovieExcelController.class,
+            CrawlerLogController.class,
             BenefitController.class,
             BenefitAdminController.class,
             BenefitReportController.class,

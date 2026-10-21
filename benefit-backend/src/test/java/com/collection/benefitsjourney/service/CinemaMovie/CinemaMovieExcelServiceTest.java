@@ -16,6 +16,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.IntStream;
 
@@ -29,11 +30,16 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.collection.benefitsjourney.dto.CrawlerLogResponse;
 import com.collection.benefitsjourney.dto.PageResponse;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaResourceType;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaSort;
 import com.collection.benefitsjourney.enums.CinemaMovie.MovieSort;
+import com.collection.benefitsjourney.enums.CrawlerLogSort;
+import com.collection.benefitsjourney.enums.CrawlerStatus;
+import com.collection.benefitsjourney.enums.CrawlerType;
 import com.collection.benefitsjourney.enums.SortOrder;
+import com.collection.benefitsjourney.service.CrawlerLogService;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -52,6 +58,9 @@ class CinemaMovieExcelServiceTest {
 
     @Mock
     private MovieService movieService;
+
+    @Mock
+    private CrawlerLogService crawlerLogService;
 
     private CinemaMovieExcelService excelService;
 
@@ -73,6 +82,7 @@ class CinemaMovieExcelServiceTest {
         excelService = new CinemaMovieExcelService(
                 cinemaService,
                 movieService,
+                crawlerLogService,
                 JsonMapper.builder().build());
     }
 
@@ -106,6 +116,13 @@ class CinemaMovieExcelServiceTest {
                 isNull(), isNull(),
                 eq(page), eq(PAGE_SIZE),
                 eq(MovieSort.SortBy.MOVIE_ID), eq(SortOrder.ASC));
+    }
+
+    private void stubCrawlerLogPage(int page, PageResponse<?> response) {
+        doReturn(response).when(crawlerLogService).findAll(
+                isNull(), isNull(),
+                eq(page), eq(PAGE_SIZE),
+                eq(CrawlerLogSort.SortBy.CRAWLER_LOG_ID), eq(SortOrder.ASC));
     }
 
     private XSSFWorkbook readWorkbook(byte[] bytes) throws IOException {
@@ -252,6 +269,42 @@ class CinemaMovieExcelServiceTest {
             verify(movieService, never()).findAll(
                     null, null, 3, PAGE_SIZE,
                     MovieSort.SortBy.MOVIE_ID, SortOrder.ASC);
+        }
+    }
+
+    @Nested
+    @DisplayName("CRAWLER_LOG - 匯出爬蟲紀錄")
+    class CrawlerLogExportTests {
+
+        @Test
+        @DisplayName("正確呼叫 CrawlerLogService，匯出爬蟲紀錄欄位與資料")
+        void exportCrawlerLog() throws Exception {
+            stubCrawlerLogPage(1, page(List.of(new CrawlerLogResponse(
+                    3,
+                    CrawlerType.MOVIE,
+                    CrawlerStatus.SUCCESS,
+                    10, 2, 3, 1, 4,
+                    "電影同步完成",
+                    LocalDateTime.of(2026, 10, 20, 10, 0),
+                    LocalDateTime.of(2026, 10, 20, 10, 1, 30))), 1));
+
+            byte[] result = excelService.export(CinemaResourceType.CRAWLER_LOG);
+
+            try (XSSFWorkbook workbook = readWorkbook(result)) {
+                Sheet sheet = workbook.getSheet("CRAWLER_LOG");
+                assertNotNull(sheet);
+                assertEquals(2, sheet.getPhysicalNumberOfRows());
+                assertEquals("crawlerLogId", sheet.getRow(0).getCell(0).getStringCellValue());
+                assertEquals("message", sheet.getRow(0).getCell(8).getStringCellValue());
+                assertEquals("3", sheet.getRow(1).getCell(0).getStringCellValue());
+                assertEquals("MOVIE", sheet.getRow(1).getCell(1).getStringCellValue());
+                assertEquals("電影同步完成", sheet.getRow(1).getCell(8).getStringCellValue());
+            }
+
+            verify(crawlerLogService).findAll(
+                    null, null, 1, PAGE_SIZE,
+                    CrawlerLogSort.SortBy.CRAWLER_LOG_ID, SortOrder.ASC);
+            verifyNoInteractions(cinemaService, movieService);
         }
     }
 

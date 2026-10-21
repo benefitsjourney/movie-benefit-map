@@ -23,8 +23,8 @@ import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import http from "@/plugins/axios";
 import { COUNTY_LABELS, countyLabel } from "@/constants/county";
+import BenefitDialog from "@/components/ui/BenefitDialog.vue";
 import AppButton from "@/components/ui/Button.vue";
-import TicketCard from "@/components/ui/TicketCard.vue";
 import PageIntro from "@/components/layout/PageIntro.vue";
 import SearchFilter from "@/components/layout/SearchFilter.vue";
 
@@ -43,12 +43,6 @@ const DEFAULT_RADIUS = 5000;
 // 尚未定位時，用臺灣中心與足以涵蓋本島及離島的半徑查詢，仍由後端計算距離。
 const TAIWAN_CENTER = { latitude: 23.7, longitude: 121.0 };
 const TAIWAN_RADIUS = 450000;
-const INVENTORY_STATUS_LABELS = {
-  UNKNOWN: "庫存狀態待確認",
-  IN_STOCK: "還有庫存",
-  LOW_STOCK: "剩下不多了",
-  EXHAUSTED: "已售罄",
-};
 const RADIUS_OPTIONS = [
   { value: 1000, label: "1 公里" },
   { value: 3000, label: "3 公里" },
@@ -166,10 +160,6 @@ function formatBenefitCount(count) {
   return count ? `${count} 項特典` : "目前沒有特典";
 }
 
-function statusLabel(status) {
-  return INVENTORY_STATUS_LABELS[status] || "庫存狀態待確認";
-}
-
 function benefitItems(cinema) {
   return Array.isArray(cinema?.benefits) ? cinema.benefits : [];
 }
@@ -179,19 +169,6 @@ function benefitTotal(cinema) {
   return Number.isInteger(count) && count >= 0
     ? count
     : benefitItems(cinema).length;
-}
-
-function includesKeyword(value, keyword) {
-  const needle = String(keyword ?? "").trim().toLowerCase();
-  if (!needle) return true;
-  return String(value ?? "").toLowerCase().includes(needle);
-}
-
-function matchesBenefitFilter(item) {
-  return (
-    includesKeyword(item?.movieName, appliedFilters.value.movieKeyword) &&
-    includesKeyword(item?.benefitName, appliedFilters.value.benefitKeyword)
-  );
 }
 
 // API 資料統一加工，避免在 Marker / Popup / 清單重複轉座標、檢查範圍、換算距離。
@@ -254,11 +231,15 @@ const params = computed(() => {
 });
 const queryKey = computed(() => JSON.stringify(params.value));
 const detailCinemaId = ref(null);
-const detailLoading = ref(false);
-const detailDialog = ref(null);
 const detailCinema = computed(() =>
   cinemaItems.value.find((cinema) => cinema.cinemaId === detailCinemaId.value) ?? null,
 );
+
+function dialogDetail(cinema) {
+  const place = countyLabel(cinema?.county) || "影城";
+  return `${place} · ${benefitTotal(cinema)} 項特典`;
+}
+
 let requestController = null;
 let locateVersion = 0;
 let lastSuccessKey = null;
@@ -324,57 +305,13 @@ watch(
   { flush: "post" },
 );
 
-function updateCinemaBenefits(cinemaId, benefits) {
-  const current = cinemas.value.find((cinema) => cinema.cinemaId === cinemaId);
-  if (!current || (
-    benefitTotal(current) === benefits.length &&
-    JSON.stringify(benefitItems(current)) === JSON.stringify(benefits)
-  )) return false;
-
-  cinemas.value = cinemas.value.map((cinema) =>
-    cinema.cinemaId === cinemaId
-      ? { ...cinema, benefits, benefitCount: benefits.length }
-      : cinema,
-  );
-  return true;
-}
-
-async function loadCinemaInventory(cinemaId, { reopenPopup = false } = {}) {
-  if (cinemaId == null) return false;
-  const inventoryQueryKey = queryKey.value;
-  try {
-    const { data } = await http.get(`/cinemas/${cinemaId}/benefits/status`);
-    // 查詢條件改變或元件卸載後，忽略過期庫存結果。
-    if (disposed || inventoryQueryKey !== queryKey.value || !Array.isArray(data)) return false;
-    const visible = data.filter(matchesBenefitFilter);
-    if (updateCinemaBenefits(cinemaId, visible)) await nextTick();
-    if (reopenPopup && !disposed && inventoryQueryKey === queryKey.value) {
-      markers.get(cinemaId)?.openPopup();
-    }
-    return true;
-  } catch (error) {
-    console.error("影城特典庫存載入失敗", error);
-    return false;
-  }
-}
-
 function closeBenefitDetail() {
   detailCinemaId.value = null;
-  detailLoading.value = false;
 }
 
-async function openBenefitDetail(cinema) {
+function openBenefitDetail(cinema) {
   if (cinema?.cinemaId == null || !cinema.benefitCount) return;
   detailCinemaId.value = cinema.cinemaId;
-  detailLoading.value = true;
-  const loaded = await loadCinemaInventory(cinema.cinemaId);
-  if (detailCinemaId.value !== cinema.cinemaId) return;
-  detailLoading.value = false;
-  if (!loaded && !detailCinema.value?.benefits?.length) closeBenefitDetail();
-}
-
-function onDetailKeydown(event) {
-  if (event.key === "Escape") closeBenefitDetail();
 }
 
 function finishLocating(version, message = "") {
@@ -520,7 +457,7 @@ function makePopup(cinema) {
   if (cinema.benefitCount) {
     const detail = L.DomUtil.create("button", "popup-action", actions);
     detail.type = "button";
-    detail.textContent = "看看有哪些特典";
+    detail.textContent = "庫存查詢";
     L.DomEvent.disableClickPropagation(detail);
     L.DomEvent.on(detail, "click", (event) => {
       L.DomEvent.stop(event);
@@ -560,7 +497,6 @@ function syncMarkers() {
     });
     marker.on("click", () => {
       selectedId.value = cinema.cinemaId;
-      void loadCinemaInventory(cinema.cinemaId, { reopenPopup: true });
     });
     markerLayer.addLayer(marker);
     markers.set(cinema.cinemaId, marker);
@@ -635,7 +571,6 @@ function fitView() {
 
 function focusCinema(cinema) {
   selectedId.value = cinema.cinemaId;
-  void loadCinemaInventory(cinema.cinemaId, { reopenPopup: true });
   const marker = markers.get(cinema.cinemaId);
   if (!map || !marker) return;
   const open = () => {
@@ -774,18 +709,6 @@ watch(cinemaItems, (items) => {
   syncMarkers();
 });
 
-watch(detailCinemaId, async (id) => {
-  if (id == null) {
-    window.removeEventListener("keydown", onDetailKeydown);
-    document.body.style.overflow = "";
-    return;
-  }
-  document.body.style.overflow = "hidden";
-  window.addEventListener("keydown", onDetailKeydown);
-  await nextTick();
-  detailDialog.value?.focus();
-});
-
 watch(selectedId, (id) => {
   const counts = new Map(
     cinemaItems.value.map(({ cinemaId, benefitCount }) => [cinemaId, benefitCount]),
@@ -805,8 +728,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   disposed = true;
   locateVersion += 1;
-  window.removeEventListener("keydown", onDetailKeydown);
-  document.body.style.overflow = "";
   abortRequest();
   cleanupMap();
 });
@@ -946,53 +867,9 @@ onBeforeUnmount(() => {
       </aside>
     </div>
 
-    <Teleport to="body">
-      <div v-if="detailCinema" class="benefit-dialog-backdrop" @click.self="closeBenefitDetail">
-        <div ref="detailDialog" class="benefit-dialog" role="dialog" aria-modal="true" tabindex="-1"
-          aria-labelledby="benefit-detail-title"
-          :aria-describedby="detailCinema.benefits.length ? 'benefit-detail-rows' : 'benefit-detail-status'">
-          <TicketCard appear color="orange" :title="detailCinema.cinemaName || '影城'">
-            <template #title>
-              <span id="benefit-detail-title">{{ detailCinema.cinemaName || "影城" }}</span>
-            </template>
-            <template #detail>
-              <span id="benefit-detail-status">
-                {{ countyLabel(detailCinema.county) || "影城" }} · {{ detailCinema.benefitCount }} 項特典
-              </span>
-            </template>
-
-            <div class="benefit-hero" aria-hidden="true">
-              <span class="benefit-badge">
-                <Icon :icon="giftIcon" />
-              </span>
-            </div>
-
-            <p v-if="detailLoading && !detailCinema.benefits.length" class="benefit-dialog-status">正在載入特典資訊…</p>
-            <p v-else-if="!detailCinema.benefits.length" class="benefit-dialog-status">目前沒有找到符合條件的特典</p>
-            <div v-else class="benefit-stats-scroll">
-              <ol id="benefit-detail-rows" class="benefit-list">
-                <li v-for="(benefit, index) in detailCinema.benefits"
-                  :key="benefit.cinemaMovieBenefitId ?? `${detailCinema.cinemaId}-${benefit.benefitId}-${benefit.movieId}`"
-                  class="benefit-item">
-                  <div class="benefit-item-head">
-                    <h3>{{ benefit.movieName || "尚未提供電影名稱" }}</h3>
-                    <span class="benefit-index" aria-hidden="true">{{ String(index + 1).padStart(2, "0") }}</span>
-                  </div>
-                  <div class="benefit-item-body">
-                    <span class="benefit-name">{{ benefit.benefitName || "特典" }}</span>
-                    <span class="benefit-status">{{ statusLabel(benefit.status) }}</span>
-                  </div>
-                </li>
-              </ol>
-            </div>
-
-            <template #action>
-              <button type="button" class="ticket-link" @click="closeBenefitDetail">返回地圖</button>
-            </template>
-          </TicketCard>
-        </div>
-      </div>
-    </Teleport>
+    <BenefitDialog v-if="detailCinema" :title="detailCinema.cinemaName || '影城'"
+      :detail="dialogDetail(detailCinema)" :benefits="detailCinema.benefits" headline-key="movieName"
+      headline-fallback="尚未提供電影名稱" close-label="返回地圖" @close="closeBenefitDetail" />
   </section>
 </template>
 
@@ -1466,17 +1343,27 @@ onBeforeUnmount(() => {
 
 .map-canvas :deep(.benefit-marker-count) {
   position: absolute;
-  top: 0;
-  left: 16px;
-  min-width: 1.15rem;
-  padding: 0 0.22rem;
+  top: -14px;
+  left: 24px;
+  z-index: 2;
+  min-width: 1.55rem;
+  padding: 0.14rem 0.42rem;
+  border: 2px solid #fff;
   border-radius: 999px;
-  background: #202c45;
-  color: #fff;
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1.25;
+  background: var(--map-soft);
+  color: var(--map-brand);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.15;
   text-align: center;
+  box-shadow:
+    0 0 0 1.5px var(--map-brand),
+    0 2px 8px rgb(255 112 73 / 40%);
+}
+
+.map-canvas :deep(.benefit-marker.is-selected + .benefit-marker-count) {
+  top: -22px;
+  left: 32px;
 }
 
 .map-canvas :deep(.benefit-marker) {
@@ -1756,198 +1643,6 @@ onBeforeUnmount(() => {
   border-color: #f3b89a;
   background: #ffe4d4;
   color: #9a4e38;
-}
-
-.benefit-dialog-backdrop {
-  position: fixed;
-  z-index: 2000;
-  display: grid;
-  align-items: safe center;
-  justify-items: center;
-  padding: 1.25rem;
-  overflow: auto;
-  background: color-mix(in srgb, var(--c-ink) 46%, transparent);
-  backdrop-filter: blur(3px);
-  inset: 0;
-}
-
-.benefit-dialog {
-  width: min(52rem, 100%);
-  outline: none;
-}
-
-.benefit-dialog :deep(.ticket),
-.benefit-dialog :deep(.ticket:hover) {
-  --alert-stub-pad: 0.85rem;
-  --alert-action-size: 2.75rem;
-  --stub-size: calc(var(--alert-stub-pad) * 2 + var(--alert-action-size) + var(--dash));
-  min-height: 0;
-}
-
-.benefit-hero {
-  order: -1;
-  align-self: flex-start;
-}
-
-.benefit-badge {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border: 1px solid color-mix(in srgb, var(--ticket-ink) 18%, white);
-  border-radius: 12px;
-  background: var(--ticket-pale);
-  color: var(--ticket-ink);
-  font-size: var(--text-section-title);
-}
-
-.benefit-badge :deep(svg) {
-  display: block;
-  width: 1em;
-  height: 1em;
-}
-
-.benefit-dialog :deep(.ticket-body) {
-  align-items: flex-start;
-  padding: 1.25rem 1.35rem 1.15rem;
-  text-align: left;
-}
-
-.benefit-dialog :deep(.ticket-body h2) {
-  margin-top: 0.85rem;
-  font-size: var(--text-feature-title);
-  line-height: 1.4;
-}
-
-.benefit-dialog :deep(.ticket-detail) {
-  margin-top: 0.55rem;
-  font-size: var(--text-body);
-  line-height: var(--leading-body);
-}
-
-.benefit-dialog-status {
-  margin: 0.95rem 0 0;
-  color: var(--c-muted, #6c7380);
-  font-weight: 700;
-}
-
-.benefit-stats-scroll {
-  box-sizing: border-box;
-  width: calc(100% + 1.35rem);
-  max-height: min(42vh, 22rem);
-  margin: 0.95rem -1.35rem 0 0;
-  padding-right: 0.7rem;
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  scrollbar-color: var(--ticket-ink) transparent;
-  scrollbar-width: thin;
-}
-
-.benefit-stats-scroll::-webkit-scrollbar {
-  width: 0.7rem;
-}
-
-.benefit-stats-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.benefit-stats-scroll::-webkit-scrollbar-thumb {
-  border: 2px solid transparent;
-  border-radius: 999px;
-  background: var(--ticket-ink);
-  background-clip: padding-box;
-}
-
-.benefit-stats-scroll::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--ticket-ink) 82%, black);
-  background-clip: padding-box;
-}
-
-.benefit-list {
-  display: grid;
-  gap: 0.7rem;
-  width: 100%;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.benefit-item {
-  display: grid;
-  gap: 0.55rem;
-  padding: 0.75rem 0.85rem 0.8rem;
-  border: 2px dashed var(--accent);
-  border-radius: 14px;
-  background: #fff;
-}
-
-.benefit-item-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.benefit-item-head h3 {
-  margin: 0;
-  color: var(--ticket-ink);
-  font-size: var(--text-body);
-  font-weight: 800;
-  line-height: var(--leading-body);
-  overflow-wrap: anywhere;
-}
-
-.benefit-index {
-  flex-shrink: 0;
-  color: color-mix(in srgb, var(--ticket-ink) 70%, white);
-  font-size: var(--text-control);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0.04em;
-  line-height: var(--leading-body);
-}
-
-.benefit-item-body {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.15rem;
-  padding: 0.65rem 0.75rem;
-  border-radius: 10px;
-  background: var(--ticket-pale);
-}
-
-.benefit-name {
-  color: var(--c-ink);
-  font-size: var(--text-body);
-  font-weight: 900;
-  line-height: var(--leading-body);
-  overflow-wrap: anywhere;
-}
-
-.benefit-status {
-  color: var(--ticket-ink);
-  font-size: var(--text-control);
-  font-weight: 800;
-}
-
-.benefit-dialog :deep(.ticket-stub) {
-  justify-content: flex-end;
-  padding: var(--alert-stub-pad) 1.15rem;
-}
-
-.benefit-dialog :deep(.ticket-film) {
-  display: none;
-}
-
-.benefit-dialog :deep(.ticket-link) {
-  justify-content: center;
-  min-width: 6rem;
-  min-height: var(--alert-action-size);
-  padding: 0.5rem 1.05rem;
-  font-size: var(--text-control);
 }
 
 @keyframes map-spin {

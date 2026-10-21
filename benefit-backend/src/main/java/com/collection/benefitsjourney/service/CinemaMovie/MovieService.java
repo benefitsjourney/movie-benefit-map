@@ -4,6 +4,8 @@ import static com.collection.benefitsjourney.exception.ExceptionUtils.badRequest
 import static com.collection.benefitsjourney.exception.ExceptionUtils.conflict;
 import static com.collection.benefitsjourney.exception.ExceptionUtils.notFound;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.data.core.TypedPropertyPath;
@@ -13,11 +15,13 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import com.collection.benefitsjourney.domain.MovieBean;
+import com.collection.benefitsjourney.dto.CinemaMovie.MovieExploreResponse;
 import com.collection.benefitsjourney.dto.CinemaMovie.MovieRequest;
 import com.collection.benefitsjourney.dto.CinemaMovie.MovieResponse;
 import com.collection.benefitsjourney.dto.PageResponse;
 import com.collection.benefitsjourney.enums.CinemaMovie.MovieSort;
 import com.collection.benefitsjourney.enums.SortOrder;
+import com.collection.benefitsjourney.repository.CinemaMovieBenefitRepository;
 import com.collection.benefitsjourney.repository.LikeKeywords;
 import com.collection.benefitsjourney.repository.MovieRepository;
 
@@ -25,15 +29,64 @@ import com.collection.benefitsjourney.repository.MovieRepository;
 public class MovieService {
 
     private final MovieRepository movieRepository;
+    private final CinemaMovieBenefitRepository cinemaMovieBenefitRepository;
 
-    public MovieService(MovieRepository movieRepository) {
+    public MovieService(
+            MovieRepository movieRepository,
+            CinemaMovieBenefitRepository cinemaMovieBenefitRepository) {
         this.movieRepository = movieRepository;
+        this.cinemaMovieBenefitRepository = cinemaMovieBenefitRepository;
     }
 
     /** 取得所有電影資料 */
     public PageResponse<MovieResponse> findAll(
             String keyword,
             Boolean isVisible,
+            int page,
+            int size,
+            MovieSort.SortBy orderBy,
+            SortOrder sort) {
+
+        Page<MovieResponse> result = movieRepository.findAllByFilters(
+                LikeKeywords.toLikeKeyword(keyword),
+                isVisible,
+                false,
+                pageRequest(page, size, orderBy, sort))
+                .map(MovieResponse::from);
+
+        return PageResponse.from(result);
+    }
+
+    /** 前台電影列表 */
+    public PageResponse<MovieExploreResponse> findMovieBenefits(
+            String keyword,
+            Boolean isVisible,
+            Boolean hasBenefit,
+            int page,
+            int size,
+            MovieSort.SortBy orderBy,
+            SortOrder sort) {
+
+        Page<MovieBean> movies = movieRepository.findAllByFilters(
+                LikeKeywords.toLikeKeyword(keyword),
+                isVisible,
+                Boolean.TRUE.equals(hasBenefit),
+                pageRequest(page, size, orderBy, sort));
+
+        List<Integer> movieIds = movies.getContent().stream()
+                .map(MovieBean::getMovieId)
+                .toList();
+        Map<Integer, Integer> counts = movieIds.isEmpty()
+                ? Map.of()
+                : ApprovedBenefitCounts.from(
+                        cinemaMovieBenefitRepository.countApprovedByMovieIds(movieIds));
+
+        return PageResponse.from(movies.map(movie -> MovieExploreResponse.from(
+                movie,
+                counts.getOrDefault(movie.getMovieId(), 0))));
+    }
+
+    private PageRequest pageRequest(
             int page,
             int size,
             MovieSort.SortBy orderBy,
@@ -50,18 +103,7 @@ public class MovieService {
                     TypedPropertyPath.path((MovieBean movie) -> movie.getMovieId())));
         }
 
-        PageRequest pageable = PageRequest.of(
-                page - 1,
-                size,
-                movieSort);
-
-        Page<MovieResponse> result = movieRepository.findAllByFilters(
-                LikeKeywords.toLikeKeyword(keyword),
-                isVisible,
-                pageable)
-                .map(MovieResponse::from);
-
-        return PageResponse.from(result);
+        return PageRequest.of(page - 1, size, movieSort);
     }
 
     /** 取得指定id電影資料 */

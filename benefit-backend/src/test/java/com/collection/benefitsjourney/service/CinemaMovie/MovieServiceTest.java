@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -32,17 +33,21 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 import com.collection.benefitsjourney.domain.MovieBean;
+import com.collection.benefitsjourney.dto.CinemaMovie.MovieExploreResponse;
 import com.collection.benefitsjourney.dto.CinemaMovie.MovieRequest;
 import com.collection.benefitsjourney.dto.CinemaMovie.MovieResponse;
 import com.collection.benefitsjourney.dto.PageResponse;
 import com.collection.benefitsjourney.enums.CinemaMovie.MovieSort;
 import com.collection.benefitsjourney.enums.SortOrder;
+import com.collection.benefitsjourney.repository.CinemaMovieBenefitRepository;
 import com.collection.benefitsjourney.repository.MovieRepository;
 
 @ExtendWith(MockitoExtension.class)
 class MovieServiceTest {
     @Mock
     private MovieRepository movieRepository;
+    @Mock
+    private CinemaMovieBenefitRepository cinemaMovieBenefitRepository;
     @InjectMocks
     private MovieService movieService;
     private MovieBean movie(Integer id, String sourceId, String name) {
@@ -64,6 +69,7 @@ class MovieServiceTest {
             when(movieRepository.findAllByFilters(
                     any(String.class),
                     eq(true),
+                    eq(false),
                     any(Pageable.class)))
                     .thenReturn(new PageImpl<>(List.of(bean)));
             PageResponse<MovieResponse> result = movieService.findAll(
@@ -77,6 +83,7 @@ class MovieServiceTest {
             verify(movieRepository).findAllByFilters(
                     keywordCaptor.capture(),
                     eq(true),
+                    eq(false),
                     pageableCaptor.capture());
             // 不綁死 LikeKeywords 內部的跳脫規則，只驗證關鍵字被保留。
             assertTrue(keywordCaptor.getValue().contains("測試"));
@@ -96,6 +103,7 @@ class MovieServiceTest {
             when(movieRepository.findAllByFilters(
                     nullable(String.class),
                     nullable(Boolean.class),
+                    eq(false),
                     any(Pageable.class)))
                     .thenReturn(new PageImpl<>(List.of()));
             PageResponse<MovieResponse> result = movieService.findAll(
@@ -108,6 +116,7 @@ class MovieServiceTest {
             verify(movieRepository).findAllByFilters(
                     nullable(String.class),
                     nullable(Boolean.class),
+                    eq(false),
                     captor.capture());
             Pageable pageable = captor.getValue();
             assertEquals(0, pageable.getPageNumber());
@@ -117,6 +126,81 @@ class MovieServiceTest {
                     pageable.getSort()
                             .getOrderFor("movieId")
                             .getDirection());
+        }
+    }
+
+    @Nested
+    @DisplayName("findMovieBenefits - 前台列表")
+    class FindMovieBenefitsTests {
+
+        @Test
+        @DisplayName("列表應附上上架特典筆數，沒有特典的電影為 0")
+        void shouldAttachBenefitCount() {
+            MovieBean withBenefits = movie(1, "M001", "鬼滅");
+            withBenefits.setImageUrl("https://example.com/poster.jpg");
+            MovieBean withoutBenefits = movie(2, "M002", "你的名字");
+            when(movieRepository.findAllByFilters(
+                    nullable(String.class),
+                    eq(true),
+                    eq(false),
+                    any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of(withBenefits, withoutBenefits)));
+            when(cinemaMovieBenefitRepository.countApprovedByMovieIds(List.of(1, 2)))
+                    .thenReturn(List.<Object[]>of(new Object[] { 1, 2L }));
+
+            PageResponse<MovieExploreResponse> result = movieService.findMovieBenefits(
+                    null, true, null,
+                    1, 30, MovieSort.SortBy.RELEASE_DATE, SortOrder.DESC);
+
+            assertEquals(2, result.content().get(0).benefitCount());
+            assertEquals(0, result.content().get(1).benefitCount());
+            assertEquals("鬼滅", result.content().get(0).movieName());
+            assertEquals("https://example.com/poster.jpg", result.content().get(0).imageUrl());
+        }
+
+        @Test
+        @DisplayName("hasBenefit 為 true 時只查有上架特典的電影")
+        void shouldFilterMoviesWithBenefits() {
+            when(movieRepository.findAllByFilters(
+                    any(String.class),
+                    eq(true),
+                    eq(true),
+                    any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of()));
+
+            movieService.findMovieBenefits(
+                    "鬼滅", true, true,
+                    1, 30, MovieSort.SortBy.MOVIE_ID, SortOrder.ASC);
+
+            ArgumentCaptor<String> keywordCaptor = ArgumentCaptor.forClass(String.class);
+            verify(movieRepository).findAllByFilters(
+                    keywordCaptor.capture(),
+                    eq(true),
+                    eq(true),
+                    any(Pageable.class));
+            assertTrue(keywordCaptor.getValue().contains("鬼滅"));
+            verify(cinemaMovieBenefitRepository, never()).countApprovedByMovieIds(any());
+        }
+
+        @Test
+        @DisplayName("未指定顯示狀態時，isVisible 以 null 查詢")
+        void shouldPassNullVisibility() {
+            when(movieRepository.findAllByFilters(
+                    isNull(),
+                    isNull(),
+                    eq(false),
+                    any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of()));
+
+            movieService.findMovieBenefits(
+                    null, null, false,
+                    1, 24, MovieSort.SortBy.MOVIE_ID, SortOrder.ASC);
+
+            verify(movieRepository).findAllByFilters(
+                    isNull(),
+                    isNull(),
+                    eq(false),
+                    any(Pageable.class));
         }
     }
 

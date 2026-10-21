@@ -1,22 +1,46 @@
+<script>
+export const THEMES = {
+  purple: {
+    "--detail-accent": "#8d72ed",
+    "--detail-accent-deep": "#5c4696",
+    "--form-accent": "#8d72ed",
+  },
+  coral: {
+    "--detail-accent": "#ff7049",
+    "--detail-accent-deep": "#9a4632",
+    "--form-accent": "#ff7049",
+  },
+};
+</script>
+
 <script setup>
 /**
  * 共用詳情卡。
  * 負責外框、返回列與標題列。
  * 區塊內容由各詳情頁填入。
+ * theme：coral 為預設（橘色），purple 為紫色。
  */
+import { computed } from "vue";
 import { Icon } from "@iconify/vue";
 import BackLink from "@/components/layout/BackLink.vue";
 
-defineProps({
+const props = defineProps({
   title: { type: String, default: "" },
   titleIcon: { type: [Object, String], default: null },
   backTo: { type: [String, Object], default: null },
   backLabel: { type: String, default: "返回" },
+  theme: {
+    type: String,
+    default: "coral",
+    validator: (value) => Object.hasOwn(THEMES, value),
+  },
 });
+
+const themeStyle = computed(() => THEMES[props.theme] ?? THEMES.coral);
 </script>
 
 <template>
-  <article class="detail-card">
+  <article class="detail-card" :style="themeStyle">
     <div v-if="backTo" class="detail-toolbar">
       <BackLink :to="backTo">
         {{ backLabel }}
@@ -74,7 +98,7 @@ defineProps({
 
 .detail-head h2 svg {
   flex: none;
-  color: #8d72ed;
+  color: var(--detail-accent);
   font-size: var(--text-card-title);
 }
 
@@ -108,7 +132,6 @@ defineProps({
 
 .detail-card .detail-section .app-switch {
   min-height: 0;
-  --form-accent: #8d72ed;
 }
 
 .detail-card .detail-section h3 {
@@ -147,19 +170,19 @@ defineProps({
 }
 
 .detail-card .detail-link {
-  color: #8d72ed;
+  color: var(--detail-accent);
   font-weight: 700;
   overflow-wrap: anywhere;
   text-underline-offset: 0.18em;
 }
 
 .detail-card .detail-link:hover {
-  color: #5c4696;
+  color: var(--detail-accent-deep);
 }
 
 .detail-card .detail-link:focus-visible {
   border-radius: 4px;
-  outline: 2px solid #8d72ed;
+  outline: 2px solid var(--detail-accent);
   outline-offset: 3px;
 }
 

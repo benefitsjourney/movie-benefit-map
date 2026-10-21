@@ -196,7 +196,7 @@ onUnmounted(() => {
       @retry="loadMovie" />
 
     <DetailCard v-else-if="movie" :title="displayText(movie.movieName)" :title-icon="filmIcon"
-      :back-to="{ name: 'admin-movies' }" back-label="返回電影一覽">
+      :back-to="{ name: 'admin-movies' }" back-label="返回電影一覽" theme="purple">
       <template #actions>
         <template v-if="editing">
           <AppButton type="button" variant="outline" color="purple" :icon="closeIcon" :disabled="submitting"
