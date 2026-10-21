@@ -31,6 +31,14 @@ const links = [
       },
     ],
   },
+  {
+  label: "特典",
+  icon: giftIcon,
+  children: [
+    { to: "/admin/benefit-reports", label: "特典審核" },
+    { to: "/admin/benefits", label: "特典管理" },
+  ],
+},
 ];
 </script>
 

@@ -230,6 +230,31 @@ watch(() => route.params.id, loadBenefit, { immediate: true });
 onUnmounted(() => {
   requestSerial += 1;
 });
+
+// 加入收藏：POST /use-benefits { benefitId }
+const collecting = ref(false);
+const collectMessage = ref("");
+
+async function addToCollection() {
+  if (collecting.value) return;
+  if (!localStorage.getItem("token")) {
+    collectMessage.value = "請先登入才能收藏。";
+    return;
+  }
+  collecting.value = true;
+  collectMessage.value = "";
+  try {
+    await http.post("/use-benefits", { benefitId: benefit.value.benefitId });
+    collectMessage.value = "已加入收藏！可以到「我的收藏」上傳照片。";
+  } catch (e) {
+    const code = e?.response?.status;
+    if (code === 409) collectMessage.value = "你已經收藏過這個特典了。";
+    else if (code === 401) collectMessage.value = "登入已過期，請重新登入。";
+    else collectMessage.value = e?.response?.data?.message ?? "收藏失敗，請稍後再試。";
+  } finally {
+    collecting.value = false;
+  }
+}
 </script>
 
 <template>
@@ -272,6 +297,13 @@ onUnmounted(() => {
                 </dd>
               </div>
             </dl>
+              <div class="collect-row">
+                <button type="button" class="collect-btn" :disabled="collecting" @click="addToCollection">
+                  <Icon :icon="giftIcon" aria-hidden="true" />
+                  {{ collecting ? "處理中…" : "加入收藏" }}
+                </button>
+                <span v-if="collectMessage" class="collect-msg">{{ collectMessage }}</span>
+              </div>
           </section>
         </div>
       </DetailCard>
@@ -607,5 +639,38 @@ onUnmounted(() => {
 
 .tone-unknown {
   --chip-ink: #6c7380;
+}
+.collect-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.collect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.75rem;
+  padding: 0.4rem 1.1rem;
+  border: 1.5px solid #ff7049;
+  border-radius: 999px;
+  background: #ff7049;
+  color: #fff;
+  font-size: var(--text-control);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.collect-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.collect-msg {
+  color: var(--c-muted);
+  font-size: var(--text-min);
+  font-weight: 700;
 }
 </style>
