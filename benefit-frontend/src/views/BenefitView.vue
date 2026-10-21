@@ -20,6 +20,7 @@ import SearchFilter from "@/components/layout/SearchFilter.vue";
 import StatePanel from "@/components/layout/StatePanel.vue";
 import Pagination from "@/components/ui/Pagination.vue";
 import TicketCard from "@/components/ui/TicketCard.vue";
+import ImageViewer from "@/components/ui/ImageViewer.vue";
 
 const PAGE_SIZE = 20;
 
@@ -101,6 +102,17 @@ const {
   retry,
 } = useApiCollection("/benefits", requestParams, { page });
 
+// ── 看大圖：點卡片圖片打開 ──
+const viewerOpen = ref(false);
+const viewerUrl = ref("");
+const viewerTitle = ref("");
+
+function openImage(benefit) {
+  viewerUrl.value = imageUrl(benefit);
+  viewerTitle.value = benefit.benefitName ?? "";
+  viewerOpen.value = true;
+}
+
 function typeLabel(type) {
   return BENEFIT_TYPES[type]?.label ?? "特典";
 }
@@ -161,7 +173,8 @@ function goToPage(next) {
         :appear="index < 6" :stamp="typeLabel(benefit.benefitType)" :title="benefit.benefitName">
         <template #poster>
           <img v-if="imageUrl(benefit)" :src="imageUrl(benefit)" :alt="`${benefit.benefitName} 圖片`" loading="lazy"
-            decoding="async" referrerpolicy="no-referrer" @error="markImageBroken(benefit)" />
+            decoding="async" referrerpolicy="no-referrer" @error="markImageBroken(benefit)"
+            class="poster-click" @click="openImage(benefit)" />
           <span v-else class="poster-fallback">
             <Icon :icon="giftIcon" aria-hidden="true" />
           </span>
@@ -196,6 +209,7 @@ function goToPage(next) {
 
     <StatePanel v-if="loading && !benefits.length" variant="loading" message="正在尋找特典…" :icon="giftIcon" />
     <StatePanel v-else-if="error" variant="error" title="目前無法取得特典資料" message="請確認連線後再試一次。" @retry="retry" />
+    <ImageViewer v-model="viewerOpen" :images="[viewerUrl]" :title="viewerTitle" />
   </section>
 </template>
 
@@ -255,5 +269,9 @@ function goToPage(next) {
   color: #a33b6b;
   font-size: var(--text-min);
   font-weight: 800;
+}
+
+.poster-click {
+  cursor: zoom-in;
 }
 </style>
