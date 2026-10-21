@@ -5,6 +5,8 @@ import static com.collection.benefitsjourney.exception.ExceptionUtils.badRequest
 import static com.collection.benefitsjourney.exception.ExceptionUtils.conflict;
 import static com.collection.benefitsjourney.exception.ExceptionUtils.notFound;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.data.core.TypedPropertyPath;
@@ -15,21 +17,27 @@ import org.springframework.data.jpa.domain.JpaSort;
 import org.springframework.stereotype.Service;
 
 import com.collection.benefitsjourney.domain.CinemaBean;
+import com.collection.benefitsjourney.dto.CinemaMovie.CinemaExploreResponse;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaResponse;
 import com.collection.benefitsjourney.dto.PageResponse;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaSort;
 import com.collection.benefitsjourney.enums.County;
 import com.collection.benefitsjourney.enums.SortOrder;
+import com.collection.benefitsjourney.repository.CinemaMovieBenefitRepository;
 import com.collection.benefitsjourney.repository.CinemaRepository;
 import com.collection.benefitsjourney.repository.LikeKeywords;
 
 @Service
 public class CinemaService {
     private final CinemaRepository cinemaRepository;
+    private final CinemaMovieBenefitRepository cinemaMovieBenefitRepository;
 
-    public CinemaService(CinemaRepository cinemaRepository) {
+    public CinemaService(
+            CinemaRepository cinemaRepository,
+            CinemaMovieBenefitRepository cinemaMovieBenefitRepository) {
         this.cinemaRepository = cinemaRepository;
+        this.cinemaMovieBenefitRepository = cinemaMovieBenefitRepository;
     }
 
     /** 取得所有影城資料 */
@@ -43,15 +51,60 @@ public class CinemaService {
             CinemaSort.SortBy orderBy,
             SortOrder sort) {
 
-        // 排序方向
+        Page<CinemaResponse> result = cinemaRepository.findAllByFilters(
+                LikeKeywords.toLikeKeyword(keyword),
+                county,
+                isActive,
+                isVisible,
+                false,
+                pageRequest(page, size, orderBy, sort))
+                .map(CinemaResponse::from);
+
+        return PageResponse.from(result);
+    }
+
+    /** 前台影城列表 */
+    public PageResponse<CinemaExploreResponse> findCinemaBenefits(
+            String keyword,
+            County county,
+            Boolean hasBenefit,
+            int page,
+            int size,
+            CinemaSort.SortBy orderBy,
+            SortOrder sort) {
+
+        Page<CinemaBean> cinemas = cinemaRepository.findAllByFilters(
+                LikeKeywords.toLikeKeyword(keyword),
+                county,
+                null,
+                null,
+                Boolean.TRUE.equals(hasBenefit),
+                pageRequest(page, size, orderBy, sort));
+
+        List<Integer> cinemaIds = cinemas.getContent().stream()
+                .map(CinemaBean::getCinemaId)
+                .toList();
+        Map<Integer, Integer> counts = cinemaIds.isEmpty()
+                ? Map.of()
+                : ApprovedBenefitCounts.from(
+                        cinemaMovieBenefitRepository.countApprovedByCinemaIds(cinemaIds));
+
+        return PageResponse.from(cinemas.map(cinema -> CinemaExploreResponse.from(
+                cinema,
+                counts.getOrDefault(cinema.getCinemaId(), 0))));
+    }
+
+    private PageRequest pageRequest(
+            int page,
+            int size,
+            CinemaSort.SortBy orderBy,
+            SortOrder sort) {
+
         Sort.Direction direction = sort == SortOrder.DESC
                 ? Sort.Direction.DESC
                 : Sort.Direction.ASC;
 
-        // 排序方式
         Sort order;
-
-        // 如果排序方式是縣市，則使用縣市排序
         if (orderBy == CinemaSort.SortBy.COUNTY) {
             String northToSouth = "(" + County.northToSouthExpression("c.county") + ")";
             order = JpaSort.unsafe(direction, northToSouth);
@@ -59,26 +112,13 @@ public class CinemaService {
             order = Sort.by(direction, orderBy.getProperty());
         }
 
-        // 如果排序方式不是影城ID，則加上影城ID排序
         if (orderBy != CinemaSort.SortBy.CINEMA_ID) {
             order = order.and(Sort.by(
                     Sort.Direction.ASC,
                     TypedPropertyPath.path((CinemaBean cinema) -> cinema.getCinemaId())));
         }
 
-        // 分頁
-        PageRequest pageable = PageRequest.of(page - 1, size, order);
-
-        // 查詢影城
-        Page<CinemaResponse> result = cinemaRepository.findAllByFilters(
-                LikeKeywords.toLikeKeyword(keyword),
-                county,
-                isActive,
-                isVisible,
-                pageable)
-                .map(CinemaResponse::from);
-
-        return PageResponse.from(result);
+        return PageRequest.of(page - 1, size, order);
     }
 
     /** 取得指定id影城資料 */

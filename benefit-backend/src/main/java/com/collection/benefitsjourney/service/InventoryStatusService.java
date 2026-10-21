@@ -10,6 +10,7 @@ import com.collection.benefitsjourney.exception.ExceptionUtils;
 import com.collection.benefitsjourney.repository.BenefitRepository;
 import com.collection.benefitsjourney.repository.CinemaMovieBenefitRepository;
 import com.collection.benefitsjourney.repository.CinemaRepository;
+import com.collection.benefitsjourney.repository.MovieRepository;
 
 import lombok.RequiredArgsConstructor;
 
@@ -22,6 +23,7 @@ public class InventoryStatusService {
     private final CinemaMovieBenefitRepository cinemaMovieBenefitRepository;
     private final BenefitRepository benefitRepository;
     private final CinemaRepository cinemaRepository;
+    private final MovieRepository movieRepository;
 
     /** 某特典在哪些影城的庫存狀態 */
     public List<InventoryStatusResponse> findByBenefit(Integer benefitId) {
@@ -38,7 +40,19 @@ public class InventoryStatusService {
         if (!cinemaRepository.existsById(cinemaId)) {
             throw ExceptionUtils.notFound("找不到影城ID：" + cinemaId);
         }
-        return cinemaMovieBenefitRepository.findApprovedStatusByCinema(cinemaId).stream()
+        return cinemaMovieBenefitRepository
+                .findApprovedByCinemaIds(List.of(cinemaId), null, null).stream()
+                .map(InventoryStatusResponse::from)
+                .toList();
+    }
+
+    /** 某電影目前上架中特典的庫存狀態 */
+    public List<InventoryStatusResponse> findByMovie(Integer movieId) {
+        if (!movieRepository.existsById(movieId)) {
+            throw ExceptionUtils.notFound("找不到電影 ID：" + movieId);
+        }
+        return cinemaMovieBenefitRepository
+                .findApprovedByMovieIds(List.of(movieId)).stream()
                 .map(InventoryStatusResponse::from)
                 .toList();
     }

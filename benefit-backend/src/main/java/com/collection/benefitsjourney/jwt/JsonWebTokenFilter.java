@@ -48,9 +48,11 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 || (uri.equals("/cinemas") && (method.equals("GET")))
                 || (uri.matches("/cinemas/\\d+") && method.equals("GET"))
                 || (uri.equals("/cinemas/map") && method.equals("GET"))
+                || (uri.equals("/cinemas/explore") && method.equals("GET"))
 
                 // 電影 API 白名單
                 || (uri.equals("/movies") && method.equals("GET"))
+                || (uri.equals("/movies/explore") && method.equals("GET"))
                 || (uri.matches("/movies/\\d+") && method.equals("GET"))
                 
                 // 特典 API 白名單
@@ -61,6 +63,7 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 // 庫存狀態 API 白名單（地圖頁公開查詢）
                 || (uri.matches("/benefits/\\d+/cinemas/status") && method.equals("GET"))
                 || (uri.matches("/cinemas/\\d+/benefits/status") && method.equals("GET"))
+                || (uri.matches("/movies/\\d+/benefits/status") && method.equals("GET"))
 
                 // 交換刊登 API 白名單：只允許公開 GET 查詢
                 || (uri.equals("/exchange-listings")

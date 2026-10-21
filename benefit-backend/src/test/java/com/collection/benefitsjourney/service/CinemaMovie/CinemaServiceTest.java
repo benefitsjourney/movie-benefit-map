@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -35,12 +36,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import com.collection.benefitsjourney.domain.CinemaBean;
+import com.collection.benefitsjourney.dto.CinemaMovie.CinemaExploreResponse;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaResponse;
 import com.collection.benefitsjourney.dto.PageResponse;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaSort;
 import com.collection.benefitsjourney.enums.County;
 import com.collection.benefitsjourney.enums.SortOrder;
+import com.collection.benefitsjourney.repository.CinemaMovieBenefitRepository;
 import com.collection.benefitsjourney.repository.CinemaRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,6 +51,9 @@ class CinemaServiceTest {
 
     @Mock
     private CinemaRepository cinemaRepository;
+
+    @Mock
+    private CinemaMovieBenefitRepository cinemaMovieBenefitRepository;
 
     @InjectMocks
     private CinemaService cinemaService;
@@ -82,7 +88,7 @@ class CinemaServiceTest {
             CinemaBean bean = cinema(100, "T001", "信義威秀");
             when(cinemaRepository.findAllByFilters(
                     any(String.class), eq(County.TAIPEI), eq(true), eq(false),
-                    any(Pageable.class)))
+                    eq(false), any(Pageable.class)))
                     .thenReturn(new PageImpl<>(List.of(bean)));
 
             PageResponse<CinemaResponse> result = cinemaService.findAll(
@@ -95,7 +101,7 @@ class CinemaServiceTest {
             ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
             verify(cinemaRepository).findAllByFilters(
                     keywordCaptor.capture(), eq(County.TAIPEI), eq(true), eq(false),
-                    pageableCaptor.capture());
+                    eq(false), pageableCaptor.capture());
 
             // 不綁死 LikeKeywords 內部的跳脫規則，只驗證關鍵字被保留。
             assertTrue(keywordCaptor.getValue().contains("威秀"));
@@ -113,7 +119,7 @@ class CinemaServiceTest {
             when(cinemaRepository.findAllByFilters(
                     nullable(String.class), nullable(County.class),
                     nullable(Boolean.class), nullable(Boolean.class),
-                    any(Pageable.class)))
+                    eq(false), any(Pageable.class)))
                     .thenReturn(new PageImpl<>(List.of()));
 
             PageResponse<CinemaResponse> result = cinemaService.findAll(
@@ -125,7 +131,7 @@ class CinemaServiceTest {
             verify(cinemaRepository).findAllByFilters(
                     nullable(String.class), nullable(County.class),
                     nullable(Boolean.class), nullable(Boolean.class),
-                    captor.capture());
+                    eq(false), captor.capture());
 
             Pageable pageable = captor.getValue();
             assertEquals(0, pageable.getPageNumber());
@@ -142,6 +148,58 @@ class CinemaServiceTest {
             assertTrue(County.TAITUNG.northToSouth() < County.UNKNOWN.northToSouth());
             assertEquals(Sort.Direction.ASC,
                     pageable.getSort().getOrderFor("cinemaId").getDirection());
+        }
+    }
+
+    @Nested
+    @DisplayName("findCinemaBenefits - 前台列表")
+    class FindCinemaBenefitsTests {
+
+        @Test
+        @DisplayName("列表應附上上架特典筆數，沒有特典的影城為 0")
+        void shouldAttachBenefitCount() {
+            CinemaBean withBenefits = cinema(100, null, "信義威秀");
+            withBenefits.setCinemaAddress("台北市信義區松壽路20號");
+            withBenefits.setOfficialWebsiteUrl("https://www.example.com/");
+            CinemaBean withoutBenefits = cinema(101, null, "京站威秀");
+            when(cinemaRepository.findAllByFilters(
+                    nullable(String.class), nullable(County.class),
+                    nullable(Boolean.class), nullable(Boolean.class),
+                    eq(false), any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of(withBenefits, withoutBenefits)));
+            when(cinemaMovieBenefitRepository.countApprovedByCinemaIds(List.of(100, 101)))
+                    .thenReturn(List.<Object[]>of(new Object[] { 100, 2L }));
+
+            PageResponse<CinemaExploreResponse> result = cinemaService.findCinemaBenefits(
+                    null, null, null,
+                    1, 20, CinemaSort.SortBy.CINEMA_ID, SortOrder.ASC);
+
+            assertEquals(2, result.content().get(0).benefitCount());
+            assertEquals(0, result.content().get(1).benefitCount());
+            assertEquals("信義威秀", result.content().get(0).cinemaName());
+            assertEquals("https://www.example.com/", result.content().get(0).officialWebsiteUrl());
+        }
+
+        @Test
+        @DisplayName("hasBenefit 為 true 時只查有上架特典的影城")
+        void shouldFilterCinemasWithBenefits() {
+            when(cinemaRepository.findAllByFilters(
+                    any(String.class), eq(County.TAIPEI),
+                    isNull(), isNull(),
+                    eq(true), any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of()));
+
+            cinemaService.findCinemaBenefits(
+                    "威秀", County.TAIPEI, true,
+                    1, 10, CinemaSort.SortBy.CINEMA_ID, SortOrder.ASC);
+
+            ArgumentCaptor<String> keywordCaptor = ArgumentCaptor.forClass(String.class);
+            verify(cinemaRepository).findAllByFilters(
+                    keywordCaptor.capture(), eq(County.TAIPEI),
+                    isNull(), isNull(),
+                    eq(true), any(Pageable.class));
+            assertTrue(keywordCaptor.getValue().contains("威秀"));
+            verify(cinemaMovieBenefitRepository, never()).countApprovedByCinemaIds(any());
         }
     }
 

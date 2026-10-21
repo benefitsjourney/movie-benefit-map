@@ -34,6 +34,7 @@ import com.collection.benefitsjourney.domain.MovieBean;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMapResponse;
 import com.collection.benefitsjourney.enums.BenefitInventoryStatus;
 import com.collection.benefitsjourney.enums.County;
+import com.collection.benefitsjourney.repository.CinemaMovieBenefitRepository;
 import com.collection.benefitsjourney.repository.CinemaRepository;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,6 +42,9 @@ class CinemaMapServiceTest {
 
     @Mock
     private CinemaRepository cinemaRepository;
+
+    @Mock
+    private CinemaMovieBenefitRepository cinemaMovieBenefitRepository;
 
     @InjectMocks
     private CinemaMapService cinemaMapService;
@@ -122,7 +126,7 @@ class CinemaMapServiceTest {
             assertTrue(keywordCaptor.getValue().contains("威秀"));
 
             // 沒有半徑內影城時不查特典
-            verify(cinemaRepository, never()).findApprovedForMap(any(), any(), any());
+            verify(cinemaMovieBenefitRepository, never()).findApprovedByCinemaIds(any(), any(), any());
         }
 
         @Test
@@ -144,7 +148,7 @@ class CinemaMapServiceTest {
             assertEquals(121.0, result.longitude());
             assertEquals(5000.0, result.radius());
 
-            verify(cinemaRepository, never()).findApprovedForMap(any(), any(), any());
+            verify(cinemaMovieBenefitRepository, never()).findApprovedByCinemaIds(any(), any(), any());
         }
 
         @Test
@@ -174,7 +178,7 @@ class CinemaMapServiceTest {
                     .allMatch(cinema -> cinema.distance() <= 1000.0));
 
             // 特典查詢只帶入半徑內、且已依距離排序的影城 ID
-            verify(cinemaRepository).findApprovedForMap(
+            verify(cinemaMovieBenefitRepository).findApprovedByCinemaIds(
                     eq(List.of(1, 2)),
                     isNull(),
                     isNull());
@@ -333,7 +337,7 @@ class CinemaMapServiceTest {
             assertEquals(121.0, result.longitude());
             assertEquals(1000.0, result.radius());
 
-            verify(cinemaRepository, never()).findApprovedForMap(any(), any(), any());
+            verify(cinemaMovieBenefitRepository, never()).findApprovedByCinemaIds(any(), any(), any());
         }
     }
 
@@ -351,7 +355,7 @@ class CinemaMapServiceTest {
                     nullable(String.class),
                     nullable(County.class)))
                     .thenReturn(List.of(second, first));
-            when(cinemaRepository.findApprovedForMap(
+            when(cinemaMovieBenefitRepository.findApprovedByCinemaIds(
                     eq(List.of(1, 2)),
                     isNull(),
                     isNull()))
@@ -392,7 +396,7 @@ class CinemaMapServiceTest {
                     nullable(String.class),
                     nullable(County.class)))
                     .thenReturn(List.of(withBenefit, withoutBenefit));
-            when(cinemaRepository.findApprovedForMap(any(), isNull(), isNull()))
+            when(cinemaMovieBenefitRepository.findApprovedByCinemaIds(any(), isNull(), isNull()))
                     .thenReturn(List.of(
                             benefit(11, withBenefit, 101, "電影甲", 201, "海報")));
 
@@ -415,7 +419,7 @@ class CinemaMapServiceTest {
                     nullable(String.class),
                     nullable(County.class)))
                     .thenReturn(List.of(withBenefit, withoutBenefit));
-            when(cinemaRepository.findApprovedForMap(
+            when(cinemaMovieBenefitRepository.findApprovedByCinemaIds(
                     eq(List.of(1, 2)),
                     isNull(),
                     isNull()))
@@ -441,7 +445,7 @@ class CinemaMapServiceTest {
                     nullable(String.class),
                     nullable(County.class)))
                     .thenReturn(List.of(matched, unmatched));
-            when(cinemaRepository.findApprovedForMap(
+            when(cinemaMovieBenefitRepository.findApprovedByCinemaIds(
                     eq(List.of(1, 2)),
                     any(String.class),
                     isNull()))
@@ -456,7 +460,7 @@ class CinemaMapServiceTest {
             assertEquals(1, result.cinemas().get(0).cinemaId());
 
             ArgumentCaptor<String> movieCaptor = ArgumentCaptor.forClass(String.class);
-            verify(cinemaRepository).findApprovedForMap(
+            verify(cinemaMovieBenefitRepository).findApprovedByCinemaIds(
                     eq(List.of(1, 2)),
                     movieCaptor.capture(),
                     isNull());
@@ -473,7 +477,7 @@ class CinemaMapServiceTest {
                     nullable(String.class),
                     nullable(County.class)))
                     .thenReturn(List.of(unmatched, matched));
-            when(cinemaRepository.findApprovedForMap(
+            when(cinemaMovieBenefitRepository.findApprovedByCinemaIds(
                     eq(List.of(1, 2)),
                     isNull(),
                     any(String.class)))
@@ -489,7 +493,7 @@ class CinemaMapServiceTest {
             assertEquals("壓克力立牌", result.cinemas().get(0).benefits().get(0).benefitName());
 
             ArgumentCaptor<String> benefitCaptor = ArgumentCaptor.forClass(String.class);
-            verify(cinemaRepository).findApprovedForMap(
+            verify(cinemaMovieBenefitRepository).findApprovedByCinemaIds(
                     eq(List.of(1, 2)),
                     isNull(),
                     benefitCaptor.capture());
@@ -505,7 +509,7 @@ class CinemaMapServiceTest {
                     nullable(String.class),
                     nullable(County.class)))
                     .thenReturn(List.of(withoutBenefit));
-            when(cinemaRepository.findApprovedForMap(
+            when(cinemaMovieBenefitRepository.findApprovedByCinemaIds(
                     eq(List.of(1)),
                     isNull(),
                     isNull()))
@@ -519,7 +523,7 @@ class CinemaMapServiceTest {
             assertEquals(0, result.cinemas().get(0).benefitCount());
 
             verify(cinemaRepository).findAllForMap(isNull(), isNull());
-            verify(cinemaRepository).findApprovedForMap(
+            verify(cinemaMovieBenefitRepository).findApprovedByCinemaIds(
                     eq(List.of(1)),
                     isNull(),
                     isNull());

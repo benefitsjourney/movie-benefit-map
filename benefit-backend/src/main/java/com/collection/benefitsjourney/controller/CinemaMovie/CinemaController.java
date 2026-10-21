@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.collection.benefitsjourney.dto.CinemaMovie.CinemaExploreResponse;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaResponse;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMapResponse;
@@ -36,7 +37,9 @@ public class CinemaController {
 
     private final CinemaMapService cinemaMapService;
 
-    public CinemaController(CinemaService cinemaService, CinemaMapService cinemaMapService) {
+    public CinemaController(
+            CinemaService cinemaService,
+            CinemaMapService cinemaMapService) {
         this.cinemaService = cinemaService;
         this.cinemaMapService = cinemaMapService;
     }
@@ -59,6 +62,29 @@ public class CinemaController {
                         county,
                         isActive,
                         isVisible,
+                        page,
+                        size,
+                        orderBy,
+                        sort));
+    }
+
+    /** 前台影城探索 */
+    @GetMapping("/explore")
+    @Operation(summary = "取得前台影城探索列表")
+    public ResponseEntity<PageResponse<CinemaExploreResponse>> findCinemaBenefits(
+            @Parameter(description = "影城名稱模糊搜尋關鍵字") @RequestParam(required = false) String keyword,
+            @Parameter(description = "縣市篩選") @RequestParam(required = false) County county,
+            @Parameter(description = "true 時只顯示有上架特典的影城") @RequestParam(required = false) Boolean hasBenefit,
+            @Parameter(description = "排序欄位") @RequestParam(defaultValue = "CINEMA_ID") CinemaSort.SortBy orderBy,
+            @Parameter(description = "排序方向，縣市升序為由北到南") @RequestParam(defaultValue = "ASC") SortOrder sort,
+            @Parameter(description = "頁碼") @RequestParam(defaultValue = "1") int page,
+            @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "20") int size) {
+
+        return ResponseEntity.ok(
+                cinemaService.findCinemaBenefits(
+                        keyword,
+                        county,
+                        hasBenefit,
                         page,
                         size,
                         orderBy,
