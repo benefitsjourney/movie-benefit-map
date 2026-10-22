@@ -16,6 +16,7 @@ import PageIntro from "@/components/layout/PageIntro.vue";
 import DetailCard from "@/components/layout/DetailCard.vue";
 import StatePanel from "@/components/layout/StatePanel.vue";
 import { displayText, httpUrl } from "@/components/ui/DataTable.vue";
+import ImageViewer from "@/components/ui/ImageViewer.vue";
 
 // 後端 BenefitType 對應的中文名稱（跟列表頁一樣）
 const BENEFIT_TYPES = {
@@ -46,6 +47,8 @@ const loading = ref(false);
 const loadFailed = ref(false);
 const loadErrorMessage = ref("請確認連線後再試一次。");
 const benefit = ref(null);
+// 點特典圖片看大圖
+const viewerOpen = ref(false);
 const stocks = ref([]);
 const imageBroken = ref(false);
 
@@ -273,7 +276,7 @@ async function addToCollection() {
         <div class="benefit-info">
           <div class="benefit-image">
             <img v-if="imageUrl" :src="imageUrl" :alt="`${benefit.benefitName} 圖片`" referrerpolicy="no-referrer"
-              @error="imageBroken = true" />
+              @error="imageBroken = true" class="poster-click" @click="viewerOpen = true" />
             <span v-else class="image-fallback">
               <Icon :icon="giftIcon" aria-hidden="true" />
             </span>
@@ -308,6 +311,7 @@ async function addToCollection() {
         </div>
       </DetailCard>
 
+      <ImageViewer v-model="viewerOpen" :images="[imageUrl]" :title="benefit.benefitName" />
       <!-- 各影城庫存 -->
       <DetailCard title="各影城庫存" :title-icon="pinIcon">
         <template v-if="stocks.length">
@@ -672,5 +676,9 @@ async function addToCollection() {
   color: var(--c-muted);
   font-size: var(--text-min);
   font-weight: 700;
+}
+
+.poster-click {
+  cursor: zoom-in;
 }
 </style>

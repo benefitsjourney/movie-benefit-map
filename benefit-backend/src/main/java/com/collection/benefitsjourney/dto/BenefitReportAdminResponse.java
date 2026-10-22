@@ -26,7 +26,9 @@ public record BenefitReportAdminResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
         // 爬蟲從原文判斷出的影城ID（逗號分隔），審核時預先勾選用
-        String matchedCinemaIds) {
+        String matchedCinemaIds,
+        // 對應到的電影名稱（沒對應到就是null）
+        String movieName) {
 
     public static BenefitReportAdminResponse from(BenefitReportBean bean) {
         return new BenefitReportAdminResponse(
@@ -49,6 +51,7 @@ public record BenefitReportAdminResponse(
                 bean.getReviewNote(),
                 bean.getCreatedAt(),
                 bean.getUpdatedAt(),
-                bean.getMatchedCinemaIds());
+                bean.getMatchedCinemaIds(),
+                bean.getMovie() != null ? bean.getMovie().getMovieName() : null);
     }
 }

@@ -6,6 +6,8 @@ import com.collection.benefitsjourney.enums.BenefitType;
 
 import jakarta.validation.constraints.Size;
 
+import java.util.List;
+
 /**
  * 管理員修改待審核特典回報。
  * 欄位皆可省略，只更新有帶的欄位。
@@ -35,6 +37,8 @@ public record BenefitReportUpdateRequest(
 
         @Size(max = 300, message = "來源網址長度不可超過300字元") String sourceUrl,
 
-        @Size(max = 100, message = "審核備註長度不可超過100字元") String reviewNote) {
+        @Size(max = 100, message = "審核備註長度不可超過100字元") String reviewNote,
+        
+        // 審核時勾選的影城：只儲存不核准時先記在matchedCinemaIds，下次打開會預先勾好
+        List<Integer> cinemaIds) {
 }
-

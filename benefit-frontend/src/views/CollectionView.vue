@@ -15,9 +15,7 @@ import PageIntro from "@/components/layout/PageIntro.vue";
 import ResultBanner from "@/components/layout/ResultBanner.vue";
 import StatePanel from "@/components/layout/StatePanel.vue";
 import TicketCard from "@/components/ui/TicketCard.vue";
-import AppModal from "@/components/ui/AppModal.vue";
-import chevronLeftIcon from "@iconify-icons/mdi/chevron-left";
-import chevronRightIcon from "@iconify-icons/mdi/chevron-right";
+import ImageViewer from "@/components/ui/ImageViewer.vue";
 
 // 跟後端 UseBenefitService 的限制一樣，先在前端擋，少打一次 API
 const MAX_PHOTOS = 5;
@@ -193,11 +191,6 @@ function openViewer(item, index = 0) {
   viewerOpen.value = true;
 }
 
-// step 是 -1（上一張）或 1（下一張），到底會繞回另一頭
-function moveViewer(step) {
-  const total = viewerImages.value.length;
-  if (total) viewerIndex.value = (viewerIndex.value + step + total) % total;
-}
 const count = computed(() => items.value.length);
 
 onMounted(loadCollection);
@@ -278,20 +271,9 @@ onMounted(loadCollection);
       </template>
     </template>
     <!-- 大圖 -->
-    <AppModal v-model="viewerOpen" :title="viewerItem?.benefitName ?? ''" width="48rem">
-      <div class="viewer">
-        <img :src="viewerImages[viewerIndex]" alt="收藏照片大圖" referrerpolicy="no-referrer" />
-        <template v-if="viewerImages.length > 1">
-          <button type="button" class="viewer-nav prev" aria-label="上一張" @click="moveViewer(-1)">
-            <Icon :icon="chevronLeftIcon" aria-hidden="true" />
-          </button>
-          <button type="button" class="viewer-nav next" aria-label="下一張" @click="moveViewer(1)">
-            <Icon :icon="chevronRightIcon" aria-hidden="true" />
-          </button>
-          <span class="viewer-count">{{ viewerIndex + 1 }} / {{ viewerImages.length }}</span>
-        </template>
-      </div>
-    </AppModal>
+        <!-- 大圖 -->
+        <ImageViewer v-model="viewerOpen" v-model:index="viewerIndex" :images="viewerImages"
+          :title="viewerItem?.benefitName ?? ''" />
   </section>
 </template>
 
@@ -447,59 +429,5 @@ onMounted(loadCollection);
   border: 0;
   background: none;
   cursor: zoom-in;
-}
-
-.viewer {
-  position: relative;
-  display: grid;
-  place-items: center;
-  min-height: 16rem;
-  overflow: hidden;
-  border-radius: 14px;
-  background: #1e2b45;
-}
-
-/* contain：完整顯示，不裁切，直式橫式都看得到全部 */
-.viewer img {
-  max-width: 100%;
-  max-height: 70vh;
-  object-fit: contain;
-}
-
-.viewer-nav {
-  position: absolute;
-  top: 50%;
-  translate: 0 -50%;
-  display: grid;
-  place-items: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  border: 0;
-  border-radius: 50%;
-  background: rgb(255 255 255 / 85%);
-  color: #292b35;
-  font-size: 1.6rem;
-  cursor: pointer;
-}
-
-.viewer-nav.prev {
-  left: 0.6rem;
-}
-
-.viewer-nav.next {
-  right: 0.6rem;
-}
-
-.viewer-count {
-  position: absolute;
-  bottom: 0.6rem;
-  left: 50%;
-  translate: -50% 0;
-  padding: 0.1rem 0.7rem;
-  border-radius: 999px;
-  background: rgb(0 0 0 / 55%);
-  color: #fff;
-  font-size: var(--text-min);
-  font-weight: 800;
 }
 </style>

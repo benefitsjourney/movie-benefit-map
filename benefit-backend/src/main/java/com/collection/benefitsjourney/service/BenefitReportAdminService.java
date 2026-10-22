@@ -94,6 +94,17 @@ public class BenefitReportAdminService {
             }
             report.setMovie(movieRepository.getReferenceById(request.movieId()));
         }
+        
+        // 勾選的影城先記在matchedCinemaIds（逗號分隔，格式同爬蟲），核准時才真正綁定
+        if (request.cinemaIds() != null) {
+            for (Integer cid : request.cinemaIds()) {
+                if (!cinemaRepository.existsById(cid)) {
+                    throw ExceptionUtils.badRequest("找不到影城ID：" + cid);
+                }
+            }
+            report.setMatchedCinemaIds(request.cinemaIds().isEmpty() ? null
+                    : String.join(",", request.cinemaIds().stream().map(String::valueOf).toList()));
+        }
 
         if (request.benefitName() != null) {
             report.setBenefitName(request.benefitName());

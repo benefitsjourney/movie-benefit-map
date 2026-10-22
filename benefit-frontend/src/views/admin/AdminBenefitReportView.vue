@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { Icon } from "@iconify/vue";
 import clipboardIcon from "@iconify-icons/mdi/clipboard-check-outline";
 import giftIcon from "@iconify-icons/mdi/gift-outline";
@@ -92,7 +92,7 @@ const isPending = computed(() => filters.value.status === "PENDING");
 
 // 電影：有對應到資料庫就顯示編號，沒有就顯示回報單上的自訂名稱
 function movieText(row) {
-  if (row.movieId) return `#${row.movieId}`;
+  if (row.movieId) return row.movieName || `#${row.movieId}`;
   return row.customMovieName ? `${row.customMovieName}（新）` : "";
 }
 
@@ -123,6 +123,14 @@ function toInputDate(value) {
 function toApiDate(value, endOfDay = false) {
   if (!value) return null;
   return `${value} ${endOfDay ? "23:59:59" : "00:00:00"}`;
+}
+
+// Date物件 → "2026-10-16"
+function toDateText(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
 }
 
 // ── 影城清單（審核時勾選用），第一次打開審核視窗才載入 ──
@@ -160,6 +168,19 @@ const selectedMovie = ref(null); // { movieId, movieName }
 const releaseDate = ref(""); // 電影庫沒有這部、要新建時才需要
 const cinemaKeyword = ref("");
 const selectedCinemaIds = ref([]);
+
+// 一般場次（週特典）最長 7 天：結束日最晚是開始日＋6天
+const endDateMax = computed(() => {
+  if (form.value.benefitType !== "REGULAR" || !form.value.startDate) return "";
+  const date = new Date(`${form.value.startDate}T00:00:00`);
+  date.setDate(date.getDate() + 6);
+  return toDateText(date);
+});
+
+// 一般場次選好開始日、結束日還空著時，自動帶入第7天
+watch(endDateMax, (max) => {
+  if (max && !form.value.endDate) form.value.endDate = max;
+});
 
 // ── 相似特典：審核時查資料庫已有的特典，判斷是不是重複 ──
 // 用 GET /benefits/admin?keyword=，會同時比對特典名稱和電影名稱，上下架都查得到
@@ -266,7 +287,7 @@ const needsNewMovie = computed(() => !hasMovie.value);
 
 const movieSummary = computed(() => {
   if (selectedMovie.value) return `${selectedMovie.value.movieName}（#${selectedMovie.value.movieId}）`;
-  if (target.value?.movieId) return `資料庫電影 #${target.value.movieId}`;
+  if (target.value?.movieId) return `${target.value.movieName ?? "資料庫電影"}（#${target.value.movieId}）`;
   return "尚未對應到資料庫的電影";
 });
 
@@ -281,6 +302,10 @@ function buildUpdateBody() {
   if (f.startDate) body.startDate = toApiDate(f.startDate);
   if (f.endDate) body.endDate = toApiDate(f.endDate, true);
   if (needsNewMovie.value && f.customMovieName.trim()) body.customMovieName = f.customMovieName.trim();
+  // 有從搜尋選電影就一起存，下次打開會記得
+  if (selectedMovie.value) body.movieId = selectedMovie.value.movieId;
+  // 勾選的影城也先存起來（核准時才真正綁定）
+  body.cinemaIds = selectedCinemaIds.value;
   return body;
 }
 
@@ -297,6 +322,9 @@ function approveProblems() {
   }
   if (!selectedCinemaIds.value.length && !target.value?.cinemaId) problems.push("影城（至少勾一間）");
   if (f.startDate && f.endDate && f.endDate < f.startDate) problems.push("結束日期不能早於開始日期");
+  if (endDateMax.value && f.endDate && f.endDate > endDateMax.value) {
+    problems.push(`一般場次最多 7 天，結束日最晚是 ${endDateMax.value}`);
+  }
   return problems;
 }
 
@@ -417,7 +445,7 @@ const modalTitle = computed(() => {
       color="purple" @retry="retry" />
 
     <!-- 審核視窗 -->
-    <AppModal v-model="reviewOpen" :title="modalTitle" :busy="submitting" width="48rem">
+    <AppModal v-model="reviewOpen" :title="modalTitle" :busy="submitting" width="48rem" :close-on-backdrop="false">
       <template v-if="target">
         <!-- 上方：圖片＋來源＋爬蟲備註 -->
         <div class="report-summary">
@@ -503,7 +531,8 @@ const modalTitle = computed(() => {
             </div>
             <div class="field">
               <label class="field-label" for="review-end">結束日期</label>
-              <input id="review-end" v-model="form.endDate" type="date" class="form-control" />
+              <input id="review-end" v-model="form.endDate" type="date" class="form-control"
+                :min="form.startDate || undefined" :max="endDateMax || undefined" />
             </div>
           </div>
           <p class="field-hint date-hint">開始日從當天 00:00 起算，結束日算到當天 23:59。限量兌換（送完為止）可以不填結束日。</p>
@@ -536,7 +565,7 @@ const modalTitle = computed(() => {
               <input id="review-release" v-model="releaseDate" type="date" class="form-control" />
             </div>
           </div>
-          <p v-if="needsNewMovie" class="field-hint">電影庫找不到的話，核准時會用這個名稱建立新電影。先搜尋看看，避免重複建立。</p>
+          <p v-if="needsNewMovie" class="field-hint">電影庫找不到的話，核准時會用這個名稱建立新電影。先搜尋看看，避免重複建立。上映日期只在核准時使用，按「只儲存」不會保留。</p>
 
           <h3 class="form-section">影城（已選 {{ selectedCinemaIds.length }} 間）</h3>
           <div class="field">

@@ -101,6 +101,9 @@ function goToPage(next) {
 // ── 上下架：PATCH /benefits/{id}/status ──
 const togglingId = ref(null);
 
+// 上下架失敗時改變這個值，讓開關重新畫，彈回原本的狀態
+const switchKey = ref(0);
+
 async function toggleStatus(row, checked) {
   const next = checked ? "APPROVED" : "EXPIRED";
   if (togglingId.value || row.status === next) return;
@@ -110,6 +113,7 @@ async function toggleStatus(row, checked) {
     row.status = next; // 直接改畫面，不用整頁重抓
   } catch (e) {
     // 例如：已過結束日的特典不能重新上架
+    switchKey.value += 1;
     await showError(checked ? "無法上架" : "無法下架", e);
   } finally {
     togglingId.value = null;
@@ -210,7 +214,7 @@ async function removeBenefit(row) {
         <DataTable caption="特典資料表" :columns="columns" :rows="benefits" row-key="benefitId"
           empty-text="目前沒有符合條件的特典。" :loading="loading" theme="purple">
           <template #cell-status="{ row }">
-            <Switch :model-value="row.status === 'APPROVED'" :disabled="togglingId === row.benefitId"
+            <Switch :key="`${row.benefitId}-${switchKey}`" :model-value="row.status === 'APPROVED'" :disabled="togglingId === row.benefitId"
               :aria-label="`${row.benefitName} 上架開關`" @update:model-value="toggleStatus(row, $event)">
               {{ STATUS_LABELS[row.status] ?? row.status }}
             </Switch>
