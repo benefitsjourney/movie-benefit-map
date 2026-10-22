@@ -40,5 +40,8 @@ public record BenefitReportUpdateRequest(
         @Size(max = 100, message = "審核備註長度不可超過100字元") String reviewNote,
         
         // 審核時勾選的影城：只儲存不核准時先記在matchedCinemaIds，下次打開會預先勾好
-        List<Integer> cinemaIds) {
+        List<Integer> cinemaIds,
+
+        // 管理員換圖時跟officialImageUrl一起帶
+        @Size(max = 200, message = "圖片publicId長度不可超過200字元") String publicId) {
 }
