@@ -157,7 +157,8 @@ public class UseBenefitService {
 
         try {
             // saveAndFlush：立刻寫進資料庫，photo才會拿到ID和建立時間
-            useBenefitRepository.saveAndFlush(useBenefit);
+        	// （不用saveAndFlush，它會把photo複製一份，原本的photo拿不到ID）
+        	useBenefitRepository.flush();
         } catch (RuntimeException e) {
             // 資料庫存失敗，把剛上傳的檔案刪掉，避免Cloudinary留下沒人用的檔案
             deleteCloudinaryQuietly(image.publicId());

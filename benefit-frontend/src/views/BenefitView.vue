@@ -20,6 +20,7 @@ import SearchFilter from "@/components/layout/SearchFilter.vue";
 import StatePanel from "@/components/layout/StatePanel.vue";
 import Pagination from "@/components/ui/Pagination.vue";
 import TicketCard from "@/components/ui/TicketCard.vue";
+import ImageViewer from "@/components/ui/ImageViewer.vue";
 
 const PAGE_SIZE = 20;
 
@@ -30,19 +31,20 @@ const BENEFIT_TYPES = {
   SPECIAL_UNTIL_OUT: { label: "限量兌換", color: "purple" },
 };
 
-const filters = ref({ keyword: "", benefitType: "" });
+const filters = ref({ keyword: "", benefitType: "", status: "APPROVED" });
 const page = ref(1);
 const listTop = ref(null);
 // 圖片網址失效時改顯示預設圖
 const brokenImages = ref(new Set());
 
-// 搜尋條件改變時回到第 1 頁（寫法同組員的 MovieView）
+// 搜尋條件改變時回到第 1 頁（寫法同 MovieView）
 const appliedFilters = computed({
   get: () => filters.value,
   set: (next) => {
     filters.value = {
       keyword: next?.keyword ?? "",
       benefitType: next?.benefitType ?? "",
+      status: next?.status || "APPROVED",
     };
     page.value = 1;
   },
@@ -64,14 +66,26 @@ const filterFields = [
     icon: shapeIcon,
     options: Object.entries(BENEFIT_TYPES).map(([value, { label }]) => ({ value, label })),
   },
+    {
+    key: "status",
+    label: "狀態",
+    type: "select",
+    emptyLabel: null,
+    icon: calendarIcon,
+    options: [
+      { value: "APPROVED", label: "上架中" },
+      { value: "EXPIRED", label: "已結束" },
+    ],
+  },
 ];
 
-// GET /benefits：只回傳已上架的特典；沒填的條件不送
+// GET /benefits：回傳特典；沒填的條件不送
 const requestParams = computed(() => {
   const params = { page: page.value, size: PAGE_SIZE };
   const keyword = filters.value.keyword?.trim();
   if (keyword) params.keyword = keyword;
   if (filters.value.benefitType) params.benefitType = filters.value.benefitType;
+  params.status = filters.value.status;
   return params;
 });
 
@@ -87,6 +101,17 @@ const {
   error,
   retry,
 } = useApiCollection("/benefits", requestParams, { page });
+
+// ── 看大圖：點卡片圖片打開 ──
+const viewerOpen = ref(false);
+const viewerUrl = ref("");
+const viewerTitle = ref("");
+
+function openImage(benefit) {
+  viewerUrl.value = imageUrl(benefit);
+  viewerTitle.value = benefit.benefitName ?? "";
+  viewerOpen.value = true;
+}
 
 function typeLabel(type) {
   return BENEFIT_TYPES[type]?.label ?? "特典";
@@ -148,7 +173,8 @@ function goToPage(next) {
         :appear="index < 6" :stamp="typeLabel(benefit.benefitType)" :title="benefit.benefitName">
         <template #poster>
           <img v-if="imageUrl(benefit)" :src="imageUrl(benefit)" :alt="`${benefit.benefitName} 圖片`" loading="lazy"
-            decoding="async" referrerpolicy="no-referrer" @error="markImageBroken(benefit)" />
+            decoding="async" referrerpolicy="no-referrer" @error="markImageBroken(benefit)"
+            class="poster-click" @click="openImage(benefit)" />
           <span v-else class="poster-fallback">
             <Icon :icon="giftIcon" aria-hidden="true" />
           </span>
@@ -183,6 +209,7 @@ function goToPage(next) {
 
     <StatePanel v-if="loading && !benefits.length" variant="loading" message="正在尋找特典…" :icon="giftIcon" />
     <StatePanel v-else-if="error" variant="error" title="目前無法取得特典資料" message="請確認連線後再試一次。" @retry="retry" />
+    <ImageViewer v-model="viewerOpen" :images="[viewerUrl]" :title="viewerTitle" />
   </section>
 </template>
 
@@ -242,5 +269,9 @@ function goToPage(next) {
   color: #a33b6b;
   font-size: var(--text-min);
   font-weight: 800;
+}
+
+.poster-click {
+  cursor: zoom-in;
 }
 </style>

@@ -54,7 +54,7 @@ public class BenefitCrawlerService {
         int ignored = Math.max(0, posts.size() - (int) parsedPosts);
         return new ImportSummary(s.created(), s.autoApproved(), s.duplicated(), s.ignored() + ignored);
     }
-
+    
     private List<ParsedBenefitPost> parsePosts(JsonNode posts) {
         List<ParsedBenefitPost> parsed = new ArrayList<>();
         for (JsonNode post : posts) {
@@ -79,8 +79,8 @@ public class BenefitCrawlerService {
 
     /**
      * 取貼文第一張圖的網址。Apify的media陣列每一項可能是：
-     * photo_image.uri（照片）、image.uri，或只有thumbnail（影片／Reels 的縮圖），
-     * 依序找第一個有網址的。
+     * photo_image.uri（照片）、image.uri，或只有thumbnail（影片／Reels的縮圖）。
+     * 只取照片，不取影片縮圖。
      */
     static String firstImageUrl(JsonNode post) {
         JsonNode media = post.get("media");
@@ -90,8 +90,7 @@ public class BenefitCrawlerService {
         for (JsonNode m : media) {
             for (String candidate : new String[] {
                     m.path("photo_image").path("uri").asText(""),
-                    m.path("image").path("uri").asText(""),
-                    m.path("thumbnail").asText("") }) {
+                    m.path("image").path("uri").asText("") }) {
                 if (candidate.startsWith("http")) {
                     return candidate;
                 }

@@ -11,8 +11,11 @@ import AdminMovieView from '@/views/admin/cinema-movie/AdminMovieView.vue'
 import AdminMovieDetail from '@/views/admin/cinema-movie/AdminMovieDetail.vue'
 import AdminMovieForm from '@/views/admin/cinema-movie/AdminMovieForm.vue'
 import AdminCrawlerReviewView from '@/views/admin/cinema-movie/AdminCrawlerReviewView.vue'
+import AdminBenefitReportView from '@/views/admin/AdminBenefitReportView.vue'
+import AdminBenefitView from '@/views/admin/AdminBenefitView.vue'
 import BenefitView from '@/views/BenefitView.vue'
 import BenefitDetailView from '@/views/BenefitDetailView.vue'
+import CollectionView from '@/views/CollectionView.vue'
 import CinemaView from '@/views/CinemaView.vue'
 import MapView from '@/views/MapView.vue'
 import MovieView from '@/views/MovieView.vue'
@@ -64,6 +67,11 @@ const router = createRouter({
           component: BenefitDetailView,
         },
         {
+          path: 'collection',
+          name: 'collection',
+          component: CollectionView
+        },
+        {
           path: 'movies',
           name: 'movies',
           component: MovieView,
@@ -85,6 +93,16 @@ const router = createRouter({
       component: AdminLayout,
       redirect: '/admin/crawler',
       children: [
+        {
+          path: 'benefit-reports',
+          name: 'admin-benefit-reports',
+          component: AdminBenefitReportView
+        },
+        {
+          path: 'benefits',
+          name: 'admin-benefits',
+          component: AdminBenefitView
+        },
         {
           path: 'crawler',
           name: 'admin-crawler',

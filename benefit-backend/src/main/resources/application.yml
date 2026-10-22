@@ -4,6 +4,13 @@ spring:
   config:
     import: optional:file:.env[.properties]
 
+  # 上傳檔案大小上限（收藏照片、爬蟲JSON）
+  # 照片的10MB上限會在UseBenefitService另外檢查，這裡抓比較大是給爬蟲JSON用
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
+
   # Email SMTP
   mail:
     host: smtp.gmail.com
@@ -58,11 +65,6 @@ springdoc:
   swagger-ui:
     doc-expansion: none
 
-# 調整持有紀錄照片可上傳大小上限
-  servlet:
-    multipart:
-      max-file-size: 10MB
-      max-request-size: 10MB
 # Google OAuth Client ID
 google:
   client-id: 341264316511-s3ihs3fce68s9e47eimi4ad43m66uegi.apps.googleusercontent.com
