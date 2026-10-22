@@ -20,6 +20,7 @@ import BenefitDetailView from '@/views/BenefitDetailView.vue'
 import CollectionView from '@/views/CollectionView.vue'
 import MyReportView from '@/views/MyReportView.vue'
 import BenefitReportFormView from '@/views/BenefitReportFormView.vue'
+import CalendarView from '@/views/CalendarView.vue'
 import CinemaView from '@/views/CinemaView.vue'
 import MapView from '@/views/MapView.vue'
 import MovieView from '@/views/MovieView.vue'
@@ -62,9 +63,9 @@ const router = createRouter({
       component: ResetPasswordView,
     },
     {
-    path: '/account',
-    component: AccountLayout,
-    meta: { requiresAuth: true },
+      path: '/account',
+      component: AccountLayout,
+      meta: { requiresAuth: true },
       children: [
         {
           path: '',
@@ -92,9 +93,9 @@ const router = createRouter({
           component: AccountBenefitsView,
         },
         {
-        path: 'messages',
-        name: 'account-messages',
-        component: MessageInboxView,
+          path: 'messages',
+          name: 'account-messages',
+          component: MessageInboxView,
         },
         {
           path: 'messages/:conversationId',
@@ -137,6 +138,11 @@ const router = createRouter({
           name: 'report-benefit',
           component: BenefitReportFormView,
           meta: { requiresAuth: true },
+        },
+        {
+          path: 'calendar',
+          name: 'calendar',
+          component: CalendarView,
         },
         {
           path: 'movies',
