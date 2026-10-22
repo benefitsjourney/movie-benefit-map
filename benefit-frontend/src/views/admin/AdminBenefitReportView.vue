@@ -13,6 +13,8 @@ import pencilIcon from "@iconify-icons/mdi/pencil-outline";
 import saveIcon from "@iconify-icons/mdi/content-save-outline";
 import arrowLeftIcon from "@iconify-icons/mdi/arrow-left";
 import alertIcon from "@iconify-icons/mdi/information-outline";
+import cameraIcon from "@iconify-icons/mdi/camera-plus-outline";
+import undoIcon from "@iconify-icons/mdi/undo";
 
 import http from "@/plugins/axios";
 import { useApiCollection } from "@/composables/useApiCollection";
@@ -38,6 +40,10 @@ const BENEFIT_TYPES = {
   SPECIAL_BY_DATE: "入場贈送",
   SPECIAL_UNTIL_OUT: "限量兌換",
 };
+
+// 圖片限制跟會員回報、後端 BenefitReportImageService 一樣
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 function apiMessage(error, fallback) {
   const message = error?.response?.data?.message;
@@ -157,6 +163,7 @@ async function loadCinemas() {
 const reviewOpen = ref(false);
 const target = ref(null);
 const submitting = ref(false);
+const submitStep = ref(""); // 按鈕上顯示目前在做什麼
 // false＝編輯／核准畫面，true＝駁回畫面
 const rejectMode = ref(false);
 const rejectNote = ref("");
@@ -168,6 +175,61 @@ const selectedMovie = ref(null); // { movieId, movieName }
 const releaseDate = ref(""); // 電影庫沒有這部、要新建時才需要
 const cinemaKeyword = ref("");
 const selectedCinemaIds = ref([]);
+
+// ── 圖片：補圖／換圖 ──
+// 選圖時只在瀏覽器預覽，按「只儲存」或「儲存並核准」時才上傳，再跟其他欄位一起 PATCH
+const newImageFile = ref(null);
+const newImagePreview = ref(""); // 瀏覽器暫時網址（blob:），只給預覽用
+const imageError = ref("");
+// 同一張圖已經上傳過就記下來；儲存失敗再按一次時直接沿用，不重複上傳
+let uploadedImage = null; // { url, publicId }
+
+// 畫面上要顯示的圖：有選新圖就顯示新圖，沒有就顯示回報單原本的圖
+const shownImage = computed(() => newImagePreview.value || httpUrl(target.value?.officialImageUrl));
+
+function clearNewImage() {
+  if (newImagePreview.value) URL.revokeObjectURL(newImagePreview.value);
+  newImageFile.value = null;
+  newImagePreview.value = "";
+  imageError.value = "";
+  uploadedImage = null;
+}
+
+function onImageChange(event) {
+  const input = event.target;
+  const file = input.files?.[0] ?? null;
+  input.value = ""; // 清空，同一張圖才能再選一次
+  if (!file) return;
+
+  if (!IMAGE_TYPES.includes(file.type)) {
+    imageError.value = "只能上傳 JPG、PNG、WEBP、GIF 格式的圖片";
+    return;
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    imageError.value = "圖片不可超過 10MB";
+    return;
+  }
+
+  clearNewImage();
+  newImageFile.value = file;
+  newImagePreview.value = URL.createObjectURL(file);
+}
+
+// POST /benefit-reports/images：回傳 { url, publicId }；沒選新圖就回 null
+async function uploadNewImage() {
+  if (!newImageFile.value) return null;
+  if (uploadedImage) return uploadedImage;
+  const data = new FormData();
+  data.append("file", newImageFile.value);
+  const { data: result } = await http.post("/benefit-reports/images", data);
+  uploadedImage = { url: result.url, publicId: result.publicId };
+  return uploadedImage;
+}
+
+// 視窗關掉時把暫時的預覽清掉
+watch(reviewOpen, (open) => {
+  if (!open) clearNewImage();
+});
 
 // 一般場次（週特典）最長 7 天：結束日最晚是開始日＋6天
 const endDateMax = computed(() => {
@@ -208,6 +270,7 @@ async function openReview(row) {
   target.value = row;
   rejectMode.value = false;
   rejectNote.value = "";
+  clearNewImage();
   form.value = {
     benefitName: row.benefitName ?? "",
     benefitType: row.benefitType ?? "",
@@ -222,13 +285,13 @@ async function openReview(row) {
   releaseDate.value = "";
   cinemaKeyword.value = "";
 
-    // 先用爬蟲從原文判斷出的影城；沒有的話用回報單上的那一間
+  // 先用爬蟲從原文判斷出的影城；沒有的話用回報單上的那一間
   const matched = String(row.matchedCinemaIds ?? "")
     .split(/[,\s]+/)
     .map(Number)
     .filter((id) => Number.isInteger(id) && id > 0);
   selectedCinemaIds.value = matched.length ? matched : row.cinemaId ? [row.cinemaId] : [];
-  
+
   // 預設用電影名稱查，沒有就用特典名稱
   similarKeyword.value = row.customMovieName || row.benefitName || "";
   similarList.value = [];
@@ -292,7 +355,8 @@ const movieSummary = computed(() => {
 });
 
 // PATCH /benefit-reports/{id}：只送有內容的欄位（後端是「沒帶就不改」）
-function buildUpdateBody() {
+// image：有換圖時傳 { url, publicId }，沒換圖就不帶，後端維持原本的圖
+function buildUpdateBody(image) {
   const f = form.value;
   const body = {
     benefitName: f.benefitName.trim(),
@@ -306,7 +370,24 @@ function buildUpdateBody() {
   if (selectedMovie.value) body.movieId = selectedMovie.value.movieId;
   // 勾選的影城也先存起來（核准時才真正綁定）
   body.cinemaIds = selectedCinemaIds.value;
+  // 圖片網址和 publicId 要一起帶（後端會檢查）
+  if (image) {
+    body.officialImageUrl = image.url;
+    body.publicId = image.publicId;
+  }
   return body;
+}
+
+// 有選新圖就先上傳；上傳失敗會跳提示並回傳 false（呼叫的地方就停下來）
+async function prepareImage() {
+  if (!newImageFile.value) return { ok: true, image: null };
+  submitStep.value = "上傳圖片中…";
+  try {
+    return { ok: true, image: await uploadNewImage() };
+  } catch (e) {
+    await showError("圖片上傳失敗", e, "請稍後再試，或按「取消更換」用原本的圖。");
+    return { ok: false, image: null };
+  }
 }
 
 // 核准前先在前端檢查一次，少打幾次會失敗的 API
@@ -338,7 +419,10 @@ async function saveOnly() {
   }
   submitting.value = true;
   try {
-    await http.patch(`/benefit-reports/${row.benefitReportId}`, buildUpdateBody());
+    const { ok, image } = await prepareImage();
+    if (!ok) return;
+    submitStep.value = "儲存中…";
+    await http.patch(`/benefit-reports/${row.benefitReportId}`, buildUpdateBody(image));
     reviewOpen.value = false;
     await openAppAlert({ variant: "success", title: "已儲存", text: "修改已儲存，這筆仍在待審核。", confirmText: "關閉", cancelText: "" });
     retry();
@@ -346,10 +430,11 @@ async function saveOnly() {
     await showError("儲存失敗", e);
   } finally {
     submitting.value = false;
+    submitStep.value = "";
   }
 }
 
-// 核准：先 PATCH 存修改，再 PATCH /approve
+// 核准：（有新圖先上傳）→ PATCH 存修改 → PATCH /approve
 async function submitApprove() {
   const row = target.value;
   if (!row || submitting.value) return;
@@ -368,8 +453,12 @@ async function submitApprove() {
   submitting.value = true;
   let saved = false;
   try {
-    await http.patch(`/benefit-reports/${row.benefitReportId}`, buildUpdateBody());
+    const { ok, image } = await prepareImage();
+    if (!ok) return;
+    submitStep.value = "儲存中…";
+    await http.patch(`/benefit-reports/${row.benefitReportId}`, buildUpdateBody(image));
     saved = true;
+    submitStep.value = "核准中…";
     await http.patch(`/benefit-reports/${row.benefitReportId}/approve`, approveBody);
     reviewOpen.value = false;
     await openAppAlert({ variant: "success", title: "已核准", text: `「${form.value.benefitName.trim()}」已建立為正式特典。`, confirmText: "關閉", cancelText: "" });
@@ -380,6 +469,7 @@ async function submitApprove() {
     if (saved) retry();
   } finally {
     submitting.value = false;
+    submitStep.value = "";
   }
 }
 
@@ -449,8 +539,31 @@ const modalTitle = computed(() => {
       <template v-if="target">
         <!-- 上方：圖片＋來源＋爬蟲備註 -->
         <div class="report-summary">
-          <img v-if="httpUrl(target.officialImageUrl)" :src="httpUrl(target.officialImageUrl)" alt="特典圖片"
-            referrerpolicy="no-referrer" />
+          <div class="report-image">
+            <!-- 點圖用新分頁看原圖 -->
+            <a v-if="shownImage" :href="shownImage" target="_blank" rel="noopener noreferrer" class="image-frame"
+              title="點擊看原圖">
+              <img :src="shownImage" alt="特典圖片" referrerpolicy="no-referrer" />
+              <span v-if="newImageFile" class="image-badge">新圖・尚未儲存</span>
+            </a>
+            <span v-else class="image-frame image-empty">無圖片</span>
+
+            <!-- 駁回畫面不用改圖 -->
+            <template v-if="!rejectMode">
+              <label class="image-pick" :class="{ 'is-disabled': submitting }">
+                <Icon :icon="cameraIcon" aria-hidden="true" />
+                {{ shownImage ? "更換圖片" : "補上圖片" }}
+                <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" :disabled="submitting"
+                  @change="onImageChange" />
+              </label>
+              <button v-if="newImageFile" type="button" class="image-undo" :disabled="submitting"
+                @click="clearNewImage">
+                <Icon :icon="undoIcon" aria-hidden="true" />
+                取消更換
+              </button>
+            </template>
+          </div>
+
           <div class="summary-text">
             <p class="summary-source">
               來源：{{ target.userId ? `會員 #${target.userId}` : "爬蟲" }}
@@ -463,6 +576,10 @@ const modalTitle = computed(() => {
             <p v-if="target.reviewNote" class="summary-note">
               <Icon :icon="alertIcon" aria-hidden="true" />
               <span>{{ target.reviewNote }}</span>
+            </p>
+            <p v-if="imageError" class="image-error">{{ imageError }}</p>
+            <p v-else-if="!rejectMode" class="field-hint">
+              圖片：JPG、PNG、WEBP、GIF，10MB 以內。選好後按「只儲存」或「儲存並核准」才會真的上傳。
             </p>
           </div>
         </div>
@@ -477,7 +594,7 @@ const modalTitle = computed(() => {
 
         <!-- 編輯／核准畫面 -->
         <template v-else>
-                    <h3 class="form-section">相似特典（判斷是否重複）</h3>
+          <h3 class="form-section">相似特典（判斷是否重複）</h3>
           <div class="field">
             <div class="inline-search">
               <input v-model="similarKeyword" type="search" class="form-control" placeholder="輸入電影或特典名稱"
@@ -611,7 +728,7 @@ const modalTitle = computed(() => {
               只儲存
             </AppButton>
             <AppButton type="button" color="purple" :icon="checkIcon" :disabled="submitting" @click="submitApprove">
-              {{ submitting ? "處理中…" : "儲存並核准" }}
+              {{ submitting ? submitStep || "處理中…" : "儲存並核准" }}
             </AppButton>
           </div>
         </div>
@@ -656,12 +773,112 @@ const modalTitle = computed(() => {
   border-bottom: 1.5px dashed var(--c-border);
 }
 
-.report-summary img {
+/* ── 審核視窗：圖片＋補圖／換圖 ── */
+.report-image {
+  display: flex;
   flex: none;
-  width: 6rem;
-  height: 9rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.4rem;
+  width: 7rem;
+}
+
+.image-frame {
+  position: relative;
+  display: block;
+  width: 7rem;
+  height: 10rem;
+  overflow: hidden;
+  border: 1.5px solid var(--c-border);
   border-radius: 12px;
+  background: #f8f6ff;
+}
+
+.image-frame img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
+}
+
+.image-empty {
+  display: grid;
+  place-items: center;
+  color: var(--c-muted);
+  font-size: var(--text-min);
+  font-weight: 700;
+}
+
+.image-badge {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 0.15rem 0.3rem;
+  background: rgb(141 114 237 / 90%);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.image-pick {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.4rem;
+  border: 1.5px solid #8d72ed;
+  border-radius: 999px;
+  background: #fff;
+  color: #5c4696;
+  font-size: var(--text-min);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.image-pick:hover,
+.image-pick:focus-within {
+  background: #8d72ed;
+  color: #fff;
+}
+
+.image-pick.is-disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+/* 真正的 input 藏起來，點整個按鈕就會開檔案選擇 */
+.image-pick input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.image-undo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border: 0;
+  background: none;
+  color: var(--c-muted);
+  font-size: var(--text-min);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.image-undo:hover:not(:disabled) {
+  color: #a33b42;
+  text-decoration: underline;
+}
+
+.image-error {
+  color: #9f1239;
+  font-size: var(--text-min);
+  font-weight: 700;
 }
 
 .summary-text {
@@ -861,7 +1078,8 @@ const modalTitle = computed(() => {
 }
 
 .danger-link:disabled,
-.danger-button:disabled {
+.danger-button:disabled,
+.image-undo:disabled {
   opacity: 0.6;
   cursor: wait;
 }

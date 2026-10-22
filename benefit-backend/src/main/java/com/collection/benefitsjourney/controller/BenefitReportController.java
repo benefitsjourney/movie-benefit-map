@@ -8,11 +8,17 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.collection.benefitsjourney.dto.BenefitReportCreateRequest;
 import com.collection.benefitsjourney.dto.BenefitReportUserResponse;
 import com.collection.benefitsjourney.dto.PageResponse;
 import com.collection.benefitsjourney.service.BenefitReportService;
+import com.collection.benefitsjourney.service.BenefitReportImageService;
+import com.collection.benefitsjourney.service.CloudinaryClient.UploadedImage;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -27,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 public class BenefitReportController {
 
     private final BenefitReportService benefitReportService;
+    private final BenefitReportImageService benefitReportImageService;
 
     @PostMapping
     @Operation(summary = "新增缺漏特典回報",
@@ -48,5 +55,20 @@ public class BenefitReportController {
 
         Integer usersId = (Integer) httpRequest.getAttribute("usersId");
         return ResponseEntity.ok(benefitReportService.findMyReports(usersId, page, size));
+    }
+    
+    @PostMapping(value = "/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "上傳特典回報圖片",
+            description = "會員回報、管理員審核換圖共用。只接受JPG、PNG、WEBP、GIF，最大10MB。"
+                    + "回傳url與publicId，再放進新增回報或修改回報的body")
+    public ResponseEntity<UploadedImage> uploadImage(
+            @RequestParam("file") MultipartFile file,
+            HttpServletRequest httpRequest) {
+
+        Object usersId = httpRequest.getAttribute("usersId");
+        if (!(usersId instanceof Integer id)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "尚未取得登入會員資料");
+        }
+        return ResponseEntity.ok(benefitReportImageService.upload(id, file));
     }
 }

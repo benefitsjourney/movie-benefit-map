@@ -80,6 +80,11 @@ public class BenefitReportAdminService {
         if (request.benefitName() != null && request.benefitName().isBlank()) {
             throw ExceptionUtils.badRequest("特典名稱不可為空");
         }
+        
+        // 換圖時網址和publicId要一起帶，不然之後找不到Cloudinary上的檔案
+        if ((request.officialImageUrl() != null) != (request.publicId() != null)) {
+            throw ExceptionUtils.badRequest("修改圖片時，圖片網址與publicId必須一起提供");
+        }
 
         if (request.cinemaId() != null) {
             if (!cinemaRepository.existsById(request.cinemaId())) {
@@ -133,9 +138,16 @@ public class BenefitReportAdminService {
         if (request.sourceUrl() != null) {
             report.setSourceUrl(request.sourceUrl());
         }
+        
+        if (request.publicId() != null) {
+            report.setPublicId(request.publicId());
+        }
+        
+        
         if (request.reviewNote() != null) {
             report.setReviewNote(request.reviewNote());
         }
+        
 
         // 合併後再檢查，避免只改其中一個日期造成開始日晚於結束日
         if (report.getStartDate() != null
