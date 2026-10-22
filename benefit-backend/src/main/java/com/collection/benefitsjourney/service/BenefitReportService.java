@@ -1,5 +1,7 @@
 package com.collection.benefitsjourney.service;
 
+import java.util.ArrayList;
+import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
@@ -83,14 +85,37 @@ public class BenefitReportService {
         }
         
 
-        // 影城：同電影做法
-        if (request.cinemaId() != null) {
-            CinemaBean cinema = cinemaRepository.findById(request.cinemaId())
-                    .orElseThrow(() -> ExceptionUtils.badRequest("找不到影城ID：" + request.cinemaId()));
-            report.setCinema(cinema);
-        } else if (hasText(request.customCinemaName())) {
+        // 影城：可勾多間（cinemaIds），也可另外填清單裡沒有的影城（customCinemaName），至少要有一個
+        List<Integer> cinemaIds = new ArrayList<>();
+        if (request.cinemaIds() != null) {
+            request.cinemaIds().stream()
+                    .filter(id -> id != null && !cinemaIds.contains(id))
+                    .forEach(cinemaIds::add);
+        }
+        // 舊寫法只帶一個cinemaId也能用
+        if (request.cinemaId() != null && !cinemaIds.contains(request.cinemaId())) {
+            cinemaIds.add(0, request.cinemaId());
+        }
+
+        CinemaBean firstCinema = null;
+        for (Integer cid : cinemaIds) {
+            CinemaBean cinema = cinemaRepository.findById(cid)
+                    .orElseThrow(() -> ExceptionUtils.badRequest("找不到影城ID：" + cid));
+            if (firstCinema == null) {
+                firstCinema = cinema;
+            }
+        }
+
+        if (firstCinema != null) {
+            // 第一間記在cinema_id（我的回報顯示用），全部記在matchedCinemaIds（格式同爬蟲，審核時預先勾選）
+            report.setCinema(firstCinema);
+            report.setMatchedCinemaIds(String.join(",",
+                    cinemaIds.stream().map(String::valueOf).toList()));
+        }
+        if (hasText(request.customCinemaName())) {
             report.setCustomCinemaName(request.customCinemaName().trim());
-        } else {
+        }
+        if (firstCinema == null && !hasText(request.customCinemaName())) {
             throw ExceptionUtils.badRequest("請選擇影城，或填寫影城名稱");
         }
 

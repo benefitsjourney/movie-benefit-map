@@ -9,6 +9,7 @@ import historyIcon from "@iconify-icons/mdi/history";
 import reviewIcon from "@iconify-icons/mdi/clipboard-check-outline";
 import arrowLeftIcon from "@iconify-icons/mdi/arrow-left";
 import giftIcon from "@iconify-icons/mdi/gift-outline";
+import megaphoneIcon from "@iconify-icons/mdi/bullhorn-outline";
 
 const links = [
   {
@@ -38,6 +39,7 @@ const links = [
   children: [
     { to: "/admin/benefit-reports", label: "特典審核", icon: giftIcon },
     { to: "/admin/benefits", label: "特典管理", icon: giftIcon },
+    { to: "/admin/inventory-reports", label: "庫存回報管理", icon: megaphoneIcon },
   ],
 },
 ];
