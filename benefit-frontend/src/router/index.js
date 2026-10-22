@@ -173,6 +173,11 @@ const router = createRouter({
           name: 'exchange',
           component: ExchangeView,
         },
+        {
+          path: 'ticket',
+          name: 'ticket',
+          component: ExchangeView,
+        },
       ],
     },
     {

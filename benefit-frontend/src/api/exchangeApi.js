@@ -140,10 +140,10 @@ export const removeTicketFavorite = (listingId, token) =>
 // 本次先保留原本前端使用的路徑，不代表已確認後端一定有這些 API。
 
 export const getCinemas = () =>
-    http.get("/cinemas");
+    http.get("/cinemas/explore");
 
 export const getMovies = () =>
-    http.get("/movies");
+    http.get("/movies/explore");
 
 export const getMyUseBenefits = (token) =>
-    http.get("/use-benefits/my", authConfig(token));
+    http.get("/use-benefits/me", authConfig(token));

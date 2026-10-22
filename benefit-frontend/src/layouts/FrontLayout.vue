@@ -28,8 +28,8 @@ const links = computed(() => {
     { to: "/ranking", label: "排行榜", icon: trophyIcon },
     {
       label: "交換刊登", icon: exchangeIcon, children: [
-        { to: "/exchange?type=exchange", label: "特典交換", },
-        { to: "/exchange?type=ticket", label: "票券交換", },
+        { to: "/exchange", label: "特典交換", },
+        { to: "/ticket", label: "票券交換", },
       ],
     },
   ];
