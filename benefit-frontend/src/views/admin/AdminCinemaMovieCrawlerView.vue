@@ -7,6 +7,7 @@ import clapperboardIcon from "@iconify-icons/mdi/clapperboard-outline";
 import databaseIcon from "@iconify-icons/mdi/database-sync-outline";
 import fileUploadIcon from "@iconify-icons/mdi/file-upload-outline";
 import webIcon from "@iconify-icons/mdi/web";
+import refreshIcon from "@iconify-icons/mdi/refresh";
 
 import http from "@/plugins/axios";
 import { apiMessage, authText } from "@/utils/apiError";
@@ -74,6 +75,19 @@ const crawlers = [
     resultTo: "/map",
     resultLabel: "查看地圖",
   },
+    {
+    key: "benefit-rematch",
+    title: "特典重新比對",
+    description: "電影資料更新後，讓找不到電影的待審特典重新比對並上架",
+    endpoint: "/crawler/benefits/rematch",
+    mode: "rematch",
+    verb: "比對",
+    subject: "特典",
+    stamp: "特典",
+    icon: refreshIcon,
+    resultTo: "/admin/benefit-reports",
+    resultLabel: "前往特典審核",
+  },
 ];
 
 /** 依爬蟲設定建立各自的執行狀態，避免為每張卡片重複宣告狀態 */
@@ -132,6 +146,17 @@ function benefitSummaryRows(summary, elapsedSeconds) {
   ].map(([label, value, unit = "筆"]) => ({ label, value: `${value} ${unit}` }));
 }
 
+/** 將重新比對回傳值整理成統計列 */
+function rematchSummaryRows(summary, elapsedSeconds) {
+  return [
+    ["檢查", summary?.checked ?? 0],
+    ["找到電影", summary?.movieMatched ?? 0],
+    ["直接上架", summary?.approved ?? 0],
+    ["仍待審核", summary?.stillPending ?? 0],
+    ["耗時", elapsedSeconds, "秒"],
+  ].map(([label, value, unit = "筆"]) => ({ label, value: `${value} ${unit}` }));
+}
+
 /** 宣告 Apify 彈窗輸入欄位，避免個別流程重複定義表單 */
 const APIFY_FIELDS = [
   { key: "pageUrl", label: "貼文網址", type: "text", inputmode: "url", value: "https://www.facebook.com/vieshow" },
@@ -152,6 +177,11 @@ const INPUT_OPTIONS = {
     text: "請填寫貼文網址、抓取篇數與天數",
     fields: APIFY_FIELDS,
     confirmText: "開始同步",
+  },
+  rematch: {
+    title: "重新比對特典？",
+    text: "會把「找不到電影」的待審核特典再比對一次，資料齊全的會直接上架。",
+    confirmText: "開始比對",
   },
 };
 
@@ -223,6 +253,11 @@ async function requestCrawler(crawler, payload) {
     return data;
   }
 
+  if (crawler.mode === "rematch") {
+    const { data } = await http.post(crawler.endpoint);
+    return data;
+  }
+
   const { data } = await http.get(crawler.endpoint);
   return data;
 }
@@ -254,7 +289,9 @@ async function syncCrawler(crawler, payload) {
       rows:
         crawler.mode === "get"
           ? summaryRows(data)
-          : benefitSummaryRows(data, elapsedSeconds),
+          : crawler.mode === "rematch"
+            ? rematchSummaryRows(data, elapsedSeconds)
+            : benefitSummaryRows(data, elapsedSeconds),
       confirmText: crawler.resultLabel,
       extraText: crawler.reviewTo ? "前往爬蟲審核" : "",
       cancelText: "關閉",
