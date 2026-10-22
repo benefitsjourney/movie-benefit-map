@@ -172,6 +172,11 @@ const router = createRouter({
           name: 'map',
           component: MapView,
         },
+        {
+          path: 'members/:id',
+          name: 'member-public',
+          component: () => import('@/views/MemberPublicView.vue'),
+        },
       ],
     },
     {
