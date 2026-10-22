@@ -38,6 +38,7 @@ import AdminLoginLogsView from '@/views/admin/AdminLoginLogsView.vue'
 import AccountLayout from '@/layouts/AccountLayout.vue'
 import MessageInboxView from '@/messages/MessageInboxView.vue'
 import MessageConversationView from '@/messages/MessageConversationView.vue'
+import ExchangeView from "@/views/ExchangeView.vue";
 
 
 const router = createRouter({
@@ -166,6 +167,11 @@ const router = createRouter({
           path: 'members/:id',
           name: 'member-public',
           component: () => import('@/views/MemberPublicView.vue'),
+        },
+        {
+          path: 'exchange',
+          name: 'exchange',
+          component: ExchangeView,
         },
       ],
     },

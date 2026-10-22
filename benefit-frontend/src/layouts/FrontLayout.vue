@@ -13,6 +13,8 @@ import megaphoneIcon from "@iconify-icons/mdi/bullhorn-outline";
 import calendarIcon from "@iconify-icons/mdi/calendar-month-outline";
 import trophyIcon from "@iconify-icons/mdi/trophy-outline";
 import FloatingChat from '@/components/chat/FloatingChat.vue'
+import exchangeIcon from "@iconify-icons/mdi/swap-horizontal";
+
 
 const auth = useAuth();
 
@@ -24,6 +26,12 @@ const links = computed(() => {
     { to: "/movies", label: "電影探索", icon: clapperboardIcon },
     { to: "/calendar", label: "行事曆", icon: calendarIcon },
     { to: "/ranking", label: "排行榜", icon: trophyIcon },
+    {
+      label: "交換刊登", icon: exchangeIcon, children: [
+        { to: "/exchange?type=exchange", label: "特典交換", },
+        { to: "/exchange?type=ticket", label: "票券交換", },
+      ],
+    },
   ];
 
   if (auth.isLoggedIn.value) {
@@ -35,6 +43,7 @@ const links = computed(() => {
   }
   return items;
 });
+
 </script>
 
 <template>
