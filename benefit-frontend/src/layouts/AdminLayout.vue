@@ -10,6 +10,7 @@ import reviewIcon from "@iconify-icons/mdi/clipboard-check-outline";
 import arrowLeftIcon from "@iconify-icons/mdi/arrow-left";
 import giftIcon from "@iconify-icons/mdi/gift-outline";
 import megaphoneIcon from "@iconify-icons/mdi/bullhorn-outline";
+import excelIcon from "@iconify-icons/mdi/microsoft-excel";
 
 const links = [
   {
@@ -34,14 +35,23 @@ const links = [
     ],
   },
   {
-  label: "特典",
-  icon: giftIcon,
-  children: [
-    { to: "/admin/benefit-reports", label: "特典審核", icon: giftIcon },
-    { to: "/admin/benefits", label: "特典管理", icon: giftIcon },
-    { to: "/admin/inventory-reports", label: "庫存回報管理", icon: megaphoneIcon },
-  ],
-},
+    label: "特典",
+    icon: giftIcon,
+    children: [
+      { to: "/admin/benefit-reports", label: "特典審核", icon: giftIcon },
+      { to: "/admin/benefits", label: "特典管理", icon: giftIcon },
+      {
+        to: "/admin/inventory-reports",
+        label: "庫存回報管理",
+        icon: megaphoneIcon,
+      },
+    ],
+  },
+  {
+    label: "資料匯出",
+    icon: excelIcon,
+    to: "/admin/excel",
+  },
 ];
 </script>
 

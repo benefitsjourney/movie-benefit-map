@@ -14,6 +14,7 @@ import AdminCrawlerReviewView from '@/views/admin/cinema-movie/AdminCrawlerRevie
 import AdminBenefitReportView from '@/views/admin/AdminBenefitReportView.vue'
 import AdminBenefitView from '@/views/admin/AdminBenefitView.vue'
 import AdminInventoryReportView from '@/views/admin/AdminInventoryReportView.vue'
+import AdminExcelExportView from '@/views/admin/AdminExcelExportView.vue'
 import BenefitView from '@/views/BenefitView.vue'
 import BenefitDetailView from '@/views/BenefitDetailView.vue'
 import CollectionView from '@/views/CollectionView.vue'
@@ -230,6 +231,11 @@ const router = createRouter({
         {
           path: 'movies/:id/edit',
           redirect: (to) => ({ name: 'admin-movie-detail', params: { id: to.params.id } }),
+        },
+        {
+          path: 'excel',
+          name: 'admin-excel',
+          component: AdminExcelExportView,
         },
       ],
     },
