@@ -8,6 +8,7 @@ import searchIcon from "@iconify-icons/mdi/magnify";
 import sendIcon from "@iconify-icons/mdi/send-outline";
 import closeIcon from "@iconify-icons/mdi/close";
 import filmIcon from "@iconify-icons/mdi/filmstrip";
+import cameraIcon from "@iconify-icons/mdi/camera-plus-outline";
 
 import http from "@/plugins/axios";
 import { CINEMA_SORT_DEFAULT } from "@/constants/sort";
@@ -26,6 +27,10 @@ const BENEFIT_TYPES = [
 ];
 
 const MAX_CINEMAS = 100; // 跟後端 BenefitReportCreateRequest 的上限一樣
+
+// 圖片限制跟收藏庫、後端 BenefitReportImageService 一樣
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 // ── 電影：打字搜尋後點選（會員不能用 GET /movies，改用前台的 /movies/explore）──
 const moviePicker = reactive({
@@ -143,6 +148,53 @@ function clearCinemas() {
   selectedCinemaIds.value = [];
 }
 
+// ── 特典圖片（選填，一張）──
+// 選圖時只在瀏覽器預覽，按「送出回報」時才真的上傳，避免選了又不送出卻在 Cloudinary 留下沒用的圖
+const imageFile = ref(null);
+const imagePreview = ref(""); // 瀏覽器暫時網址（blob:），只給預覽用
+const imageError = ref("");
+// 同一張圖已經上傳過就記下來；送出失敗再按一次時直接沿用，不重複上傳
+let uploadedImage = null; // { url, publicId }
+
+function clearImage() {
+  if (imagePreview.value) URL.revokeObjectURL(imagePreview.value);
+  imageFile.value = null;
+  imagePreview.value = "";
+  imageError.value = "";
+  uploadedImage = null;
+}
+
+function onImageChange(event) {
+  const input = event.target;
+  const file = input.files?.[0] ?? null;
+  input.value = ""; // 清空，同一張圖才能再選一次
+  if (!file) return;
+
+  if (!IMAGE_TYPES.includes(file.type)) {
+    imageError.value = "只能上傳 JPG、PNG、WEBP、GIF 格式的圖片";
+    return;
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    imageError.value = "圖片不可超過 10MB";
+    return;
+  }
+
+  clearImage();
+  imageFile.value = file;
+  imagePreview.value = URL.createObjectURL(file);
+}
+
+// POST /benefit-reports/images：回傳 { url, publicId }
+async function uploadImage() {
+  if (!imageFile.value) return null;
+  if (uploadedImage) return uploadedImage;
+  const data = new FormData();
+  data.append("file", imageFile.value);
+  const { data: result } = await http.post("/benefit-reports/images", data);
+  uploadedImage = { url: result.url, publicId: result.publicId };
+  return uploadedImage;
+}
+
 // ── 其他欄位 ──
 const form = reactive(emptyForm());
 
@@ -208,7 +260,7 @@ function toApiDate(value, endOfDay = false) {
   return `${value} ${endOfDay ? "23:59:59" : "00:00:00"}`;
 }
 
-function payload() {
+function payload(image) {
   return {
     benefitName: form.benefitName.trim(),
     isMemberOnly: form.isMemberOnly,
@@ -222,6 +274,9 @@ function payload() {
     cinemaIds: selectedCinemaIds.value,
     customCinemaName: customCinemaName.value.trim() || null,
     sourceUrl: form.sourceUrl.trim() || null,
+    // 圖片：沒選就是 null
+    officialImageUrl: image?.url ?? null,
+    publicId: image?.publicId ?? null,
   };
 }
 
@@ -234,11 +289,21 @@ function resetAll() {
   cinemaKeyword.value = "";
   selectedCinemaIds.value = [];
   customCinemaName.value = "";
+  clearImage();
   fieldErrors.value = {};
 }
 
-// ── 送出：POST /benefit-reports ──
+function errorText(error, fallback) {
+  const code = error?.response?.status;
+  const message = error?.response?.data?.message;
+  if (code === 401) return "登入已過期，請重新登入。";
+  if (code === 403) return "此帳號目前無法回報。";
+  return typeof message === "string" && message.trim() ? message.trim() : fallback;
+}
+
+// ── 送出：先上傳圖片（有選的話），再 POST /benefit-reports ──
 const submitting = ref(false);
+const submitStep = ref(""); // 按鈕上顯示目前在做什麼
 
 async function submit() {
   if (submitting.value) return;
@@ -258,7 +323,27 @@ async function submit() {
 
   submitting.value = true;
   try {
-    await http.post("/benefit-reports", payload());
+    // 1. 上傳圖片（失敗就停在這裡，不送出回報）
+    let image = null;
+    if (imageFile.value) {
+      submitStep.value = "上傳圖片中…";
+      try {
+        image = await uploadImage();
+      } catch (error) {
+        await openAppAlert({
+          variant: "error",
+          title: "圖片上傳失敗",
+          text: errorText(error, "請稍後再試，或先移除圖片再送出。"),
+          confirmText: "關閉",
+          cancelText: "",
+        });
+        return;
+      }
+    }
+
+    // 2. 送出回報
+    submitStep.value = "送出中…";
+    await http.post("/benefit-reports", payload(image));
     const result = await openAppAlert({
       variant: "success",
       title: "感謝你的回報！",
@@ -271,21 +356,24 @@ async function submit() {
       router.push({ path: "/my-reports", query: { tab: "benefit" } });
     }
   } catch (error) {
-    const code = error?.response?.status;
-    const message = error?.response?.data?.message;
-    const text =
-      code === 401 ? "登入已過期，請重新登入。"
-        : code === 403 ? "此帳號目前無法回報。"
-          : typeof message === "string" && message.trim() ? message.trim()
-            : "送出失敗，請稍後再試。";
-    await openAppAlert({ variant: "error", title: "無法送出", text, confirmText: "關閉", cancelText: "" });
+    await openAppAlert({
+      variant: "error",
+      title: "無法送出",
+      text: errorText(error, "送出失敗，請稍後再試。"),
+      confirmText: "關閉",
+      cancelText: "",
+    });
   } finally {
     submitting.value = false;
+    submitStep.value = "";
   }
 }
 
 onMounted(loadCinemas);
-onBeforeUnmount(() => window.clearTimeout(movieTimer));
+onBeforeUnmount(() => {
+  window.clearTimeout(movieTimer);
+  if (imagePreview.value) URL.revokeObjectURL(imagePreview.value);
+});
 </script>
 
 <template>
@@ -294,7 +382,7 @@ onBeforeUnmount(() => window.clearTimeout(movieTimer));
       :icon-left="giftIcon" :icon-right="clipboardIcon" :icon-top="searchIcon" />
 
     <Form title="缺漏特典回報" :title-icon="clipboardIcon" :submitting="submitting" submit-label="送出回報"
-      submitting-label="送出中…" :submit-icon="sendIcon" @submit="submit">
+      :submitting-label="submitStep || '送出中…'" :submit-icon="sendIcon" @submit="submit">
       <!-- 特典資訊 -->
       <section class="form-section">
         <h3 class="form-section-title">特典資訊</h3>
@@ -332,6 +420,31 @@ onBeforeUnmount(() => window.clearTimeout(movieTimer));
             <option v-for="type in BENEFIT_TYPES" :key="type.value" :value="type.value">{{ type.label }}</option>
           </select>
           <p class="field-hint">不確定可以不選，管理員審核時會補上。</p>
+        </div>
+
+        <!-- 特典圖片（選填） -->
+        <div class="form-field is-wide">
+          <span class="field-label">特典圖片</span>
+
+          <div v-if="imagePreview" class="image-preview">
+            <img :src="imagePreview" alt="已選擇的特典圖片預覽" />
+            <div class="image-preview-info">
+              <span class="image-name">{{ imageFile?.name }}</span>
+              <button type="button" class="picked-clear" :disabled="submitting" @click="clearImage">
+                <Icon :icon="closeIcon" aria-hidden="true" />
+                移除
+              </button>
+            </div>
+          </div>
+
+          <label v-else class="image-pick">
+            <Icon :icon="cameraIcon" aria-hidden="true" />
+            <span>選擇圖片</span>
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" @change="onImageChange" />
+          </label>
+
+          <p v-if="imageError" class="field-error">{{ imageError }}</p>
+          <p v-else class="field-hint">選填，一張。JPG、PNG、WEBP、GIF，10MB 以內，例如官方公告的特典圖。</p>
         </div>
       </section>
 
@@ -507,6 +620,72 @@ onBeforeUnmount(() => window.clearTimeout(movieTimer));
   color: var(--c-muted);
 }
 
+/* ── 特典圖片 ── */
+.image-pick {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 3rem;
+  padding: 0.5rem 1.1rem;
+  border: 1.5px dashed #c9b8a4;
+  border-radius: 14px;
+  background: #fffaf5;
+  color: #8a6400;
+  font-size: var(--text-control);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.image-pick:hover,
+.image-pick:focus-within {
+  border-color: #ff7049;
+  color: #ff7049;
+}
+
+.image-pick > :deep(svg) {
+  font-size: var(--text-card-title);
+}
+
+/* 真正的 input 藏起來，點整個方塊就會開檔案選擇 */
+.image-pick input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.image-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+}
+
+.image-preview img {
+  width: 10rem;
+  max-height: 14rem;
+  border: 1.5px solid var(--c-border);
+  border-radius: 14px;
+  background: #fffbeb;
+  object-fit: contain;
+}
+
+.image-preview-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.image-name {
+  color: var(--c-muted);
+  font-size: var(--text-min);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
 /* ── 搜尋框 ── */
 .search-box {
   position: relative;
@@ -621,9 +800,18 @@ onBeforeUnmount(() => window.clearTimeout(movieTimer));
   cursor: pointer;
 }
 
-.picked-clear:hover {
+.picked-clear:hover:not(:disabled) {
   background: #ff7049;
   color: #fff;
+}
+
+.picked-clear:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.image-preview-info .picked-clear {
+  margin-left: 0;
 }
 
 /* ── 影城勾選 ── */
