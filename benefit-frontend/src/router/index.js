@@ -17,6 +17,7 @@ import AdminInventoryReportView from '@/views/admin/AdminInventoryReportView.vue
 import BenefitView from '@/views/BenefitView.vue'
 import BenefitDetailView from '@/views/BenefitDetailView.vue'
 import CollectionView from '@/views/CollectionView.vue'
+import MyReportView from '@/views/MyReportView.vue'
 import CinemaView from '@/views/CinemaView.vue'
 import MapView from '@/views/MapView.vue'
 import MovieView from '@/views/MovieView.vue'
@@ -71,6 +72,12 @@ const router = createRouter({
           path: 'collection',
           name: 'collection',
           component: CollectionView
+        },
+        {
+          path: 'my-reports',
+          name: 'my-reports',
+          component: MyReportView,
+          meta: { requiresAuth: true },
         },
         {
           path: 'movies',
