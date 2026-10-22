@@ -36,6 +36,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -53,11 +54,15 @@ import com.collection.benefitsjourney.domain.UsersBean;
 import com.collection.benefitsjourney.jwt.JsonWebTokenFilter;
 import com.collection.benefitsjourney.jwt.JsonWebTokenUtility;
 import com.collection.benefitsjourney.repository.UsersRepository;
+import com.collection.benefitsjourney.controller.AdminRequestConfig;
+import com.collection.benefitsjourney.exception.ExceptionUtils;
 import com.collection.benefitsjourney.service.CinemaMovie.CinemaMapService;
 import com.collection.benefitsjourney.service.CinemaMovie.CinemaService;
+import com.collection.benefitsjourney.service.UsersService;
 
 @WebMvcTest(controllers = CinemaController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = JsonWebTokenFilter.class))
 @AutoConfigureMockMvc(addFilters = false)
+@Import(AdminRequestConfig.class)
 class CinemaControllerTest {
 
     @Autowired
@@ -68,6 +73,14 @@ class CinemaControllerTest {
 
     @MockitoBean
     private CinemaMapService cinemaMapService;
+
+    @MockitoBean
+    private UsersService usersService;
+
+    @BeforeEach
+    void setUpAdmin() {
+        AdminRequestConfig.stubAdmin(usersService);
+    }
 
     @Nested
     @DisplayName("GET /cinemas")
@@ -688,6 +701,41 @@ class CinemaControllerTest {
     }
 
     @Nested
+    @DisplayName("管理員權限")
+    class AdminPermissionTests {
+
+        @Test
+        @DisplayName("一般會員查詢影城清單應回傳 403")
+        void findAll_NonAdmin_ShouldReturn403() throws Exception {
+            UsersBean user = new UsersBean();
+            user.setRole("USER");
+            when(usersService.getUserById(AdminRequestConfig.ADMIN_ID)).thenReturn(user);
+
+            mockMvc.perform(get("/cinemas"))
+                    .andExpect(status().isForbidden())
+                    .andExpect(jsonPath("$.message").value(ExceptionUtils.FORBIDDEN_MESSAGE));
+
+            verifyNoInteractions(cinemaService);
+        }
+
+        @Test
+        @DisplayName("一般會員仍可使用影城探索與地圖")
+        void publicApis_NonAdmin_ShouldReturn200() throws Exception {
+            UsersBean user = new UsersBean();
+            user.setRole("USER");
+            when(usersService.getUserById(AdminRequestConfig.ADMIN_ID)).thenReturn(user);
+
+            mockMvc.perform(get("/cinemas/explore"))
+                    .andExpect(status().isOk());
+            mockMvc.perform(get("/cinemas/map")
+                    .param("latitude", "25.0")
+                    .param("longitude", "121.5")
+                    .param("radius", "1000"))
+                    .andExpect(status().isOk());
+        }
+    }
+
+    @Nested
     @DisplayName("JWT 權限測試")
     class JwtTests {
         private JsonWebTokenFilter filter;
@@ -704,26 +752,27 @@ class CinemaControllerTest {
         }
 
         @Test
-        @DisplayName("GET /cinemas 沒有 Token 應放行")
+        @DisplayName("GET /cinemas 沒有 Token 應回傳 401")
         void getCinemasWithoutToken() throws Exception {
             var request = new MockHttpServletRequest("GET", "/cinemas");
             var response = new MockHttpServletResponse();
 
             filter.doFilter(request, response, chain);
 
-            verify(chain).doFilter(request, response);
-            verifyNoInteractions(utility);
+            assertEquals(401, response.getStatus());
+            verifyNoInteractions(chain, utility);
         }
 
         @Test
-        @DisplayName("GET /cinemas/{id} 沒有 Token 應放行")
+        @DisplayName("GET /cinemas/{id} 沒有 Token 應回傳 401")
         void getCinemaByIdWithoutToken() throws Exception {
             var request = new MockHttpServletRequest("GET", "/cinemas/1");
             var response = new MockHttpServletResponse();
 
             filter.doFilter(request, response, chain);
 
-            verify(chain).doFilter(request, response);
+            assertEquals(401, response.getStatus());
+            verifyNoInteractions(chain);
         }
 
         @Test

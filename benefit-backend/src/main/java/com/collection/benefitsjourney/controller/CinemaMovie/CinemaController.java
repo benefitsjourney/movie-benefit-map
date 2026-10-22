@@ -19,12 +19,15 @@ import com.collection.benefitsjourney.dto.PageResponse;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaSort;
 import com.collection.benefitsjourney.enums.County;
 import com.collection.benefitsjourney.enums.SortOrder;
+import com.collection.benefitsjourney.exception.ExceptionUtils;
 import com.collection.benefitsjourney.service.CinemaMovie.CinemaMapService;
 import com.collection.benefitsjourney.service.CinemaMovie.CinemaService;
+import com.collection.benefitsjourney.service.UsersService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.groups.Default;
 
@@ -37,11 +40,15 @@ public class CinemaController {
 
     private final CinemaMapService cinemaMapService;
 
+    private final UsersService usersService;
+
     public CinemaController(
             CinemaService cinemaService,
-            CinemaMapService cinemaMapService) {
+            CinemaMapService cinemaMapService,
+            UsersService usersService) {
         this.cinemaService = cinemaService;
         this.cinemaMapService = cinemaMapService;
+        this.usersService = usersService;
     }
 
     @GetMapping
@@ -54,7 +61,10 @@ public class CinemaController {
             @Parameter(description = "排序欄位") @RequestParam(defaultValue = "CINEMA_ID") CinemaSort.SortBy orderBy,
             @Parameter(description = "排序方向，縣市升序為由北到南") @RequestParam(defaultValue = "ASC") SortOrder sort,
             @Parameter(description = "頁碼") @RequestParam(defaultValue = "1") int page,
-            @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "20") int size) {
+            @Parameter(description = "每頁筆數") @RequestParam(defaultValue = "20") int size,
+            HttpServletRequest httpRequest) {
+
+        ExceptionUtils.requireAdmin(httpRequest, usersService);
 
         return ResponseEntity.ok(
                 cinemaService.findAll(
@@ -94,16 +104,20 @@ public class CinemaController {
     @GetMapping("/{id}")
     @Operation(summary = "取得指定id影城資料")
     public ResponseEntity<CinemaResponse> findById(
-            @PathVariable Integer id) {
+            @PathVariable Integer id,
+            HttpServletRequest httpRequest) {
 
+        ExceptionUtils.requireAdmin(httpRequest, usersService);
         return ResponseEntity.ok(cinemaService.findById(id));
     }
 
     @PostMapping("")
     @Operation(summary = "新增影城")
     public ResponseEntity<CinemaResponse> createCinema(
-            @Validated({ Default.class, CinemaRequest.OnCreate.class }) @RequestBody CinemaRequest request) {
+            @Validated({ Default.class, CinemaRequest.OnCreate.class }) @RequestBody CinemaRequest request,
+            HttpServletRequest httpRequest) {
 
+        ExceptionUtils.requireAdmin(httpRequest, usersService);
         return ResponseEntity.ok(cinemaService.createCinema(request));
     }
 
@@ -111,8 +125,10 @@ public class CinemaController {
     @Operation(summary = "修改影城")
     public ResponseEntity<CinemaResponse> updateCinema(
             @PathVariable Integer id,
-            @Valid @RequestBody CinemaRequest request) {
+            @Valid @RequestBody CinemaRequest request,
+            HttpServletRequest httpRequest) {
 
+        ExceptionUtils.requireAdmin(httpRequest, usersService);
         return ResponseEntity.ok(cinemaService.updateCinema(id, request));
     }
 

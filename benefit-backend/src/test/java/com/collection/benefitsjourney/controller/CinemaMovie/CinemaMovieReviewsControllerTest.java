@@ -34,6 +34,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -53,10 +54,13 @@ import com.collection.benefitsjourney.enums.SortOrder;
 import com.collection.benefitsjourney.jwt.JsonWebTokenFilter;
 import com.collection.benefitsjourney.jwt.JsonWebTokenUtility;
 import com.collection.benefitsjourney.repository.UsersRepository;
+import com.collection.benefitsjourney.controller.AdminRequestConfig;
 import com.collection.benefitsjourney.service.CinemaMovie.CinemaMovieReviewsService;
+import com.collection.benefitsjourney.service.UsersService;
 
 @WebMvcTest(controllers = CinemaMovieReviewsController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = JsonWebTokenFilter.class))
 @AutoConfigureMockMvc(addFilters = false)
+@Import(AdminRequestConfig.class)
 class CinemaMovieReviewsControllerTest {
 
     @Autowired
@@ -64,6 +68,14 @@ class CinemaMovieReviewsControllerTest {
 
     @MockitoBean
     private CinemaMovieReviewsService cinemaMovieReviewsService;
+
+    @MockitoBean
+    private UsersService usersService;
+
+    @BeforeEach
+    void setUpAdmin() {
+        AdminRequestConfig.stubAdmin(usersService);
+    }
 
     @Nested
     @DisplayName("GET /cinema-movie/reviews")

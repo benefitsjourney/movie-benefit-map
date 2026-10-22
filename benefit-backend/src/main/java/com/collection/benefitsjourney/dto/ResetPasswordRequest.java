@@ -14,6 +14,6 @@ public class ResetPasswordRequest {
     private String token;
 
     @NotBlank(message = "新密碼不可為空")
-    @Size(min = 8, max = 72, message = "新密碼長度須為 8 至 72 個字元")
+    @Size(min = 8, max = 16, message = "新密碼長度須為 8 至 16 個字元")
     private String newPassword;
 }

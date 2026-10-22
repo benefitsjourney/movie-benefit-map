@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuth } from '@/composables/useAuth'
 import FrontLayout from '@/layouts/FrontLayout.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
 import AdminCinemaMovieCrawlerView from '@/views/admin/AdminCinemaMovieCrawlerView.vue'
@@ -18,10 +19,35 @@ import CollectionView from '@/views/CollectionView.vue'
 import CinemaView from '@/views/CinemaView.vue'
 import MapView from '@/views/MapView.vue'
 import MovieView from '@/views/MovieView.vue'
+import LoginView from '@/views/LoginView.vue'
+import RegisterView from '@/views/RegisterView.vue'
+import ForgotPasswordView from '@/views/ForgotPasswordView.vue'
+import ResetPasswordView from '@/views/ResetPasswordView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // 會員認證：獨立頁面，不套用 FrontLayout 或 AdminLayout
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginView,
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: RegisterView,
+    },
+    {
+        path: '/forgot-password',
+        name: 'forgot-password',
+        component: ForgotPasswordView,
+    },
+    {
+      path: '/reset-password',
+      name: 'reset-password',
+      component: ResetPasswordView,
+    },
     {
       path: '/',
       component: FrontLayout,
@@ -137,6 +163,37 @@ const router = createRouter({
       ],
     },
   ],
+})
+
+router.beforeEach((to) => {
+  const auth = useAuth()
+
+  // 每次切換路由時，重新讀取最新的登入資訊
+  auth.refreshAuth()
+
+  // 管理後台：必須登入，而且是啟用中的管理員
+  if (to.matched.some((record) => record.path === '/admin')) {
+    if (!auth.isLoggedIn.value) {
+      return {
+        name: 'login',
+        query: { redirect: to.fullPath },
+      }
+    }
+
+    if (!auth.isAdmin.value) {
+      return { name: 'map' }
+    }
+  }
+
+  // 其他需要登入的頁面
+  if (to.meta.requiresAuth && !auth.isLoggedIn.value) {
+    return {
+      name: 'login',
+      query: { redirect: to.fullPath },
+    }
+  }
+
+  return true
 })
 
 export default router

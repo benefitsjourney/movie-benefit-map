@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.collection.benefitsjourney.domain.ExchangeListingBean;
@@ -50,11 +51,30 @@ public class ExchangeListingController {
 				.body(ExchangeListingResponse.from(listing));
 	}
 
-	// 查詢所有公開的交換刊登
+	// 查詢所有公開的交換刊登，可依標題、會員姓名、特典名稱及特典類型查詢
 	@GetMapping
-	public ResponseEntity<List<ExchangeListingResponse>> findActiveListings() {
+	public ResponseEntity<List<ExchangeListingResponse>> findActiveListings(
+			@RequestParam(required = false) String title,
+			@RequestParam(required = false) String usersName,
+			@RequestParam(required = false) String benefitName,
+			@RequestParam(required = false) String benefitType) {
 
-		List<ExchangeListingResponse> responses = exchangeListingService.findActiveListings()
+		List<ExchangeListingResponse> responses = exchangeListingService
+				.findActiveListings(title, usersName, benefitName, benefitType)
+				.stream()
+				.map(ExchangeListingResponse::from)
+				.toList();
+
+		return ResponseEntity.ok(responses);
+	}
+
+	// 查詢指定會員的公開交換刊登；目標會員必須為 ACTIVE。
+	@GetMapping("/member/{usersId}")
+	public ResponseEntity<List<ExchangeListingResponse>> findActiveListingsByMember(
+			@PathVariable Integer usersId) {
+
+		List<ExchangeListingResponse> responses = exchangeListingService
+				.findActiveListingsByMember(usersId)
 				.stream()
 				.map(ExchangeListingResponse::from)
 				.toList();

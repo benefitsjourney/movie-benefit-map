@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -29,7 +31,9 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaResourceType;
 import com.collection.benefitsjourney.jwt.JsonWebTokenFilter;
+import com.collection.benefitsjourney.controller.AdminRequestConfig;
 import com.collection.benefitsjourney.service.CinemaMovie.CinemaMovieExcelService;
+import com.collection.benefitsjourney.service.UsersService;
 
 /**
  * 只測試 CinemaMovieExcelController 的 HTTP 路由、參數轉換、回應 Header 和例外處理。
@@ -37,6 +41,7 @@ import com.collection.benefitsjourney.service.CinemaMovie.CinemaMovieExcelServic
  */
 @WebMvcTest(controllers = CinemaMovieExcelController.class, excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = JsonWebTokenFilter.class))
 @AutoConfigureMockMvc(addFilters = false)
+@Import(AdminRequestConfig.class)
 class CinemaMovieExcelControllerTest {
 
     private static final String EXCEL_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
@@ -46,6 +51,14 @@ class CinemaMovieExcelControllerTest {
 
     @MockitoBean
     private CinemaMovieExcelService excelService;
+
+    @MockitoBean
+    private UsersService usersService;
+
+    @BeforeEach
+    void setUpAdmin() {
+        AdminRequestConfig.stubAdmin(usersService);
+    }
 
     @Nested
     @DisplayName("GET /cinema-movie/export - 正常匯出")

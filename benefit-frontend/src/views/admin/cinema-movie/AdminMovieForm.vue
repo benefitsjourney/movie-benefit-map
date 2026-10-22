@@ -11,18 +11,10 @@ import DetailCard from "@/components/layout/DetailCard.vue";
 import AppButton from "@/components/ui/Button.vue";
 import MovieForm from "@/components/forms/MovieForm.vue";
 import http from "@/plugins/axios";
+import { apiMessage, authText } from "@/utils/apiError";
 
 const router = useRouter();
 const submitting = ref(false);
-
-function apiMessage(error, fallback) {
-  const message = error?.response?.data?.message;
-  return typeof message === "string" && message.trim() ? message.trim() : fallback;
-}
-
-function isUnauthorized(error) {
-  return error?.response?.status === 401;
-}
 
 async function createMovie(payload) {
   if (submitting.value) return;
@@ -39,11 +31,12 @@ async function createMovie(payload) {
     });
     await router.push({ name: "admin-movies" });
   } catch (error) {
-    if (isUnauthorized(error)) {
+    const notice = authText(error);
+    if (notice) {
       await openAppAlert({
         variant: "error",
         title: "無法儲存",
-        text: "請登入管理員帳號",
+        text: notice,
         confirmText: "關閉",
         cancelText: "",
       });

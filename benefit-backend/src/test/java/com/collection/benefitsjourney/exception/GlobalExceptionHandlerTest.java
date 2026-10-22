@@ -354,13 +354,13 @@ class GlobalExceptionHandlerTest {
         }
 
         @Test
-        @DisplayName("沒有 reason 應使用預設訊息")
+        @DisplayName("沒有 reason 的 403 應使用統一權限訊息")
         void withoutReason() throws Exception {
             ResultActions result = mockMvc.perform(
                     get("/test/response-status/no-reason"));
 
             assertError(result, 403, "Forbidden",
-                    "Forbidden",
+                    ExceptionUtils.FORBIDDEN_MESSAGE,
                     "/test/response-status/no-reason");
         }
     }

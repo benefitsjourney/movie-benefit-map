@@ -35,7 +35,7 @@ public class ExchangeListingBean {
 	@Column(name = "description", columnDefinition = "NVARCHAR(500)", comment = "刊登說明")
 	private String description;
 
-//	開啟(ACTIVE)  = 現在正在刊登 / 隱藏(HIDDEN)  = 暫時不刊登 / 關閉(CLOSED )  = 刊登已經結束 / 刪除(DELETED) = 使用者不要這筆刊登
+	// 開啟(ACTIVE) = 現在正在刊登 / 關閉(CLOSED ) = 刊登已經結束 / 刪除(DELETED) = 使用者不要這筆刊登
 	@Column(name = "status", columnDefinition = "NVARCHAR(20)", nullable = false, comment = "刊登狀態")
 	private String status;
 

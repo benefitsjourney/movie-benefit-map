@@ -21,15 +21,16 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
 
     private final JsonWebTokenUtility jsonWebTokenUtility;
     private final UsersRepository usersRepository;
-        public JsonWebTokenFilter( JsonWebTokenUtility jsonWebTokenUtility,UsersRepository usersRepository) {
-                this.jsonWebTokenUtility = jsonWebTokenUtility;
-                this.usersRepository = usersRepository;
-        }
 
-        @Override
-        protected boolean shouldNotFilter(
-                HttpServletRequest request)
-                throws ServletException {
+    public JsonWebTokenFilter(JsonWebTokenUtility jsonWebTokenUtility, UsersRepository usersRepository) {
+        this.jsonWebTokenUtility = jsonWebTokenUtility;
+        this.usersRepository = usersRepository;
+    }
+
+    @Override
+    protected boolean shouldNotFilter(
+            HttpServletRequest request)
+            throws ServletException {
 
         String uri = request.getRequestURI();
         String method = request.getMethod();
@@ -45,21 +46,17 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 || (uri.matches("/users/\\d+/posts") && method.equals("GET"))
 
                 // 影城 API 白名單
-                || (uri.equals("/cinemas") && (method.equals("GET")))
-                || (uri.matches("/cinemas/\\d+") && method.equals("GET"))
                 || (uri.equals("/cinemas/map") && method.equals("GET"))
                 || (uri.equals("/cinemas/explore") && method.equals("GET"))
 
                 // 電影 API 白名單
-                || (uri.equals("/movies") && method.equals("GET"))
                 || (uri.equals("/movies/explore") && method.equals("GET"))
-                || (uri.matches("/movies/\\d+") && method.equals("GET"))
-                
+
                 // 特典 API 白名單
                 || (uri.equals("/benefits") && method.equals("GET"))
                 || (uri.matches("/benefits/\\d+") && method.equals("GET"))
                 || (uri.matches("/movies/\\d+/benefits") && method.equals("GET"))
-                
+
                 // 庫存狀態 API 白名單（地圖頁公開查詢）
                 || (uri.matches("/benefits/\\d+/cinemas/status") && method.equals("GET"))
                 || (uri.matches("/cinemas/\\d+/benefits/status") && method.equals("GET"))
@@ -82,14 +79,15 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 || uri.startsWith("/swagger-ui/")
                 || uri.equals("/v3/api-docs")
                 || uri.startsWith("/v3/api-docs/");
-}
-        // 驗證 JWT
-        @Override
-        protected void doFilterInternal(
-                HttpServletRequest request,
-                HttpServletResponse response,
-                FilterChain filterChain)
-                throws ServletException, IOException {
+    }
+
+    // 驗證 JWT
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain)
+            throws ServletException, IOException {
 
         System.out.println(">>> doFilterInternal ENTER <<<");
 
@@ -103,9 +101,9 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
 
         // 沒有 Bearer Token
         if (auth == null || !auth.startsWith("Bearer ")) {
-                response.sendError(
-                        HttpServletResponse.SC_UNAUTHORIZED,"請先登入");
-                return;
+            response.sendError(
+                    HttpServletResponse.SC_UNAUTHORIZED, "請先登入");
+            return;
         }
 
         String token = auth.substring(7);
@@ -114,16 +112,16 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
         System.out.println("JWT subject = " + subject);
 
         if (subject == null || subject.isBlank()) {
-                response.sendError(
-                        HttpServletResponse.SC_UNAUTHORIZED,
-                        "Token 無效或已過期");
-                return;
+            response.sendError(
+                    HttpServletResponse.SC_UNAUTHORIZED,
+                    "Token 無效或已過期");
+            return;
         }
         final Integer usersId;
-            // 確認 subject 可以轉成會員 ID
+        // 確認 subject 可以轉成會員 ID
         try {
-                usersId = Integer.valueOf(subject);
-        }catch (NumberFormatException e) {
+            usersId = Integer.valueOf(subject);
+        } catch (NumberFormatException e) {
             response.sendError(
                     HttpServletResponse.SC_UNAUTHORIZED,
                     "Token 會員 ID 格式錯誤");
@@ -134,10 +132,10 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 .orElse(null);
 
         if (usersBean == null) {
-        response.sendError(
-                HttpServletResponse.SC_UNAUTHORIZED,
-                "會員不存在");
-        return;
+            response.sendError(
+                    HttpServletResponse.SC_UNAUTHORIZED,
+                    "會員不存在");
+            return;
         }
 
         String status = usersBean.getStatus();
@@ -147,59 +145,52 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
 
         // 已停權或已刪除的會員不能使用舊 Token
         if ("BANNED".equals(status) || "DELETED".equals(status)) {
-        response.sendError(
-                HttpServletResponse.SC_FORBIDDEN,
-                "此帳號目前無法使用");
-        return;
+            response.sendError(
+                    HttpServletResponse.SC_FORBIDDEN,
+                    "此帳號目前無法使用");
+            return;
         }
-        
+
         // 已停用會員只能呼叫自己的狀態 API，重新啟用帳號
-        boolean isMyStatusApi =
-        request.getMethod().equals("PATCH")
-        && request.getRequestURI().equals("/users/me/status");
-        
-        boolean isLogoutApi =
-        request.getMethod().equals("POST")
-        && request.getRequestURI().equals("/auth/logout");
-        
+        boolean isMyStatusApi = request.getMethod().equals("PATCH")
+                && request.getRequestURI().equals("/users/me/status");
+
+        boolean isLogoutApi = request.getMethod().equals("POST")
+                && request.getRequestURI().equals("/auth/logout");
+
         System.out.println("isMyStatusApi = " + isMyStatusApi);
         System.out.println("isLogoutApi = " + isLogoutApi);
-        if ("INACTIVE".equals(status) && !isMyStatusApi  && !isLogoutApi) {
-                response.sendError(
-                        HttpServletResponse.SC_FORBIDDEN,
-                        "此帳號已停用，請先重新啟用");
-                        return;
-                }
+        if ("INACTIVE".equals(status) && !isMyStatusApi && !isLogoutApi) {
+            response.sendError(
+                    HttpServletResponse.SC_FORBIDDEN,
+                    "此帳號已停用，請先重新啟用");
+            return;
+        }
 
         // 將會員 ID 傳給 Controller
-            request.setAttribute("usersId", usersId);
+        request.setAttribute("usersId", usersId);
 
-                // 設定 Spring Security 的登入身分
-                String role = usersBean.getRole();
+        // 設定 Spring Security 的登入身分
+        String role = usersBean.getRole();
 
-                if (!"ADMIN".equals(role) && !"USER".equals(role)) {
-                response.sendError(
-                        HttpServletResponse.SC_FORBIDDEN,
-                        "會員角色無效"
-                );
-                return;
-                }
+        if (!"ADMIN".equals(role) && !"USER".equals(role)) {
+            response.sendError(
+                    HttpServletResponse.SC_FORBIDDEN,
+                    "會員角色無效");
+            return;
+        }
 
-            UsernamePasswordAuthenticationToken authentication =
-                new UsernamePasswordAuthenticationToken(
-                        subject,
-                        null,
-                        Collections.singletonList(
-                                new org.springframework.security.core.authority.SimpleGrantedAuthority(
-                                        "ROLE_" + role
-                                )
-                        )
-                );
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                subject,
+                null,
+                Collections.singletonList(
+                        new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                                "ROLE_" + role)));
 
-            SecurityContextHolder.getContext()
+        SecurityContextHolder.getContext()
                 .setAuthentication(authentication);
 
-                filterChain.doFilter(request, response);
+        filterChain.doFilter(request, response);
 
-        }
+    }
 }
