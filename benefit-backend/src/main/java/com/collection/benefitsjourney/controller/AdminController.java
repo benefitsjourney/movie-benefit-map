@@ -20,6 +20,8 @@ import com.collection.benefitsjourney.service.UsersService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/admin")
@@ -97,6 +99,51 @@ public class AdminController {
 
                 return ResponseEntity.ok(response);
         }
+
+        
+        // 管理員查詢會員列表
+        @GetMapping("/users")
+        public ResponseEntity<List<UserResponse>> getAllUsers(
+                @RequestParam(required = false) String status,
+                HttpServletRequest httpRequest) {
+
+                // 確認目前登入者是管理員
+                Integer adminId = (Integer) httpRequest.getAttribute("usersId");
+                usersService.checkAdmin(adminId);
+
+                // 限制可查詢的會員狀態
+                if (status != null && !status.isBlank()
+                        && !List.of("ACTIVE", "INACTIVE", "BANNED", "DELETED")
+                                .contains(status)) {
+                throw new IllegalArgumentException("無效的會員狀態");
+                }
+
+                // 預設排除已刪除會員；指定狀態時只查詢該狀態
+                return ResponseEntity.ok(
+                        usersService.findAll().stream()
+                                .filter(user -> {
+                                if (status != null && !status.isBlank()) {
+                                        return status.equals(user.getStatus());
+                                }
+                                return !"DELETED".equals(user.getStatus());
+                                })
+                                .map(user -> {
+                                UserResponse response = new UserResponse();
+                                response.setUsersId(user.getUsersId());
+                                response.setAccount(user.getAccount());
+                                response.setName(user.getName());
+                                response.setEmail(user.getEmail());
+                                response.setBirthDate(user.getBirthDate());
+                                response.setRole(user.getRole());
+                                response.setStatus(user.getStatus());
+                                response.setCreatedAt(user.getCreatedAt());
+                                response.setUpdatedAt(user.getUpdatedAt());
+                                return response;
+                                })
+                                .collect(Collectors.toList())
+                );
+        }
+
 
         @GetMapping("/login-logs/{userId}")
         public ResponseEntity<?> getUserLoginLogs(

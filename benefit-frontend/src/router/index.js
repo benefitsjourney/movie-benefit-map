@@ -36,7 +36,7 @@ import AccountProfileView from '@/account/AccountProfileView.vue'
 import AccountListingsView from '@/account/AccountListingsView.vue'
 import AccountFavoritesView from '@/account/AccountFavoritesView.vue'
 import AccountBenefitsView from '@/account/AccountBenefitsView.vue'
-import AccountMessagesView from '@/account/AccountMessagesView.vue'
+import AdminUsersView from '@/views/admin/AdminUsersView.vue'
 import MessageInboxView from '@/messages/MessageInboxView.vue'
 import MessageConversationView from '@/messages/MessageConversationView.vue'
 
@@ -193,6 +193,11 @@ const router = createRouter({
           path: 'inventory-reports',
           name: 'admin-inventory-reports',
           component: AdminInventoryReportView
+        },
+        {
+          path: 'users',
+          name: 'admin-users',
+          component: AdminUsersView,
         },
         {
           path: 'crawler',
