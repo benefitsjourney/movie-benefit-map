@@ -11,13 +11,13 @@ import calendarIcon from "@iconify-icons/mdi/calendar-month-outline";
 import calendarStarIcon from "@iconify-icons/mdi/calendar-star";
 import giftIcon from "@iconify-icons/mdi/gift-outline";
 import ticketIcon from "@iconify-icons/mdi/ticket-outline";
-import timerIcon from "@iconify-icons/mdi/timer-sand";
 import movieIcon from "@iconify-icons/mdi/movie-open-outline";
 import bellIcon from "@iconify-icons/mdi/bell-outline";
 import googleIcon from "@iconify-icons/mdi/google";
 import arrowIcon from "@iconify-icons/mdi/arrow-right";
 import accountIcon from "@iconify-icons/mdi/account-star-outline";
 import filmIcon from "@iconify-icons/mdi/filmstrip";
+import listIcon from "@iconify-icons/mdi/format-list-checks";
 
 import http from "@/plugins/axios";
 import { useAuth } from "@/composables/useAuth";
@@ -25,16 +25,25 @@ import { openAppAlert } from "@/components/ui/Alert.vue";
 import PageIntro from "@/components/layout/PageIntro.vue";
 import StatePanel from "@/components/layout/StatePanel.vue";
 import AppModal from "@/components/ui/AppModal.vue";
+import BenefitFollowButton from "@/components/ui/BenefitFollowButton.vue";
 
 const router = useRouter();
 const route = useRoute();
 const auth = useAuth();
 
-// 三種事件：顏色、圖示、排序（同一天裡開始→截止→上映）
+// 事件種類：顏色、圖示、排序（同一天裡特典在前、電影在後）
+// 全部活動：特典開始日＋電影上映日
+// 我的日曆：月曆上只標追蹤特典的開始日（畫面才不會被長條塞滿），
+//          右邊清單則列出「選到的那天正在發放」的追蹤特典＋追蹤電影的上映日
 const EVENT_TYPES = {
   BENEFIT_START: { label: "特典開始", cls: "ev-start", icon: giftIcon, order: 1 },
-  BENEFIT_END: { label: "發放截止", cls: "ev-end", icon: timerIcon, order: 2 },
+  BENEFIT_PERIOD: { label: "追蹤特典", cls: "ev-period", icon: giftIcon, order: 1 },
   MOVIE_RELEASE: { label: "電影上映", cls: "ev-movie", icon: movieIcon, order: 3 },
+};
+
+const MODE_TYPES = {
+  all: ["BENEFIT_START", "MOVIE_RELEASE"],
+  mine: ["BENEFIT_PERIOD", "MOVIE_RELEASE"],
 };
 
 const BENEFIT_TYPES = {
@@ -44,13 +53,19 @@ const BENEFIT_TYPES = {
 };
 
 // ── 狀態 ──
-const mode = ref("all"); // all：全部特典（公開）／mine：我的追蹤（要登入）
+// all：全部活動（公開）／mine：我的日曆（要登入）
+// 從「我的追蹤」頁點「在我的日曆上看」會帶 ?mode=mine
+const mode = ref(route.query.mode === "mine" && auth.isLoggedIn.value ? "mine" : "all");
+// 我的日曆的追蹤清單（不分月份，查一次就好）
+const mineItems = ref([]);
+let mineLoaded = false;
 const currentMonth = ref(""); // "2026-10"，由 FullCalendar 切換月份時填入
 const events = ref([]);
 const loading = ref(false);
 const loadFailed = ref(false);
 const selectedDate = ref(toYmd(new Date()));
 const shownTypes = ref(new Set(Object.keys(EVENT_TYPES)));
+const todayYmd = toYmd(new Date());
 const detail = ref(null); // 點事件打開的視窗內容
 const detailOpen = ref(false);
 const brokenImages = ref(new Set());
@@ -132,9 +147,10 @@ function markBroken(ev) {
 
 // 加入 Google 日曆：用 Google 提供的網址開「新增活動」畫面（整天的活動）
 function googleCalendarUrl(ev) {
-  const day = dayOf(ev.date);
+  const day = ev.start || dayOf(ev.date);
   if (!day) return "";
-  const prefix = { BENEFIT_START: "特典開始", BENEFIT_END: "特典截止", MOVIE_RELEASE: "電影上映" }[ev.eventType];
+  const lastDay = ev.end || day;
+  const prefix = { BENEFIT_START: "特典開始", BENEFIT_PERIOD: "特典", MOVIE_RELEASE: "電影上映" }[ev.eventType];
   const lines = [];
   if (isBenefit(ev)) {
     if (ev.movieName) lines.push(`電影：《${ev.movieName}》`);
@@ -146,7 +162,7 @@ function googleCalendarUrl(ev) {
   const params = new URLSearchParams({
     action: "TEMPLATE",
     text: `【${prefix}】${eventTitle(ev)}`,
-    dates: `${day.replaceAll("-", "")}/${nextDay(day).replaceAll("-", "")}`,
+    dates: `${day.replaceAll("-", "")}/${nextDay(lastDay).replaceAll("-", "")}`,
     details: lines.join("\n"),
   });
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
@@ -154,19 +170,40 @@ function googleCalendarUrl(ev) {
 
 // ── 統計與篩選 ──
 const typeOptions = computed(() =>
-  Object.entries(EVENT_TYPES)
-    // 「發放截止」只有我的追蹤才有
-    .filter(([key]) => mode.value === "mine" || key !== "BENEFIT_END")
-    .map(([key, value]) => ({
-      key,
-      ...value,
-      count: events.value.filter((ev) => ev.eventType === key).length,
-    })),
+  MODE_TYPES[mode.value].map((key) => ({
+    key,
+    ...EVENT_TYPES[key],
+    // 我的日曆：只算跟這個月有重疊的
+    count: events.value.filter((ev) => ev.eventType === key && inMonth(ev)).length,
+  })),
 );
 
 const visibleEvents = computed(() => events.value.filter((ev) => shownTypes.value.has(ev.eventType)));
 
-const dayEvents = computed(() => visibleEvents.value.filter((ev) => dayOf(ev.date) === selectedDate.value));
+// 選到的那一天：發放期間涵蓋這天的都算
+const dayEvents = computed(() =>
+  visibleEvents.value
+    .filter((ev) => ev.start <= selectedDate.value && selectedDate.value <= ev.end)
+    .sort((a, b) => (EVENT_TYPES[a.eventType]?.order ?? 9) - (EVENT_TYPES[b.eventType]?.order ?? 9)
+      || (a.start === selectedDate.value ? -1 : 0) - (b.start === selectedDate.value ? -1 : 0)),
+);
+
+function inMonth(ev) {
+  if (!currentMonth.value) return false;
+  const first = `${currentMonth.value}-01`;
+  const last = `${currentMonth.value}-31`;
+  return ev.start <= last && ev.end >= first;
+}
+
+// 右側清單的小標籤：發放期間會依選到的日子顯示「開始發放／發放中／最後一天」
+function dayTag(ev) {
+  if (ev.eventType !== "BENEFIT_PERIOD") return EVENT_TYPES[ev.eventType]?.label;
+  const day = selectedDate.value;
+  if (ev.start === day && ev.end === day) return "當天發放";
+  if (ev.start === day) return "開始發放";
+  if (ev.end === day) return ev.noEnd ? "發放中" : "最後一天";
+  return "發放中";
+}
 
 const monthTitle = computed(() => {
   if (!currentMonth.value) return "";
@@ -186,7 +223,8 @@ const fcEvents = computed(() =>
   visibleEvents.value.map((ev, index) => ({
     id: `${ev.eventType}-${ev.benefitId ?? ev.movieId}-${index}`,
     title: eventTitle(ev),
-    start: dayOf(ev.date),
+    // 月曆上只標開始那天；完整期間看右邊清單和詳細視窗
+    start: ev.start,
     allDay: true,
     classNames: [EVENT_TYPES[ev.eventType]?.cls ?? ""],
     extendedProps: { raw: ev, order: EVENT_TYPES[ev.eventType]?.order ?? 9 },
@@ -204,7 +242,7 @@ const calendarOptions = computed(() => {
     fixedWeekCount: false,
     showNonCurrentDates: false,
     dayMaxEvents: 3,
-    eventOrder: "order,title",
+    eventOrder: "order,-duration,title",
     events: fcEvents.value,
     dayCellClassNames: (arg) => (toYmd(arg.date) === picked ? ["is-picked"] : []),
     datesSet: onDatesSet,
@@ -238,29 +276,76 @@ async function askLogin(text) {
   }
 }
 
-async function loadEvents() {
+// 全部活動：GET /benefits/calendar 回傳的每一筆都是單一天
+function fromPublic(ev) {
+  const day = dayOf(ev.date);
+  return { ...ev, start: day, end: day };
+}
+
+// 我的日曆：GET /reminders/me 的追蹤清單，特典畫成開始～截止的長條
+function fromReminder(item) {
+  if (item.reminderType === "MOVIE") {
+    const day = dayOf(item.releaseDate);
+    return day ? { ...item, eventType: "MOVIE_RELEASE", date: item.releaseDate, start: day, end: day } : null;
+  }
+  const start = dayOf(item.startDate);
+  if (!start) return null;
+  const endDay = dayOf(item.endDate);
+  // 沒有截止日（送完為止）：畫到今天為止，讓長條看得出「還在發」；還沒開始的就只畫開始那天
+  const noEnd = !endDay;
+  const end = endDay || (start < todayYmd && item.benefitStatus !== "EXPIRED" ? todayYmd : start);
+  return { ...item, eventType: "BENEFIT_PERIOD", date: item.startDate, start, end: end < start ? start : end, noEnd };
+}
+
+// 換月份時，選的日子如果不在這個月：這個月有今天就選今天，否則選第一個有活動的日子（沒有就選 1 號）
+function keepSelectedInMonth() {
+  const month = currentMonth.value;
+  if (!month || selectedDate.value.startsWith(month)) return;
+  if (todayYmd.startsWith(month)) {
+    selectedDate.value = todayYmd;
+    return;
+  }
+  const first = `${month}-01`;
+  const hit = events.value
+    .filter((ev) => inMonth(ev))
+    .map((ev) => (ev.start < first ? first : ev.start))
+    .sort()[0];
+  selectedDate.value = hit || first;
+}
+
+async function loadEvents({ reloadMine = false } = {}) {
   if (!currentMonth.value) return;
+
+  // 我的日曆的資料不分月份，已經查過就直接用
+  if (mode.value === "mine" && mineLoaded && !reloadMine) {
+    events.value = mineItems.value;
+    keepSelectedInMonth();
+    return;
+  }
+
   const id = ++requestId;
   loading.value = true;
   loadFailed.value = false;
 
-  const url = mode.value === "mine" ? "/reminders/calendar" : "/benefits/calendar";
   try {
-    const { data } = await http.get(url, { params: { month: currentMonth.value } });
-    if (id !== requestId) return; // 已經切到別的月份了，這次的結果不要用
-    events.value = Array.isArray(data) ? data : [];
-
-    // 選的日期不在這個月 → 改選這個月第一個有事件的日子（沒有就選 1 號）
-    if (!selectedDate.value.startsWith(currentMonth.value)) {
-      const first = events.value[0];
-      selectedDate.value = first ? dayOf(first.date) : `${currentMonth.value}-01`;
+    if (mode.value === "mine") {
+      const { data } = await http.get("/reminders/me");
+      if (id !== requestId) return;
+      mineItems.value = (Array.isArray(data) ? data : []).map(fromReminder).filter(Boolean);
+      mineLoaded = true;
+      events.value = mineItems.value;
+    } else {
+      const { data } = await http.get("/benefits/calendar", { params: { month: currentMonth.value } });
+      if (id !== requestId) return; // 已經切到別的月份了，這次的結果不要用
+      events.value = (Array.isArray(data) ? data : []).map(fromPublic);
     }
+    keepSelectedInMonth();
   } catch (error) {
     if (id !== requestId) return;
     events.value = [];
     if (error?.response?.status === 401 && mode.value === "mine") {
       mode.value = "all";
-      await askLogin("登入已過期，請重新登入後再查看追蹤的行事曆。");
+      await askLogin("登入已過期，請重新登入後再查看我的日曆。");
       return;
     }
     loadFailed.value = true;
@@ -269,12 +354,14 @@ async function loadEvents() {
   }
 }
 
-watch([currentMonth, mode], loadEvents);
+watch(currentMonth, () => loadEvents());
+// 每次切到「我的日曆」都重查一次（可能剛在別的地方追蹤了新的特典）
+watch(mode, (next) => loadEvents({ reloadMine: next === "mine" }));
 
 async function switchMode(next) {
   if (next === mode.value) return;
   if (next === "mine" && !auth.isLoggedIn.value) {
-    await askLogin("登入後就能在行事曆上看到你追蹤的特典。");
+    await askLogin("登入後，追蹤的特典就會出現在「我的日曆」。");
     return;
   }
   mode.value = next;
@@ -284,27 +371,40 @@ function openDetail(ev) {
   detail.value = ev;
   detailOpen.value = true;
 }
+
+// 在視窗裡按了追蹤／取消追蹤：「我的日曆」要重新載入
+function onFollowChange() {
+  if (mode.value === "mine") {
+    detailOpen.value = false;
+    loadEvents({ reloadMine: true });
+  }
+}
 </script>
 
 <template>
   <section>
-    <PageIntro kicker="✦ BENEFIT CALENDAR" lead="特典" mark="行事曆" tail="" description="哪天開始發特典、哪天有新片上映，一張月曆就看得到。"
+    <PageIntro kicker="✦ CALENDAR" lead="" mark="行事曆" tail="" description="哪天開始發特典、哪天有新片上映，一張月曆就看得到。"
       :icon-left="calendarIcon" :icon-right="ticketIcon" :icon-top="calendarStarIcon" />
 
-    <!-- 上方工具列：切換全部／我的追蹤、事件種類篩選 -->
+    <!-- 上方工具列：切換全部活動／我的日曆、事件種類篩選 -->
     <div class="calendar-toolbar">
       <div class="mode-switch" role="tablist" aria-label="行事曆內容">
         <button type="button" role="tab" class="mode-btn" :class="{ 'is-on': mode === 'all' }"
           :aria-selected="mode === 'all'" @click="switchMode('all')">
-          <Icon :icon="giftIcon" aria-hidden="true" />
-          全部特典
+          <Icon :icon="calendarIcon" aria-hidden="true" />
+          全部活動
         </button>
         <button type="button" role="tab" class="mode-btn" :class="{ 'is-on': mode === 'mine' }"
           :aria-selected="mode === 'mine'" @click="switchMode('mine')">
           <Icon :icon="bellIcon" aria-hidden="true" />
-          我的追蹤
+          我的日曆
         </button>
       </div>
+
+      <RouterLink v-if="mode === 'mine'" class="manage-link" to="/reminders">
+        <Icon :icon="listIcon" aria-hidden="true" />
+        管理追蹤清單
+      </RouterLink>
 
       <div class="type-chips" aria-label="顯示的事件種類">
         <button v-for="type in typeOptions" :key="type.key" type="button" class="type-chip" :class="[type.cls, {
@@ -339,7 +439,7 @@ function openDetail(ev) {
       <!-- 右側：選到的那一天 -->
       <aside class="day-panel" aria-live="polite">
         <header class="day-head">
-          <p class="day-kicker">{{ mode === "mine" ? "我的追蹤" : "這一天" }}</p>
+          <p class="day-kicker">{{ mode === "mine" ? "我的日曆" : "這一天" }}</p>
           <h2 class="day-title">{{ dayLabel(selectedDate) }}</h2>
         </header>
 
@@ -354,7 +454,7 @@ function openDetail(ev) {
               <span class="day-body">
                 <span class="day-tag">
                   <Icon :icon="EVENT_TYPES[ev.eventType]?.icon" aria-hidden="true" />
-                  {{ EVENT_TYPES[ev.eventType]?.label }}
+                  {{ dayTag(ev) }}
                 </span>
                 <span class="day-name">{{ eventTitle(ev) }}</span>
                 <span class="day-sub">{{ eventSubtitle(ev) }}</span>
@@ -365,7 +465,7 @@ function openDetail(ev) {
 
         <div v-else class="day-empty">
           <Icon :icon="calendarStarIcon" aria-hidden="true" />
-          <p v-if="mode === 'mine'">這天沒有追蹤的特典。<br />到特典頁按「追蹤」，日期就會出現在這裡。</p>
+          <p v-if="mode === 'mine'">這天沒有正在發放的追蹤特典。<br />在特典頁或月曆上的視窗按「追蹤」，<br />發放期間的每一天都會列在這裡。</p>
           <p v-else>這天沒有特典開始，也沒有電影上映。<br />點月曆上有標記的日子看看吧！</p>
         </div>
 
@@ -388,7 +488,7 @@ function openDetail(ev) {
         <div class="detail-body">
           <span class="day-tag">
             <Icon :icon="EVENT_TYPES[detail.eventType]?.icon" aria-hidden="true" />
-            {{ EVENT_TYPES[detail.eventType]?.label }}・{{ dayLabel(dayOf(detail.date)) }}
+            {{ EVENT_TYPES[detail.eventType]?.label }}・{{ detail.eventType === "BENEFIT_PERIOD" ? periodText(detail) : dayLabel(detail.start) }}
           </span>
           <h3 class="detail-name">{{ eventTitle(detail) }}</h3>
 
@@ -416,7 +516,7 @@ function openDetail(ev) {
           <dl v-else class="detail-list">
             <div>
               <dt>上映日</dt>
-              <dd>{{ dayLabel(dayOf(detail.date)) }}</dd>
+              <dd>{{ dayLabel(detail.start) }}</dd>
             </div>
           </dl>
 
@@ -426,6 +526,7 @@ function openDetail(ev) {
               查看特典與庫存
               <Icon :icon="arrowIcon" aria-hidden="true" />
             </RouterLink>
+            <BenefitFollowButton v-if="isBenefit(detail)" :benefit="detail" @change="onFollowChange" />
             <a v-if="googleCalendarUrl(detail)" class="action-btn" :href="googleCalendarUrl(detail)" target="_blank"
               rel="noopener noreferrer">
               <Icon :icon="googleIcon" aria-hidden="true" />
@@ -446,10 +547,10 @@ function openDetail(ev) {
   --ev-ink: #b2421f;
 }
 
-.ev-end {
-  --ev: #e0457b;
-  --ev-soft: #fff0f6;
-  --ev-ink: #a33b6b;
+.ev-period {
+  --ev: #ff7049;
+  --ev-soft: #fff1ea;
+  --ev-ink: #b2421f;
 }
 
 .ev-movie {
@@ -510,6 +611,21 @@ function openDetail(ev) {
 .mode-btn:focus-visible {
   outline: 2px solid #ffc857;
   outline-offset: 2px;
+}
+
+.manage-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-right: auto;
+  color: #1e2b45;
+  font-size: var(--text-min);
+  font-weight: 800;
+  text-underline-offset: 0.18em;
+}
+
+.manage-link:hover {
+  color: #ff7049;
 }
 
 .type-chips {
@@ -732,8 +848,8 @@ function openDetail(ev) {
   background: #ff7049;
 }
 
-.calendar-card :deep(.fc .fc-h-event.ev-end) {
-  background: #e0457b;
+.calendar-card :deep(.fc .fc-h-event.ev-period) {
+  background: #ff7049;
 }
 
 .calendar-card :deep(.fc .fc-h-event.ev-movie) {
@@ -849,9 +965,13 @@ function openDetail(ev) {
 .day-list {
   display: grid;
   gap: 0.6rem;
+  max-height: 34rem;
   margin: 0;
-  padding: 0;
+  padding: 0 0.25rem 0 0;
+  overflow-y: auto;
   list-style: none;
+  scrollbar-color: rgb(255 255 255 / 30%) transparent;
+  scrollbar-width: thin;
 }
 
 .day-item {
