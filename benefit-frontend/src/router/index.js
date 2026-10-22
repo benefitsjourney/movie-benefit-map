@@ -26,6 +26,15 @@ import LoginView from '@/views/LoginView.vue'
 import RegisterView from '@/views/RegisterView.vue'
 import ForgotPasswordView from '@/views/ForgotPasswordView.vue'
 import ResetPasswordView from '@/views/ResetPasswordView.vue'
+import AccountLayout from '@/layouts/AccountLayout.vue'
+import AccountHomeView from '@/account/AccountHomeView.vue'
+import AccountProfileView from '@/account/AccountProfileView.vue'
+import AccountListingsView from '@/account/AccountListingsView.vue'
+import AccountFavoritesView from '@/account/AccountFavoritesView.vue'
+import AccountBenefitsView from '@/account/AccountBenefitsView.vue'
+import AccountMessagesView from '@/account/AccountMessagesView.vue'
+import MessageInboxView from '@/messages/MessageInboxView.vue'
+import MessageConversationView from '@/messages/MessageConversationView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -50,6 +59,48 @@ const router = createRouter({
       path: '/reset-password',
       name: 'reset-password',
       component: ResetPasswordView,
+    },
+    {
+    path: '/account',
+    component: AccountLayout,
+    meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          name: 'account-home',
+          component: AccountHomeView,
+        },
+        {
+          path: 'profile',
+          name: 'account-profile',
+          component: AccountProfileView,
+        },
+        {
+          path: 'listings',
+          name: 'account-listings',
+          component: AccountListingsView,
+        },
+        {
+          path: 'favorites',
+          name: 'account-favorites',
+          component: AccountFavoritesView,
+        },
+        {
+          path: 'benefits',
+          name: 'account-benefits',
+          component: AccountBenefitsView,
+        },
+        {
+        path: 'messages',
+        name: 'account-messages',
+        component: MessageInboxView,
+        },
+        {
+          path: 'messages/:conversationId',
+          name: 'message-conversation',
+          component: MessageConversationView,
+        },
+      ],
     },
     {
       path: '/',
