@@ -98,6 +98,7 @@ class CinemaMovieReviewsControllerTest {
                     .andExpect(jsonPath("$.totalElements").value(1))
                     .andExpect(jsonPath("$.content[0].cinemaMovieReviewId").value(7))
                     .andExpect(jsonPath("$.content[0].crawlerType").value("MOVIE"))
+                    .andExpect(jsonPath("$.content[0].entityId").doesNotExist())
                     .andExpect(jsonPath("$.content[0].fieldName").value("movieName"))
                     .andExpect(jsonPath("$.content[0].reviewStatus").value("PENDING"));
 
@@ -465,7 +466,7 @@ class CinemaMovieReviewsControllerTest {
             when(cinemaMovieReviewsService.approveCinemaMovieReview(7)).thenReturn(new CinemaMovieReviewResponse(
                     7,
                     CinemaResourceType.MOVIE,
-                    12,
+                    "測試電影",
                     "movieName",
                     "新片名",
                     "舊片名",
@@ -515,7 +516,7 @@ class CinemaMovieReviewsControllerTest {
             when(cinemaMovieReviewsService.rejectCinemaMovieReview(7)).thenReturn(new CinemaMovieReviewResponse(
                     7,
                     CinemaResourceType.MOVIE,
-                    12,
+                    "測試電影",
                     "movieName",
                     "新片名",
                     "舊片名",
@@ -705,7 +706,7 @@ class CinemaMovieReviewsControllerTest {
         return new CinemaMovieReviewResponse(
                 7,
                 CinemaResourceType.MOVIE,
-                12,
+                "測試電影",
                 "movieName",
                 "新片名",
                 "舊片名",

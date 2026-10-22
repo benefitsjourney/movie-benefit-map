@@ -7,9 +7,14 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.function.Function;
 
 import org.springframework.data.core.TypedPropertyPath;
 import org.springframework.data.domain.Page;
@@ -18,7 +23,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.collection.benefitsjourney.domain.CinemaBean;
 import com.collection.benefitsjourney.domain.CinemaMovieReviewBean;
+import com.collection.benefitsjourney.domain.MovieBean;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaRequest;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieReviewRequest;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieReviewResponse;
@@ -26,6 +33,8 @@ import com.collection.benefitsjourney.dto.CinemaMovie.MovieRequest;
 import com.collection.benefitsjourney.dto.PageResponse;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaResourceType;
 import com.collection.benefitsjourney.repository.CinemaMovieReviewsRepository;
+import com.collection.benefitsjourney.repository.CinemaRepository;
+import com.collection.benefitsjourney.repository.MovieRepository;
 import com.collection.benefitsjourney.enums.County;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaMovieReviewSort;
 import com.collection.benefitsjourney.enums.ReviewStatus;
@@ -51,14 +60,20 @@ public class CinemaMovieReviewsService {
     private static final DateTimeFormatter DATE_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final CinemaMovieReviewsRepository cinemaMovieReviewsRepository;
+    private final CinemaRepository cinemaRepository;
+    private final MovieRepository movieRepository;
     private final CinemaService cinemaService;
     private final MovieService movieService;
 
     public CinemaMovieReviewsService(
             CinemaMovieReviewsRepository cinemaMovieReviewsRepository,
+            CinemaRepository cinemaRepository,
+            MovieRepository movieRepository,
             CinemaService cinemaService,
             MovieService movieService) {
         this.cinemaMovieReviewsRepository = cinemaMovieReviewsRepository;
+        this.cinemaRepository = cinemaRepository;
+        this.movieRepository = movieRepository;
         this.cinemaService = cinemaService;
         this.movieService = movieService;
     }
@@ -87,13 +102,13 @@ public class CinemaMovieReviewsService {
 
         PageRequest pageable = PageRequest.of(page - 1, size, order);
 
-        Page<CinemaMovieReviewResponse> result = cinemaMovieReviewsRepository.findAllByFilters(
+        Page<CinemaMovieReviewBean> result = cinemaMovieReviewsRepository.findAllByFilters(
                 crawlerType,
                 reviewStatus,
-                pageable)
-                .map(CinemaMovieReviewResponse::from);
+                pageable);
+        EntityNames names = entityNames(result.getContent());
 
-        return PageResponse.from(result);
+        return PageResponse.from(result.map(review -> toResponse(review, names)));
     }
 
     /** 提交差異：重複略過，待審核值變更則更新 */
@@ -143,7 +158,7 @@ public class CinemaMovieReviewsService {
                 request.fieldName().trim(),
                 request.crawlerValue(),
                 request.previousValue())
-                .map(CinemaMovieReviewResponse::from)
+                .map(this::toResponse)
                 .orElseThrow(() -> badRequest("已有相同差異的審核紀錄，不重複新增"));
     }
 
@@ -180,7 +195,7 @@ public class CinemaMovieReviewsService {
 
         review.setReviewStatus(ReviewStatus.APPROVED);
         review.setReviewedAt(LocalDateTime.now().withNano(0));
-        return CinemaMovieReviewResponse.from(cinemaMovieReviewsRepository.save(review));
+        return toResponse(cinemaMovieReviewsRepository.save(review));
     }
 
     /** 審核拒絕：只改成已拒絕，不寫入正式資料 */
@@ -195,7 +210,73 @@ public class CinemaMovieReviewsService {
 
         review.setReviewStatus(ReviewStatus.REJECTED);
         review.setReviewedAt(LocalDateTime.now().withNano(0));
-        return CinemaMovieReviewResponse.from(cinemaMovieReviewsRepository.save(review));
+        return toResponse(cinemaMovieReviewsRepository.save(review));
+    }
+
+    private CinemaMovieReviewResponse toResponse(CinemaMovieReviewBean review) {
+        return toResponse(review, entityNames(List.of(review)));
+    }
+
+    private CinemaMovieReviewResponse toResponse(CinemaMovieReviewBean review, EntityNames names) {
+        String entityName = null;
+        if (review.getEntityId() != null && review.getCrawlerType() != null) {
+            entityName = switch (review.getCrawlerType()) {
+                case CINEMA -> names.cinemas().get(review.getEntityId());
+                case MOVIE -> names.movies().get(review.getEntityId());
+                case CRAWLER_LOG -> null;
+            };
+        }
+        return CinemaMovieReviewResponse.from(review, entityName);
+    }
+
+    /** 依爬蟲類型批次取出電影或影城名稱；兩種編號分開記，避免同號互相覆蓋 */
+    private EntityNames entityNames(List<CinemaMovieReviewBean> reviews) {
+        return new EntityNames(
+                namesById(
+                        idsOf(reviews, CinemaResourceType.CINEMA),
+                        cinemaRepository::findAllById,
+                        CinemaBean::getCinemaId,
+                        CinemaBean::getCinemaName),
+                namesById(
+                        idsOf(reviews, CinemaResourceType.MOVIE),
+                        movieRepository::findAllById,
+                        MovieBean::getMovieId,
+                        MovieBean::getMovieName));
+    }
+
+    private record EntityNames(Map<Integer, String> cinemas, Map<Integer, String> movies) {
+    }
+
+    private static Set<Integer> idsOf(List<CinemaMovieReviewBean> reviews, CinemaResourceType type) {
+        Set<Integer> ids = new HashSet<>();
+        for (CinemaMovieReviewBean review : reviews) {
+            if (review.getCrawlerType() == type && review.getEntityId() != null) {
+                ids.add(review.getEntityId());
+            }
+        }
+        return ids;
+    }
+
+    private static <T> Map<Integer, String> namesById(
+            Set<Integer> ids,
+            Function<Set<Integer>, List<T>> finder,
+            Function<T, Integer> idOf,
+            Function<T, String> nameOf) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        List<T> entities = finder.apply(ids);
+        if (entities == null || entities.isEmpty()) {
+            return Map.of();
+        }
+        Map<Integer, String> names = new HashMap<>();
+        for (T entity : entities) {
+            if (entity == null || idOf.apply(entity) == null) {
+                continue;
+            }
+            names.put(idOf.apply(entity), nameOf.apply(entity));
+        }
+        return names;
     }
 
     /** 統一欄位值格式 */

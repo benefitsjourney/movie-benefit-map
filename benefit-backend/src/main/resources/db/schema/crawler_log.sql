@@ -1,5 +1,8 @@
 USE BenefitsJourney;
 
+-- INT IDENTITY預設快取1000個號碼，重啟後未使用的號碼會跳過；關閉快取可避免重啟造成跳號
+ALTER DATABASE SCOPED CONFIGURATION SET IDENTITY_CACHE = OFF;
+
 -- DROP TABLE crawler_log;
 
 CREATE TABLE crawler_log (

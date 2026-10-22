@@ -2,6 +2,7 @@ package com.collection.benefitsjourney.service.CinemaMovie;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -30,7 +31,9 @@ import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.collection.benefitsjourney.domain.CinemaBean;
 import com.collection.benefitsjourney.domain.CinemaMovieReviewBean;
+import com.collection.benefitsjourney.domain.MovieBean;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieReviewRequest;
 import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieReviewResponse;
 import com.collection.benefitsjourney.dto.CinemaMovie.MovieRequest;
@@ -41,12 +44,20 @@ import com.collection.benefitsjourney.enums.CinemaMovie.CinemaMovieReviewSort;
 import com.collection.benefitsjourney.enums.ReviewStatus;
 import com.collection.benefitsjourney.enums.SortOrder;
 import com.collection.benefitsjourney.repository.CinemaMovieReviewsRepository;
+import com.collection.benefitsjourney.repository.CinemaRepository;
+import com.collection.benefitsjourney.repository.MovieRepository;
 
 @ExtendWith(MockitoExtension.class)
 class CinemaMovieReviewsServiceTest {
 
     @Mock
     private CinemaMovieReviewsRepository cinemaMovieReviewsRepository;
+
+    @Mock
+    private CinemaRepository cinemaRepository;
+
+    @Mock
+    private MovieRepository movieRepository;
 
     @Mock
     private CinemaService cinemaService;
@@ -108,6 +119,10 @@ class CinemaMovieReviewsServiceTest {
                             List.of(bean),
                             PageRequest.of(2, 20),
                             41));
+            MovieBean movie = new MovieBean();
+            movie.setMovieId(12);
+            movie.setMovieName("測試電影");
+            when(movieRepository.findAllById(any())).thenReturn(List.of(movie));
 
             PageResponse<CinemaMovieReviewResponse> result = cinemaMovieReviewsService.findAll(
                     CinemaResourceType.MOVIE,
@@ -139,7 +154,7 @@ class CinemaMovieReviewsServiceTest {
             CinemaMovieReviewResponse response = result.content().get(0);
             assertEquals(7, response.cinemaMovieReviewId());
             assertEquals(CinemaResourceType.MOVIE, response.crawlerType());
-            assertEquals(12, response.entityId());
+            assertEquals("測試電影", response.entityName());
             assertEquals("movieName", response.fieldName());
             assertEquals("新片名", response.crawlerValue());
             assertEquals("舊片名", response.previousValue());
@@ -147,6 +162,33 @@ class CinemaMovieReviewsServiceTest {
             assertEquals(REVIEWED_AT, response.reviewedAt());
             assertEquals(bean.getCreatedAt(), response.createdAt());
             assertEquals(bean.getUpdatedAt(), response.updatedAt());
+        }
+
+        @Test
+        @DisplayName("影城審核應帶出影城名稱，找不到電影時名稱為空")
+        void shouldResolveCinemaNameAndLeaveMissingMovieBlank() {
+            CinemaMovieReviewBean cinemaReview = review(1, ReviewStatus.PENDING);
+            cinemaReview.setCrawlerType(CinemaResourceType.CINEMA);
+            cinemaReview.setEntityId(100);
+            CinemaMovieReviewBean movieReview = review(2, ReviewStatus.PENDING);
+            when(cinemaMovieReviewsRepository.findAllByFilters(
+                    nullable(CinemaResourceType.class),
+                    nullable(ReviewStatus.class),
+                    any(Pageable.class)))
+                    .thenReturn(new PageImpl<>(List.of(cinemaReview, movieReview)));
+            CinemaBean cinema = new CinemaBean();
+            cinema.setCinemaId(100);
+            cinema.setCinemaName("信義威秀");
+            when(cinemaRepository.findAllById(any())).thenReturn(List.of(cinema));
+            when(movieRepository.findAllById(any())).thenReturn(List.of());
+
+            PageResponse<CinemaMovieReviewResponse> result = cinemaMovieReviewsService.findAll(
+                    null, null, 1, 20,
+                    CinemaMovieReviewSort.SortBy.CINEMA_MOVIE_REVIEW_ID,
+                    SortOrder.ASC);
+
+            assertEquals("信義威秀", result.content().get(0).entityName());
+            assertNull(result.content().get(1).entityName());
         }
 
         @Test
