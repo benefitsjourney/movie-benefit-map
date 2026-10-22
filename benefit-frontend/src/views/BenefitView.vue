@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { Icon } from "@iconify/vue";
 import giftIcon from "@iconify-icons/mdi/gift-outline";
 import ticketIcon from "@iconify-icons/mdi/ticket-outline";
@@ -12,8 +12,11 @@ import filmIcon from "@iconify-icons/mdi/filmstrip";
 import searchIcon from "@iconify-icons/mdi/magnify";
 import shapeIcon from "@iconify-icons/mdi/shape-outline";
 import compassIcon from "@iconify-icons/mdi/compass-outline";
+import heartIcon from "@iconify-icons/mdi/heart";
+import heartOutlineIcon from "@iconify-icons/mdi/heart-outline";
 
 import { useApiCollection } from "@/composables/useApiCollection";
+import { useFavoriteBenefits } from "@/composables/useFavoriteBenefits";
 import PageIntro from "@/components/layout/PageIntro.vue";
 import ResultBanner from "@/components/layout/ResultBanner.vue";
 import SearchFilter from "@/components/layout/SearchFilter.vue";
@@ -102,6 +105,10 @@ const {
   retry,
 } = useApiCollection("/benefits", requestParams, { page });
 
+// ── 愛心收藏：空心＝沒收藏，實心＝已收藏 ──
+const { loadFavorites, isFavorite, isBusy, toggleFavorite } = useFavoriteBenefits();
+onMounted(loadFavorites);
+
 // ── 看大圖：點卡片圖片打開 ──
 const viewerOpen = ref(false);
 const viewerUrl = ref("");
@@ -172,12 +179,23 @@ function goToPage(next) {
       <TicketCard v-for="(benefit, index) in benefits" :key="benefit.benefitId" :color="typeColor(benefit.benefitType)"
         :appear="index < 6" :stamp="typeLabel(benefit.benefitType)" :title="benefit.benefitName">
         <template #poster>
-          <img v-if="imageUrl(benefit)" :src="imageUrl(benefit)" :alt="`${benefit.benefitName} 圖片`" loading="lazy"
-            decoding="async" referrerpolicy="no-referrer" @error="markImageBroken(benefit)"
-            class="poster-click" @click="openImage(benefit)" />
-          <span v-else class="poster-fallback">
-            <Icon :icon="giftIcon" aria-hidden="true" />
-          </span>
+          <div class="poster-wrap">
+            <img v-if="imageUrl(benefit)" :src="imageUrl(benefit)" :alt="`${benefit.benefitName} 圖片`" loading="lazy"
+              decoding="async" referrerpolicy="no-referrer" @error="markImageBroken(benefit)"
+              class="poster-click" @click="openImage(benefit)" />
+            <span v-else class="poster-fallback">
+              <Icon :icon="giftIcon" aria-hidden="true" />
+            </span>
+
+            <!-- 右上角愛心：空心＝收藏、實心＝取消收藏 -->
+            <button type="button" class="favorite-btn" :class="{ 'is-on': isFavorite(benefit.benefitId) }"
+              :aria-pressed="isFavorite(benefit.benefitId)"
+              :aria-label="isFavorite(benefit.benefitId) ? `取消收藏 ${benefit.benefitName}` : `收藏 ${benefit.benefitName}`"
+              :title="isFavorite(benefit.benefitId) ? '已收藏（點一下取消）' : '加入收藏'"
+              :disabled="isBusy(benefit.benefitId)" @click="toggleFavorite(benefit)">
+              <Icon :icon="isFavorite(benefit.benefitId) ? heartIcon : heartOutlineIcon" aria-hidden="true" />
+            </button>
+          </div>
         </template>
 
         <template #detail>
@@ -239,6 +257,91 @@ function goToPage(next) {
 
 .poster-fallback :deep(svg) {
   font-size: var(--text-page-title);
+}
+
+/* 包住圖片和愛心，讓愛心可以疊在圖片右上角 */
+.poster-wrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.poster-wrap > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── 右上角愛心 ── */
+.favorite-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 88%);
+  color: #a33b6b;
+  font-size: 1.45rem;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgb(41 43 53 / 18%);
+  transition:
+    transform var(--ease),
+    background-color var(--ease);
+}
+
+.favorite-btn:hover:not(:disabled) {
+  background: #fff;
+  transform: scale(1.08);
+}
+
+.favorite-btn.is-on {
+  color: #e0457b;
+}
+
+/* 收藏的那一下彈一下 */
+.favorite-btn.is-on :deep(svg) {
+  animation: heart-pop 0.35s ease;
+}
+
+.favorite-btn:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.favorite-btn:focus-visible {
+  outline: 2px solid #e0457b;
+  outline-offset: 2px;
+}
+
+/* 電腦（有滑鼠）：沒收藏的空心愛心平常隱藏，滑鼠移到圖片上才出現；
+   已收藏的實心愛心一直顯示。手機沒有滑鼠，不受影響，愛心一直顯示 */
+@media (hover: hover) and (pointer: fine) {
+  .favorite-btn:not(.is-on) {
+    opacity: 0;
+    transition:
+      opacity var(--ease),
+      transform var(--ease),
+      background-color var(--ease);
+  }
+
+  .poster-wrap:hover .favorite-btn,
+  .favorite-btn:focus-visible {
+    opacity: 1;
+  }
+}
+
+@keyframes heart-pop {
+  50% {
+    transform: scale(1.3);
+  }
 }
 
 .movie-name {
