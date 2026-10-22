@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { Icon } from "@iconify/vue";
 import giftIcon from "@iconify-icons/mdi/gift-outline";
@@ -9,9 +9,13 @@ import filmIcon from "@iconify-icons/mdi/filmstrip";
 import searchIcon from "@iconify-icons/mdi/magnify";
 import linkIcon from "@iconify-icons/mdi/open-in-new";
 import megaphoneIcon from "@iconify-icons/mdi/bullhorn-outline";
+import heartIcon from "@iconify-icons/mdi/heart";
+import heartOutlineIcon from "@iconify-icons/mdi/heart-outline";
+import arrowIcon from "@iconify-icons/mdi/arrow-right";
 import { openAppAlert } from "@/components/ui/Alert.vue";
 
 import http from "@/plugins/axios";
+import { useFavoriteBenefits } from "@/composables/useFavoriteBenefits";
 import PageIntro from "@/components/layout/PageIntro.vue";
 import DetailCard from "@/components/layout/DetailCard.vue";
 import StatePanel from "@/components/layout/StatePanel.vue";
@@ -234,30 +238,12 @@ onUnmounted(() => {
   requestSerial += 1;
 });
 
-// 加入收藏：POST /use-benefits { benefitId }
-const collecting = ref(false);
-const collectMessage = ref("");
+// ── 收藏：跟特典一覽的愛心共用同一套（未收藏→收藏；已收藏→確認後取消）──
+const { loadFavorites, isFavorite, isBusy, toggleFavorite } = useFavoriteBenefits();
+onMounted(loadFavorites);
 
-async function addToCollection() {
-  if (collecting.value) return;
-  if (!localStorage.getItem("token")) {
-    collectMessage.value = "請先登入才能收藏。";
-    return;
-  }
-  collecting.value = true;
-  collectMessage.value = "";
-  try {
-    await http.post("/use-benefits", { benefitId: benefit.value.benefitId });
-    collectMessage.value = "已加入收藏！可以到「我的收藏」上傳照片。";
-  } catch (e) {
-    const code = e?.response?.status;
-    if (code === 409) collectMessage.value = "你已經收藏過這個特典了。";
-    else if (code === 401) collectMessage.value = "登入已過期，請重新登入。";
-    else collectMessage.value = e?.response?.data?.message ?? "收藏失敗，請稍後再試。";
-  } finally {
-    collecting.value = false;
-  }
-}
+const favored = computed(() => Boolean(benefit.value) && isFavorite(benefit.value.benefitId));
+const favoriteBusy = computed(() => Boolean(benefit.value) && isBusy(benefit.value.benefitId));
 </script>
 
 <template>
@@ -300,13 +286,18 @@ async function addToCollection() {
                 </dd>
               </div>
             </dl>
-              <div class="collect-row">
-                <button type="button" class="collect-btn" :disabled="collecting" @click="addToCollection">
-                  <Icon :icon="giftIcon" aria-hidden="true" />
-                  {{ collecting ? "處理中…" : "加入收藏" }}
-                </button>
-                <span v-if="collectMessage" class="collect-msg">{{ collectMessage }}</span>
-              </div>
+            <div class="collect-row">
+              <!-- 空心＝加入收藏、實心＝已收藏（點了會先確認才取消） -->
+              <button type="button" class="collect-btn" :class="{ 'is-on': favored }" :aria-pressed="favored"
+                :disabled="favoriteBusy" @click="toggleFavorite(benefit)">
+                <Icon :icon="favored ? heartIcon : heartOutlineIcon" aria-hidden="true" />
+                {{ favoriteBusy ? "處理中…" : favored ? "已收藏" : "加入收藏" }}
+              </button>
+              <RouterLink v-if="favored" to="/collection" class="collect-link">
+                到我的收藏上傳照片
+                <Icon :icon="arrowIcon" aria-hidden="true" />
+              </RouterLink>
+            </div>
           </section>
         </div>
       </DetailCard>
@@ -644,6 +635,8 @@ async function addToCollection() {
 .tone-unknown {
   --chip-ink: #6c7380;
 }
+
+/* ── 收藏按鈕：空心＝未收藏（白底粉框）、實心＝已收藏（粉底白字）── */
 .collect-row {
   display: flex;
   flex-wrap: wrap;
@@ -658,13 +651,37 @@ async function addToCollection() {
   gap: 0.35rem;
   min-height: 2.75rem;
   padding: 0.4rem 1.1rem;
-  border: 1.5px solid #ff7049;
+  border: 1.5px solid #e0457b;
   border-radius: 999px;
-  background: #ff7049;
-  color: #fff;
+  background: #fff;
+  color: #e0457b;
   font-size: var(--text-control);
   font-weight: 800;
   cursor: pointer;
+  transition:
+    background-color var(--ease),
+    color var(--ease);
+}
+
+.collect-btn :deep(svg) {
+  font-size: 1.3rem;
+}
+
+.collect-btn:hover:not(:disabled) {
+  background: #fff0f6;
+}
+
+.collect-btn.is-on {
+  background: #e0457b;
+  color: #fff;
+}
+
+.collect-btn.is-on:hover:not(:disabled) {
+  background: #c93a6b;
+}
+
+.collect-btn.is-on :deep(svg) {
+  animation: heart-pop 0.35s ease;
 }
 
 .collect-btn:disabled {
@@ -672,10 +689,25 @@ async function addToCollection() {
   cursor: wait;
 }
 
-.collect-msg {
-  color: var(--c-muted);
+.collect-btn:focus-visible {
+  outline: 2px solid #e0457b;
+  outline-offset: 3px;
+}
+
+.collect-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: #a33b6b;
   font-size: var(--text-min);
-  font-weight: 700;
+  font-weight: 800;
+  text-underline-offset: 0.18em;
+}
+
+@keyframes heart-pop {
+  50% {
+    transform: scale(1.3);
+  }
 }
 
 .poster-click {
