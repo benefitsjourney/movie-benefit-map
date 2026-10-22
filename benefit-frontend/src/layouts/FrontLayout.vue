@@ -34,8 +34,17 @@ const links = computed(() => {
 
 <template>
   <div class="app-shell">
-    <AppNavbar nav-label="主要導覽" brand-to="/map" brand-name="特典地圖" :links="links" switch-to="/admin" switch-label="後台管理"
-      :switch-icon="shieldIcon" :show-switch="auth.isAdmin.value" />
+    <AppNavbar
+      nav-label="主要導覽"
+      brand-to="/map"
+      brand-name="特典地圖"
+      :links="links"
+      switch-to="/admin"
+      switch-label="後台管理"
+      switch-first
+      :switch-icon="shieldIcon"
+      :show-switch="auth.isAdmin.value"
+    />
     <main class="page-main">
       <RouterView />
     </main>

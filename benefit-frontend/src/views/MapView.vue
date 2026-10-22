@@ -172,26 +172,33 @@ function benefitTotal(cinema) {
 }
 
 // API 資料統一加工，避免在 Marker / Popup / 清單重複轉座標、檢查範圍、換算距離。
-const cinemaItems = computed(() => cinemas.value.map((cinema) => {
-  const position = getCinemaCoordinates(cinema);
-  const benefits = benefitItems(cinema);
-  return {
-    ...cinema,
-    position,
-    canLocate: cinema.cinemaId != null && isWithinTaiwanBounds(position),
-    distanceText: formatDistance(cinema.distance),
-    benefits,
-    benefitCount: benefitTotal(cinema),
-  };
-}));
+const cinemaItems = computed(() =>
+  cinemas.value.map((cinema) => {
+    const position = getCinemaCoordinates(cinema);
+    const benefits = benefitItems(cinema);
+    return {
+      ...cinema,
+      position,
+      canLocate: cinema.cinemaId != null && isWithinTaiwanBounds(position),
+      distanceText: formatDistance(cinema.distance),
+      benefits,
+      benefitCount: benefitTotal(cinema),
+    };
+  }),
+);
 const mappableCinemas = computed(() =>
   cinemaItems.value.filter((cinema) => cinema.canLocate),
 );
 const markerCount = computed(() => mappableCinemas.value.length);
 const SEARCH_KEYS = ["keyword", "movieKeyword", "benefitKeyword"];
-const activeKeywords = computed(() => Object.fromEntries(
-  SEARCH_KEYS.map((key) => [key, String(appliedFilters.value[key] ?? "").trim()]),
-));
+const activeKeywords = computed(() =>
+  Object.fromEntries(
+    SEARCH_KEYS.map((key) => [
+      key,
+      String(appliedFilters.value[key] ?? "").trim(),
+    ]),
+  ),
+);
 const hasNarrowScope = computed(() =>
   Boolean(
     SEARCH_KEYS.some((key) => activeKeywords.value[key]) ||
@@ -231,8 +238,11 @@ const params = computed(() => {
 });
 const queryKey = computed(() => JSON.stringify(params.value));
 const detailCinemaId = ref(null);
-const detailCinema = computed(() =>
-  cinemaItems.value.find((cinema) => cinema.cinemaId === detailCinemaId.value) ?? null,
+const detailCinema = computed(
+  () =>
+    cinemaItems.value.find(
+      (cinema) => cinema.cinemaId === detailCinemaId.value,
+    ) ?? null,
 );
 
 function dialogDetail(cinema) {
@@ -445,7 +455,12 @@ function makePopup(cinema) {
   popupText(root, "strong", "popup-title", cinema.cinemaName || "影城");
 
   const details = L.DomUtil.create("div", "popup-details", root);
-  popupInfo(details, "popup-address", POPUP_PIN_PATH, cinema.cinemaAddress || "影城尚未提供地址");
+  popupInfo(
+    details,
+    "popup-address",
+    POPUP_PIN_PATH,
+    cinema.cinemaAddress || "影城尚未提供地址",
+  );
   popupInfo(
     details,
     cinema.benefitCount ? "popup-stock" : "popup-stock is-empty",
@@ -470,7 +485,7 @@ function makePopup(cinema) {
     link.href = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${latitude},${longitude}`)}`;
     link.target = "_blank";
     link.rel = "noopener noreferrer";
-    link.textContent = "前往地圖";
+    link.textContent = "規劃路線";
   }
   if (!actions.childElementCount) actions.remove();
   return root;
@@ -603,7 +618,7 @@ function scrollToSelected(id) {
     if (
       itemTop < container.scrollTop ||
       itemTop + selected.offsetHeight >
-      container.scrollTop + container.clientHeight
+        container.scrollTop + container.clientHeight
     ) {
       container.scrollTo({
         top: Math.max(0, itemTop - 12),
@@ -650,11 +665,11 @@ async function createMap() {
     markerLayer =
       typeof L.markerClusterGroup === "function"
         ? L.markerClusterGroup({
-          showCoverageOnHover: false,
-          maxClusterRadius: 48,
-          spiderfyOnMaxZoom: true,
-          disableClusteringAtZoom: 16,
-        })
+            showCoverageOnHover: false,
+            maxClusterRadius: 48,
+            spiderfyOnMaxZoom: true,
+            disableClusteringAtZoom: 16,
+          })
         : L.layerGroup();
     markerLayer.addTo(map);
     // ResizeObserver 已能監聽容器變動，不再同時註冊 window resize。
@@ -711,7 +726,10 @@ watch(cinemaItems, (items) => {
 
 watch(selectedId, (id) => {
   const counts = new Map(
-    cinemaItems.value.map(({ cinemaId, benefitCount }) => [cinemaId, benefitCount]),
+    cinemaItems.value.map(({ cinemaId, benefitCount }) => [
+      cinemaId,
+      benefitCount,
+    ]),
   );
   for (const [markerId, marker] of markers) {
     marker.setIcon(markerIcon(markerId === id, counts.get(markerId) ?? 0));
@@ -736,11 +754,23 @@ onBeforeUnmount(() => {
 <template>
   <section class="benefit-map-page">
     <!-- 共用頁首與搜尋條件 -->
-    <PageIntro kicker="✦ BENEFIT MAP" lead="特典" mark="地圖" description="想找電影特典？從地圖看看哪間影城有驚喜。" :icon-left="giftIcon"
-      :icon-right="ticketIcon" :icon-top="pinIcon" />
+    <PageIntro
+      kicker="✦ BENEFIT MAP"
+      lead="特典"
+      mark="地圖"
+      description="想找電影特典？從地圖看看哪間影城有驚喜。"
+      :icon-left="giftIcon"
+      :icon-right="ticketIcon"
+      :icon-top="pinIcon"
+    />
 
-    <SearchFilter v-model="appliedFilters" title="找找你想去的影城" :title-icon="compassIcon" submit-label="搜尋影城"
-      :fields="filterFields" />
+    <SearchFilter
+      v-model="appliedFilters"
+      title="找找你想去的影城"
+      :title-icon="compassIcon"
+      submit-label="搜尋影城"
+      :fields="filterFields"
+    />
 
     <div class="map-layout">
       <section class="map-frame" aria-label="臺灣影城地圖">
@@ -756,16 +786,29 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="toolbar-actions">
-            <label v-if="nearbyActive" class="radius-control" for="benefit-map-radius">
+            <label
+              v-if="nearbyActive"
+              class="radius-control"
+              for="benefit-map-radius"
+            >
               <span>附近範圍</span>
               <select id="benefit-map-radius" v-model.number="radius">
-                <option v-for="option in RADIUS_OPTIONS" :key="option.value" :value="option.value">
+                <option
+                  v-for="option in RADIUS_OPTIONS"
+                  :key="option.value"
+                  :value="option.value"
+                >
                   {{ option.label }}
                 </option>
               </select>
             </label>
-            <AppButton type="button" :icon="nearIcon" :disabled="!!mapError" :aria-pressed="nearbyActive"
-              @click="toggleNearby">
+            <AppButton
+              type="button"
+              :icon="nearIcon"
+              :disabled="!!mapError"
+              :aria-pressed="nearbyActive"
+              @click="toggleNearby"
+            >
               {{
                 locating
                   ? "停止定位"
@@ -782,7 +825,12 @@ onBeforeUnmount(() => {
         </p>
 
         <div class="map-body">
-          <div ref="mapEl" class="map-canvas" role="region" aria-label="臺灣影城互動地圖"></div>
+          <div
+            ref="mapEl"
+            class="map-canvas"
+            role="region"
+            aria-label="臺灣影城互動地圖"
+          ></div>
 
           <div v-if="loading && !hasLoaded" class="map-overlay" role="status">
             <span class="loading-spinner" aria-hidden="true"></span>
@@ -791,11 +839,18 @@ onBeforeUnmount(() => {
           <div v-if="mapError" class="map-overlay" role="alert">
             {{ mapError }}
           </div>
-          <div v-if="hasLoaded && !!cinemas.length && !markerCount" class="map-empty-tip">
+          <div
+            v-if="hasLoaded && !!cinemas.length && !markerCount"
+            class="map-empty-tip"
+          >
             這些影城目前還沒有地圖位置
           </div>
 
-          <div v-if="hasLoaded && !mapError" class="map-info-chip" aria-live="polite">
+          <div
+            v-if="hasLoaded && !mapError"
+            class="map-info-chip"
+            aria-live="polite"
+          >
             <Icon :icon="pinIcon" aria-hidden="true" />
             <span>地圖上找到 {{ markerCount }} 間影城</span>
           </div>
@@ -827,7 +882,9 @@ onBeforeUnmount(() => {
         </div>
         <div v-else-if="!hasLoaded" class="panel-state">
           <p>影城清單暫時載入失敗，再試一次吧。</p>
-          <AppButton type="button" :icon="refreshIcon" @click="loadCinemas">再試一次</AppButton>
+          <AppButton type="button" :icon="refreshIcon" @click="loadCinemas"
+            >再試一次</AppButton
+          >
         </div>
         <div v-else-if="cinemas.length === 0" class="panel-state">
           <Icon :icon="giftIcon" aria-hidden="true" />
@@ -839,16 +896,33 @@ onBeforeUnmount(() => {
             }}
           </p>
         </div>
-        <div v-else id="benefit-map-results" class="cinema-list" aria-label="符合搜尋條件的影城">
-          <article v-for="(cinema, index) in cinemaItems" :id="`benefit-map-cinema-${cinema.cinemaId}`"
-            :key="cinema.cinemaId" class="location-ticket" :class="{
+        <div
+          v-else
+          id="benefit-map-results"
+          class="cinema-list"
+          aria-label="符合搜尋條件的影城"
+        >
+          <article
+            v-for="(cinema, index) in cinemaItems"
+            :id="`benefit-map-cinema-${cinema.cinemaId}`"
+            :key="cinema.cinemaId"
+            class="location-ticket"
+            :class="{
               'is-selected': selectedId === cinema.cinemaId,
               'is-disabled': !cinema.canLocate || !!mapError,
-            }">
-            <button type="button" class="ticket-hit" :aria-pressed="selectedId === cinema.cinemaId"
-              :disabled="!cinema.canLocate || !!mapError" @click="focusCinema(cinema)">
+            }"
+          >
+            <button
+              type="button"
+              class="ticket-hit"
+              :aria-pressed="selectedId === cinema.cinemaId"
+              :disabled="!cinema.canLocate || !!mapError"
+              @click="focusCinema(cinema)"
+            >
               <span class="ticket-stub" aria-hidden="true">
-                <span class="ticket-index">{{ String(index + 1).padStart(2, "0") }}</span>
+                <span class="ticket-index">{{
+                  String(index + 1).padStart(2, "0")
+                }}</span>
               </span>
               <span class="ticket-content">
                 <strong class="ticket-name">{{
@@ -867,9 +941,16 @@ onBeforeUnmount(() => {
       </aside>
     </div>
 
-    <BenefitDialog v-if="detailCinema" :title="detailCinema.cinemaName || '影城'" :detail="dialogDetail(detailCinema)"
-      :benefits="detailCinema.benefits" headline-key="movieName" headline-fallback="尚未提供電影名稱" close-label="返回地圖"
-      @close="closeBenefitDetail" />
+    <BenefitDialog
+      v-if="detailCinema"
+      :title="detailCinema.cinemaName || '影城'"
+      :detail="dialogDetail(detailCinema)"
+      :benefits="detailCinema.benefits"
+      headline-key="movieName"
+      headline-fallback="尚未提供電影名稱"
+      close-label="返回地圖"
+      @close="closeBenefitDetail"
+    />
   </section>
 </template>
 
@@ -1474,7 +1555,8 @@ onBeforeUnmount(() => {
 }
 
 .map-canvas :deep(.benefit-map-popup a.leaflet-popup-close-button:hover),
-.map-canvas :deep(.benefit-map-popup a.leaflet-popup-close-button:focus-visible) {
+.map-canvas
+  :deep(.benefit-map-popup a.leaflet-popup-close-button:focus-visible) {
   background: #ffd3bc;
   color: #9a4e38;
 }

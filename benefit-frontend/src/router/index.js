@@ -2,8 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import FrontLayout from '@/layouts/FrontLayout.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
-import AdminCinemaMovieCrawlerView from '@/views/admin/AdminCinemaMovieCrawlerView.vue'
-import AdminCrawlerLogView from '@/views/admin/AdminCrawlerLogView.vue'
+import AdminCrawlerView from '@/views/admin/crawler/AdminCrawlerView.vue'
+import AdminCrawlerLogView from '@/views/admin/crawler/AdminCrawlerLogView.vue'
 import AdminCinemaView from '@/views/admin/cinema-movie/AdminCinemaView.vue'
 import AdminCinemaDetail from '@/views/admin/cinema-movie/AdminCinemaDetail.vue'
 import AdminCinemaForm from '@/views/admin/cinema-movie/AdminCinemaForm.vue'
@@ -14,6 +14,7 @@ import AdminCrawlerReviewView from '@/views/admin/cinema-movie/AdminCrawlerRevie
 import AdminBenefitReportView from '@/views/admin/AdminBenefitReportView.vue'
 import AdminBenefitView from '@/views/admin/AdminBenefitView.vue'
 import AdminInventoryReportView from '@/views/admin/AdminInventoryReportView.vue'
+import AdminExcelExportView from '@/views/admin/AdminExcelExportView.vue'
 import BenefitView from '@/views/BenefitView.vue'
 import BenefitDetailView from '@/views/BenefitDetailView.vue'
 import CollectionView from '@/views/CollectionView.vue'
@@ -177,7 +178,7 @@ const router = createRouter({
         {
           path: 'crawler',
           name: 'admin-crawler',
-          component: AdminCinemaMovieCrawlerView,
+          component: AdminCrawlerView,
         },
         {
           path: 'crawler-logs',
@@ -230,6 +231,11 @@ const router = createRouter({
         {
           path: 'movies/:id/edit',
           redirect: (to) => ({ name: 'admin-movie-detail', params: { id: to.params.id } }),
+        },
+        {
+          path: 'excel',
+          name: 'admin-excel',
+          component: AdminExcelExportView,
         },
       ],
     },
