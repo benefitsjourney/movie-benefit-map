@@ -28,6 +28,7 @@ public interface InventoryReportRepository extends JpaRepository<InventoryReport
             JOIN FETCH c.cinema
             JOIN FETCH c.movie
             JOIN FETCH c.benefit
+            JOIN FETCH r.user
             WHERE r.user.usersId = :userId
             ORDER BY r.reportedAt DESC, r.reportId DESC
             """, countQuery = """
@@ -43,6 +44,7 @@ public interface InventoryReportRepository extends JpaRepository<InventoryReport
             JOIN FETCH c.cinema
             JOIN FETCH c.movie
             JOIN FETCH c.benefit
+            JOIN FETCH r.user
             ORDER BY r.reportedAt DESC, r.reportId DESC
             """, countQuery = """
             SELECT COUNT(r) FROM InventoryReportBean r

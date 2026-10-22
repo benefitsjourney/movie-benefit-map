@@ -66,6 +66,7 @@ const columns = [
   { key: "benefitName", label: "特典", minWidth: "16rem", emphasis: true },
   { key: "movieName", label: "電影", minWidth: "14rem" },
   { key: "cinemaName", label: "影城", minWidth: "12rem" },
+  { key: "reporterName", label: "回報者", minWidth: "10rem", format: (v, row) => (v ? `${v}（#${row.reporterId}）` : row.reporterId ? `#${row.reporterId}` : "") },
   { key: "status", label: "回報狀態", minWidth: "9rem", align: "center" },
   { key: "actions", label: "操作", minWidth: "15rem", align: "center" },
 ];
