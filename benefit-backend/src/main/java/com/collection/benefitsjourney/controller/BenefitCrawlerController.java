@@ -2,6 +2,7 @@ package com.collection.benefitsjourney.controller;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.time.LocalDateTime;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -18,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.collection.benefitsjourney.domain.UsersBean;
 import com.collection.benefitsjourney.service.BenefitApifyService;
 import com.collection.benefitsjourney.service.BenefitCrawlerImportService;
+import com.collection.benefitsjourney.service.BenefitCrawlerLogRecorder;
 import com.collection.benefitsjourney.service.BenefitCrawlerImportService.ImportSummary;
 import com.collection.benefitsjourney.service.BenefitCrawlerImportService.RematchSummary;
 import com.collection.benefitsjourney.service.BenefitCrawlerService;
@@ -44,6 +46,7 @@ public class BenefitCrawlerController {
     private final BenefitDateShiftService benefitDateShiftService;
     private final CloudinaryClient cloudinaryClient;
     private final UsersService usersService;
+    private final BenefitCrawlerLogRecorder crawlerLogRecorder;
 
     public BenefitCrawlerController(BenefitCrawlerService benefitCrawlerService,
                                     BenefitApifyService benefitApifyService,
@@ -51,7 +54,8 @@ public class BenefitCrawlerController {
                                     BenefitCrawlerImportService benefitCrawlerImportService,
                                     BenefitDateShiftService benefitDateShiftService,
                                     CloudinaryClient cloudinaryClient,
-                                    UsersService usersService) {
+                                    UsersService usersService,
+                                    BenefitCrawlerLogRecorder crawlerLogRecorder) {
         this.benefitCrawlerService = benefitCrawlerService;
         this.benefitApifyService = benefitApifyService;
         this.benefitSeedSqlService = benefitSeedSqlService;
@@ -59,6 +63,7 @@ public class BenefitCrawlerController {
         this.benefitDateShiftService = benefitDateShiftService;
         this.cloudinaryClient = cloudinaryClient;
         this.usersService = usersService;
+        this.crawlerLogRecorder = crawlerLogRecorder;
     }
 
     /** 非管理員回403（做法同BenefitReportAdminController） */
@@ -83,7 +88,16 @@ public class BenefitCrawlerController {
             HttpServletRequest httpRequest) {
 
         requireAdmin(httpRequest);
-        return ResponseEntity.ok(benefitApifyService.importFromPage(pageUrl, limit, sinceDays, autoApprove));
+        String source = "Apify同步（" + pageUrl + "）";
+        LocalDateTime start = LocalDateTime.now();
+        try {
+            ImportSummary summary = benefitApifyService.importFromPage(pageUrl, limit, sinceDays, autoApprove);
+            crawlerLogRecorder.recordImport(source, summary, start);
+            return ResponseEntity.ok(summary);
+        } catch (RuntimeException e) {
+            crawlerLogRecorder.recordFailure(source, e, start);
+            throw e;
+        }
     }
 
     @PostMapping(value = "/import-json", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -96,8 +110,15 @@ public class BenefitCrawlerController {
             HttpServletRequest httpRequest) throws IOException {
 
         requireAdmin(httpRequest);
+        String source = "JSON匯入（" + file.getOriginalFilename() + "）";
+        LocalDateTime start = LocalDateTime.now();
         try (InputStream in = file.getInputStream()) {
-            return ResponseEntity.ok(benefitCrawlerService.importFromJson(in, autoApprove));
+            ImportSummary summary = benefitCrawlerService.importFromJson(in, autoApprove);
+            crawlerLogRecorder.recordImport(source, summary, start);
+            return ResponseEntity.ok(summary);
+        } catch (IOException | RuntimeException e) {
+            crawlerLogRecorder.recordFailure(source, e, start);
+            throw e;
         }
     }
 
@@ -108,7 +129,15 @@ public class BenefitCrawlerController {
                     + "其餘維持待審核。可重複呼叫，已經處理過的不會再動。")
     public ResponseEntity<RematchSummary> rematch(HttpServletRequest httpRequest) {
         requireAdmin(httpRequest);
-        return ResponseEntity.ok(benefitCrawlerImportService.rematchPending());
+        LocalDateTime start = LocalDateTime.now();
+        try {
+            RematchSummary summary = benefitCrawlerImportService.rematchPending();
+            crawlerLogRecorder.recordRematch(summary, start);
+            return ResponseEntity.ok(summary);
+        } catch (RuntimeException e) {
+            crawlerLogRecorder.recordFailure("重新比對", e, start);
+            throw e;
+        }
     }
 
     @PostMapping("/shift-dates")
