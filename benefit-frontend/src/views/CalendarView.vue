@@ -465,8 +465,8 @@ function onFollowChange() {
 
         <div v-else class="day-empty">
           <Icon :icon="calendarStarIcon" aria-hidden="true" />
-          <p v-if="mode === 'mine'">這天沒有正在發放的追蹤特典。<br />在特典頁或月曆上的視窗按「追蹤」，<br />發放期間的每一天都會列在這裡。</p>
-          <p v-else>這天沒有特典開始，也沒有電影上映。<br />點月曆上有標記的日子看看吧！</p>
+          <p v-if="mode === 'mine'">這天沒有發放中的追蹤特典。<br />在特典頁按「追蹤」，<br />就會出現在這裡。</p>
+          <p v-else>這天沒有特典開始，<br />也沒有電影上映。<br />點有標記的日子看看吧！</p>
         </div>
 
         <RouterLink v-if="mode === 'all'" class="day-more" to="/benefits">
@@ -1073,6 +1073,7 @@ function onFollowChange() {
 
 .day-empty p {
   margin: 0;
+  text-wrap: balance;
   font-size: var(--text-min);
   line-height: 1.6;
 }
