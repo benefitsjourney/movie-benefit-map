@@ -3,9 +3,9 @@
 
 下方程式碼會使用四個子元件。子元件只負責自己的畫面與事件，API 呼叫及資料更新則由主頁統一處理。 -->
 <script setup>
-// import { computed, onMounted, reactive, ref } from "vue";
 import { computed, onMounted, reactive, ref, watch } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
+import { useAuth } from "@/composables/useAuth";
 
 import Swal from "sweetalert2";
 
@@ -48,6 +48,14 @@ import {
 // ===============
 
 const route = useRoute();
+const router = useRouter();
+
+// 使用組員既有的登入狀態，不另外建立 Token 狀態。
+const {
+    token,
+    isLoggedIn,
+    refreshAuth,
+} = useAuth();
 
 // 依網址的 query 參數決定顯示哪個公開刊登頁籤。
 // /exchange              -> 特典交換
@@ -57,9 +65,13 @@ const mainTab = ref("exchange");
 watch(
     () => route.query.type,
     (type) => {
-        mainTab.value = type === "ticket"
-            ? "ticket"
-            : "exchange";
+        if (type === "ticket") {
+            mainTab.value = "ticket";
+        } else if (type === "member") {
+            mainTab.value = "member";
+        } else {
+            mainTab.value = "exchange";
+        }
     },
     { immediate: true },
 );
@@ -71,12 +83,6 @@ const loading = ref(false);
 const errorMessage = ref("");
 
 const successMessage = ref("");
-
-const tokenInput = ref("");
-
-const token = ref(readSavedToken());
-
-const isLoggedIn = computed(() => Boolean(token.value));
 
 // ============================================================
 // 各類資料
@@ -142,65 +148,34 @@ const statusOptions = [
 ];
 
 // ============================================================
-// Token 管理
+// 登入導向
 // ============================================================
 
-function readSavedToken() {
-    return (
-        sessionStorage.getItem("token") ||
-        sessionStorage.getItem("accessToken") ||
-        sessionStorage.getItem("jwtToken") ||
-        localStorage.getItem("token") ||
-        localStorage.getItem("accessToken") ||
-        localStorage.getItem("jwtToken") ||
-        ""
-    );
+function goToLogin() {
+    router.push({
+        name: "login",
+        query: {
+            redirect: route.fullPath,
+        },
+    });
 }
 
-async function saveToken() {
-    const value = tokenInput.value.trim();
+// ============================================================
+// 同步網址
+// ============================================================
+function changeMainTab(tab) {
+    const query = { ...route.query };
 
-    if (!value) {
-        await Swal.fire(
-            "請輸入 Token",
-            "請貼上有效的 JWT Token。",
-            "warning",
-        );
-        return;
+    if (tab === "exchange") {
+        delete query.type;
+    } else {
+        query.type = tab;
     }
 
-    token.value = value;
-
-    sessionStorage.setItem("token", value);
-    sessionStorage.removeItem("accessToken");
-    sessionStorage.removeItem("jwtToken");
-
-    successMessage.value =
-        "Token 已暫存。Token 是否有效仍須由後端 API 驗證。";
-
-    await loadMemberData();
-}
-
-function clearToken() {
-    token.value = "";
-    tokenInput.value = "";
-
-    sessionStorage.removeItem("token");
-    sessionStorage.removeItem("accessToken");
-    sessionStorage.removeItem("jwtToken");
-
-    localStorage.removeItem("token");
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("jwtToken");
-
-    myExchangeListings.value = [];
-    myTicketListings.value = [];
-    myExchangeFavorites.value = [];
-    myTicketFavorites.value = [];
-    useBenefits.value = [];
-
-    successMessage.value = "";
-    errorMessage.value = "";
+    router.push({
+        path: route.path,
+        query,
+    });
 }
 
 // ============================================================
@@ -510,7 +485,7 @@ function errorText(error) {
     const status = error?.response?.status;
 
     if (status === 401 || status === 403) {
-        return "登入驗證失敗或 Token 已過期，請確認 Token 是否有效。";
+        return "登入驗證失敗或目前帳號沒有此操作的權限，請重新登入或確認帳號權限。";
     }
 
     if (status === 404) {
@@ -635,14 +610,6 @@ async function loadSelectionOptions() {
 
     if (results[1].status === "fulfilled") {
         movies.value = unwrapList(results[1].value);
-    }
-}
-
-async function refreshAll() {
-    await loadPublicListings();
-
-    if (token.value) {
-        await loadMemberData();
     }
 }
 
@@ -952,14 +919,9 @@ async function changeStatus(item, kind, status) {
 // ============================================================
 // 加入收藏／取消收藏
 // ============================================================
-
 async function toggleFavorite(item, kind) {
-    if (!token.value) {
-        await Swal.fire(
-            "請先登入",
-            "收藏功能需要有效的登入 Token。",
-            "warning",
-        );
+    if (!isLoggedIn.value || !token.value) {
+        await goToLogin();
         return;
     }
 
@@ -1018,13 +980,17 @@ async function toggleFavorite(item, kind) {
 // ============================================================
 
 onMounted(async () => {
+    // 重新讀取共用登入狀態。
+    refreshAuth();
+
+    // 公開刊登與表單選項不要求登入。
     await Promise.all([
         loadPublicListings(),
         loadSelectionOptions(),
     ]);
 
-    if (token.value) {
-        tokenInput.value = token.value;
+    // 只有登入後才載入會員資料。
+    if (isLoggedIn.value && token.value) {
         await loadMemberData();
     }
 });
@@ -1041,9 +1007,23 @@ onMounted(async () => {
                 </p>
             </div>
 
-            <button class="btn btn-outline-secondary" type="button" :disabled="loading" @click="refreshAll">
-                {{ loading ? "載入中…" : "重新整理" }}
-            </button>
+            <div v-if="isLoggedIn && mainTab !== 'member'" class="page-heading-actions">
+                <button class="btn btn-primary" type="button" @click="
+                    resetExchangeForm();
+                mainTab = 'member';
+                memberTab = 'addExchange';
+                ">
+                    新增交換刊登
+                </button>
+
+                <button class="btn btn-outline-primary" type="button" @click="
+                    resetTicketForm();
+                mainTab = 'member';
+                memberTab = 'addTicket';
+                ">
+                    新增票券刊登
+                </button>
+            </div>
         </header>
 
         <div v-if="errorMessage" class="alert alert-warning alert-preline" role="alert">
@@ -1055,15 +1035,15 @@ onMounted(async () => {
         </div>
 
         <nav class="main-tabs" aria-label="交易專區分類">
-            <button type="button" :class="{ active: mainTab === 'exchange' }" @click="mainTab = 'exchange'">
+            <button type="button" :class="{ active: mainTab === 'exchange' }" @click="changeMainTab('exchange')">
                 交換刊登
             </button>
 
-            <button type="button" :class="{ active: mainTab === 'ticket' }" @click="mainTab = 'ticket'">
+            <button type="button" :class="{ active: mainTab === 'ticket' }" @click="changeMainTab('ticket')">
                 票券刊登
             </button>
 
-            <button type="button" :class="{ active: mainTab === 'member' }" @click="mainTab = 'member'">
+            <button type="button" :class="{ active: mainTab === 'member' }" @click="changeMainTab('member')">
                 會員資料區
             </button>
         </nav>
@@ -1087,7 +1067,7 @@ onMounted(async () => {
                     'login-pill',
                     isLoggedIn ? 'is-logged-in' : '',
                 ]">
-                    {{ isLoggedIn ? "已提供 Token" : "尚未登入" }}
+                    {{ isLoggedIn ? "已登入" : "尚未登入" }}
                 </span>
             </div>
 
@@ -1095,49 +1075,13 @@ onMounted(async () => {
                 <h3>登入後使用會員功能</h3>
 
                 <p>
-                    會員登入流程尚未整合時，可以先貼上有效的 JWT Token 進行測試。
-                    此欄位不會建立會員，也不會自行產生 Token。
+                    公開刊登可以直接瀏覽。
+                    如需新增、修改自己的刊登或管理收藏，請先使用網站既有的會員登入功能。
                 </p>
 
-                <label for="jwt-token" class="form-label">
-                    JWT Token
-                </label>
-
-                <textarea id="jwt-token" v-model="tokenInput" class="form-control" rows="3"
-                    placeholder="貼上有效的 JWT Token，不需要加上 Bearer 前綴" />
-
-                <button class="btn btn-primary mt-3" type="button" @click="saveToken">
-                    暫存 Token 並載入會員資料
+                <button class="btn btn-primary mt-3" type="button" @click="goToLogin">
+                    前往登入
                 </button>
-            </div>
-
-            <div v-else class="token-tools">
-                <p>
-                    已從瀏覽器暫存區取得 Token。
-                    若會員 API 回傳 401 或 403，請確認 Token 是否有效。
-                </p>
-
-                <div class="token-actions">
-                    <button class="btn btn-outline-primary btn-sm" type="button" @click="loadMemberData">
-                        重新載入會員資料
-                    </button>
-
-                    <button class="btn btn-outline-danger btn-sm" type="button" @click="clearToken">
-                        清除 Token
-                    </button>
-                </div>
-
-                <label for="replace-token" class="form-label mt-3">
-                    更換 Token
-                </label>
-
-                <div class="token-replace">
-                    <input id="replace-token" v-model="tokenInput" class="form-control" placeholder="貼上新的 JWT Token" />
-
-                    <button class="btn btn-primary" type="button" @click="saveToken">
-                        更新
-                    </button>
-                </div>
             </div>
 
             <template v-if="isLoggedIn">
@@ -1547,8 +1491,7 @@ h1 {
     font-weight: 750;
 }
 
-.login-panel p,
-.token-tools {
+.login-panel p {
     color: #64748b;
 }
 
@@ -1557,20 +1500,6 @@ h1 {
     border: 1px solid #e2e8f0;
     border-radius: .8rem;
     margin-bottom: 1.2rem;
-}
-
-.token-actions,
-.token-replace {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: .6rem;
-    margin-top: .7rem;
-}
-
-.token-replace input {
-    flex: 1;
-    min-width: 180px;
 }
 
 .member-content {
@@ -1713,6 +1642,21 @@ h1 {
     .member-tabs button {
         padding: .65rem .55rem;
         font-size: .9rem;
+    }
+}
+
+.page-heading-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: .6rem;
+}
+
+@media (max-width: 600px) {
+    .page-heading-actions {
+        justify-content: flex-start;
+        width: 100%;
     }
 }
 </style>

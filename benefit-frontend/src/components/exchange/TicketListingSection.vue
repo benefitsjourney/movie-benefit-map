@@ -1,7 +1,7 @@
 <!-- ========== components/exchange/TicketListingSection.vue ========== -->
 <!-- 負責公開票券刊登、電影及影城名稱顯示，以及票券收藏按鈕。 -->
 <script setup>
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 
 const props = defineProps({
     listings: {
@@ -31,6 +31,12 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["toggle-favorite"]);
+
+// 搜尋及分頁
+const keyword = ref("");
+const showDate = ref("");
+const currentPage = ref(1);
+const pageSize = 8;
 
 function listingId(item) {
     return (
@@ -74,9 +80,91 @@ function formatDate(value) {
         : text;
 }
 
-const listingCount = computed(
-    () => props.listings.length,
+function searchableText(item) {
+    return [
+        item?.title,
+        item?.description,
+        item?.usersName,
+        item?.userName,
+        item?.username,
+        item?.memberName,
+        props.cinemaName(item),
+        props.movieName(item),
+    ]
+        .filter((value) => value !== null && value !== undefined)
+        .join(" ")
+        .toLocaleLowerCase();
+}
+
+function showDateValue(item) {
+    return String(
+        item?.ticketShowtime ??
+        item?.ticket_showtime ??
+        "",
+    ).slice(0, 10);
+}
+
+// 關鍵字與放映日期同時符合才會顯示
+const filteredListings = computed(() => {
+    const search = keyword.value.trim().toLocaleLowerCase();
+
+    return props.listings.filter((item) => {
+        const matchesKeyword =
+            !search || searchableText(item).includes(search);
+
+        const matchesDate =
+            !showDate.value ||
+            showDateValue(item) === showDate.value;
+
+        return matchesKeyword && matchesDate;
+    });
+});
+
+watch([keyword, showDate], () => {
+    currentPage.value = 1;
+});
+
+watch(
+    () => props.listings,
+    () => {
+        currentPage.value = 1;
+    },
 );
+
+const listingCount = computed(
+    () => filteredListings.value.length,
+);
+
+const totalPages = computed(() =>
+    Math.max(1, Math.ceil(listingCount.value / pageSize)),
+);
+
+watch(totalPages, (total) => {
+    if (currentPage.value > total) {
+        currentPage.value = total;
+    }
+});
+
+const paginatedListings = computed(() => {
+    const start = (currentPage.value - 1) * pageSize;
+
+    return filteredListings.value.slice(
+        start,
+        start + pageSize,
+    );
+});
+
+function changePage(page) {
+    if (page < 1 || page > totalPages.value) return;
+
+    currentPage.value = page;
+}
+
+function clearSearch() {
+    keyword.value = "";
+    showDate.value = "";
+    currentPage.value = 1;
+}
 </script>
 
 <template>
@@ -92,8 +180,38 @@ const listingCount = computed(
             </span>
         </div>
 
-        <div v-if="!listings.length && !loading" class="empty-state">
-            目前沒有公開的票券刊登。
+        <!-- 關鍵字及日期搜尋 -->
+        <div class="search-panel">
+            <div class="search-field">
+                <label for="ticket-keyword" class="form-label">
+                    搜尋票券刊登
+                </label>
+
+                <input id="ticket-keyword" v-model="keyword" type="search" class="form-control"
+                    placeholder="輸入標題、敘述、電影或影城名稱" />
+            </div>
+
+            <div class="search-field">
+                <label for="ticket-show-date" class="form-label">
+                    放映日期
+                </label>
+
+                <input id="ticket-show-date" v-model="showDate" type="date" class="form-control" />
+            </div>
+
+            <button type="button" class="btn btn-outline-secondary clear-button" @click="clearSearch">
+                清除搜尋
+            </button>
+
+            <p class="search-hint">
+                搜尋結果：{{ listingCount }} 筆
+            </p>
+        </div>
+
+        <div v-if="!filteredListings.length && !loading" class="empty-state">
+            {{ keyword.trim() || showDate
+                ? "找不到符合搜尋條件的票券刊登。"
+                : "目前沒有公開的票券刊登。" }}
         </div>
 
         <div v-if="loading && !listings.length" class="empty-state">
@@ -101,11 +219,14 @@ const listingCount = computed(
         </div>
 
         <div class="listing-grid">
-            <article v-for="item in listings" :key="listingId(item)" class="listing-card">
-                <button class="heart-button" type="button" :disabled="!isLoggedIn"
-                    :aria-label="isFavorited(listingId(item)) ? '取消收藏' : '加入收藏'" :title="isLoggedIn
-                        ? (isFavorited(listingId(item)) ? '取消收藏' : '加入收藏')
-                        : '登入後才能收藏'" @click="emit('toggle-favorite', item)">
+            <article v-for="item in paginatedListings" :key="listingId(item)" class="listing-card">
+                <button class="heart-button" type="button" :aria-label="isFavorited(listingId(item))
+                    ? '取消收藏'
+                    : '加入收藏'" :title="isLoggedIn
+                            ? (isFavorited(listingId(item))
+                                ? '取消收藏'
+                                : '加入收藏')
+                            : '登入後才能收藏'" @click="emit('toggle-favorite', item)">
                     {{ isFavorited(listingId(item)) ? "♥" : "♡" }}
                 </button>
 
@@ -145,6 +266,23 @@ const listingCount = computed(
                 </dl>
             </article>
         </div>
+
+        <!-- 分頁 -->
+        <nav v-if="listingCount > pageSize" class="pagination" aria-label="票券刊登分頁">
+            <button type="button" class="btn btn-outline-secondary" :disabled="currentPage === 1"
+                @click="changePage(currentPage - 1)">
+                上一頁
+            </button>
+
+            <span class="page-info">
+                第 {{ currentPage }} / {{ totalPages }} 頁
+            </span>
+
+            <button type="button" class="btn btn-outline-secondary" :disabled="currentPage === totalPages"
+                @click="changePage(currentPage + 1)">
+                下一頁
+            </button>
+        </nav>
     </section>
 </template>
 
@@ -174,6 +312,37 @@ const listingCount = computed(
     color: #475569;
     padding: .35rem .75rem;
     white-space: nowrap;
+    font-size: .85rem;
+}
+
+.search-panel {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr) auto;
+    align-items: end;
+    gap: .8rem;
+    margin-bottom: 1.2rem;
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: .8rem;
+    background: #f8fafc;
+}
+
+.search-field {
+    min-width: 0;
+}
+
+.search-field .form-label {
+    display: block;
+}
+
+.clear-button {
+    min-height: 38px;
+}
+
+.search-hint {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: #64748b;
     font-size: .85rem;
 }
 
@@ -207,13 +376,8 @@ const listingCount = computed(
     height: 2.5rem;
 }
 
-.heart-button:hover:not(:disabled) {
+.heart-button:hover {
     background: #fff1f2;
-}
-
-.heart-button:disabled {
-    cursor: not-allowed;
-    opacity: .5;
 }
 
 .card-topline {
@@ -288,5 +452,29 @@ const listingCount = computed(
     border-radius: .9rem;
     color: #64748b;
     background: #f8fafc;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: .8rem;
+    margin-top: 1.5rem;
+}
+
+.page-info {
+    color: #475569;
+    font-size: .9rem;
+}
+
+@media (max-width: 600px) {
+    .search-panel {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .search-hint {
+        grid-column: auto;
+    }
 }
 </style>

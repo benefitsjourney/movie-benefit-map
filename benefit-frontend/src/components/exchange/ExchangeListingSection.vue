@@ -1,7 +1,7 @@
 <!-- ========== components/exchange/ExchangeListingSection.vue ========== -->
 <!-- 負責公開的交換刊登卡片及收藏按鈕。它不直接呼叫 API，而是透過 emit 通知主頁進行收藏操作。 -->
 <script setup>
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 
 const props = defineProps({
     listings: {
@@ -23,6 +23,11 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["toggle-favorite"]);
+
+// 搜尋及分頁
+const keyword = ref("");
+const currentPage = ref(1);
+const pageSize = 8;
 
 function listingId(item) {
     return (
@@ -66,9 +71,85 @@ function formatDate(value) {
         : text;
 }
 
-const listingCount = computed(
-    () => props.listings.length,
+// 將可能存在的刊登文字欄位整理成搜尋文字
+function searchableText(item) {
+    return [
+        item?.title,
+        item?.description,
+        item?.usersName,
+        item?.userName,
+        item?.username,
+        item?.memberName,
+        item?.benefitName,
+        item?.benefitType,
+        item?.useBenefitName,
+    ]
+        .filter((value) => value !== null && value !== undefined)
+        .join(" ")
+        .toLocaleLowerCase();
+}
+
+// 關鍵字搜尋
+const filteredListings = computed(() => {
+    const search = keyword.value.trim().toLocaleLowerCase();
+
+    if (!search) {
+        return props.listings;
+    }
+
+    return props.listings.filter((item) =>
+        searchableText(item).includes(search),
+    );
+});
+
+// 搜尋條件改變時回到第一頁
+watch(keyword, () => {
+    currentPage.value = 1;
+});
+
+watch(
+    () => props.listings,
+    () => {
+        currentPage.value = 1;
+    },
 );
+
+// 分頁總數
+const totalPages = computed(() =>
+    Math.max(1, Math.ceil(filteredListings.value.length / pageSize)),
+);
+
+// 避免資料數量減少後停留在不存在的頁數
+watch(totalPages, (total) => {
+    if (currentPage.value > total) {
+        currentPage.value = total;
+    }
+});
+
+// 目前頁面顯示的資料
+const paginatedListings = computed(() => {
+    const start = (currentPage.value - 1) * pageSize;
+
+    return filteredListings.value.slice(
+        start,
+        start + pageSize,
+    );
+});
+
+const listingCount = computed(
+    () => filteredListings.value.length,
+);
+
+function changePage(page) {
+    if (page < 1 || page > totalPages.value) return;
+
+    currentPage.value = page;
+}
+
+function clearSearch() {
+    keyword.value = "";
+    currentPage.value = 1;
+}
 </script>
 
 <template>
@@ -84,8 +165,30 @@ const listingCount = computed(
             </span>
         </div>
 
-        <div v-if="!listings.length && !loading" class="empty-state">
-            目前沒有公開的交換刊登。
+        <!-- 關鍵字搜尋 -->
+        <div class="search-panel">
+            <label for="exchange-keyword" class="form-label">
+                搜尋特典刊登
+            </label>
+
+            <div class="search-controls">
+                <input id="exchange-keyword" v-model="keyword" type="search" class="form-control"
+                    placeholder="輸入標題、敘述或相關名稱" />
+
+                <button type="button" class="btn btn-outline-secondary" @click="clearSearch">
+                    清除搜尋
+                </button>
+            </div>
+
+            <p class="search-hint">
+                搜尋結果：{{ listingCount }} 筆
+            </p>
+        </div>
+
+        <div v-if="!filteredListings.length && !loading" class="empty-state">
+            {{ keyword.trim()
+                ? "找不到符合關鍵字的交換刊登。"
+                : "目前沒有公開的交換刊登。" }}
         </div>
 
         <div v-if="loading && !listings.length" class="empty-state">
@@ -93,10 +196,13 @@ const listingCount = computed(
         </div>
 
         <div class="listing-grid">
-            <article v-for="item in listings" :key="listingId(item)" class="listing-card">
-                <button class="heart-button" type="button" :disabled="!isLoggedIn"
-                    :aria-label="isFavorited(listingId(item)) ? '取消收藏' : '加入收藏'" :title="isLoggedIn
-                        ? (isFavorited(listingId(item)) ? '取消收藏' : '加入收藏')
+            <article v-for="item in paginatedListings" :key="listingId(item)" class="listing-card">
+                <button class="heart-button" type="button" :aria-label="isFavorited(listingId(item))
+                    ? '取消收藏'
+                    : '加入收藏'" :title="isLoggedIn
+                        ? (isFavorited(listingId(item))
+                            ? '取消收藏'
+                            : '加入收藏')
                         : '登入後才能收藏'" @click="emit('toggle-favorite', item)">
                     {{ isFavorited(listingId(item)) ? "♥" : "♡" }}
                 </button>
@@ -126,6 +232,23 @@ const listingCount = computed(
                 </div>
             </article>
         </div>
+
+        <!-- 分頁 -->
+        <nav v-if="listingCount > pageSize" class="pagination" aria-label="特典刊登分頁">
+            <button type="button" class="btn btn-outline-secondary" :disabled="currentPage === 1"
+                @click="changePage(currentPage - 1)">
+                上一頁
+            </button>
+
+            <span class="page-info">
+                第 {{ currentPage }} / {{ totalPages }} 頁
+            </span>
+
+            <button type="button" class="btn btn-outline-secondary" :disabled="currentPage === totalPages"
+                @click="changePage(currentPage + 1)">
+                下一頁
+            </button>
+        </nav>
     </section>
 </template>
 
@@ -155,6 +278,30 @@ const listingCount = computed(
     color: #475569;
     padding: .35rem .75rem;
     white-space: nowrap;
+    font-size: .85rem;
+}
+
+.search-panel {
+    margin-bottom: 1.2rem;
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: .8rem;
+    background: #f8fafc;
+}
+
+.search-controls {
+    display: flex;
+    gap: .6rem;
+}
+
+.search-controls input {
+    min-width: 0;
+    flex: 1;
+}
+
+.search-hint {
+    margin: .6rem 0 0;
+    color: #64748b;
     font-size: .85rem;
 }
 
@@ -188,13 +335,8 @@ const listingCount = computed(
     height: 2.5rem;
 }
 
-.heart-button:hover:not(:disabled) {
+.heart-button:hover {
     background: #fff1f2;
-}
-
-.heart-button:disabled {
-    cursor: not-allowed;
-    opacity: .5;
 }
 
 .card-topline {
@@ -261,5 +403,29 @@ const listingCount = computed(
     border-radius: .9rem;
     color: #64748b;
     background: #f8fafc;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: .8rem;
+    margin-top: 1.5rem;
+}
+
+.page-info {
+    color: #475569;
+    font-size: .9rem;
+}
+
+@media (max-width: 600px) {
+    .search-controls {
+        flex-direction: column;
+    }
+
+    .pagination {
+        gap: .5rem;
+    }
 }
 </style>
