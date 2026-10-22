@@ -13,6 +13,7 @@ import AdminMovieForm from '@/views/admin/cinema-movie/AdminMovieForm.vue'
 import AdminCrawlerReviewView from '@/views/admin/cinema-movie/AdminCrawlerReviewView.vue'
 import AdminBenefitReportView from '@/views/admin/AdminBenefitReportView.vue'
 import AdminBenefitView from '@/views/admin/AdminBenefitView.vue'
+import AdminInventoryReportView from '@/views/admin/AdminInventoryReportView.vue'
 import BenefitView from '@/views/BenefitView.vue'
 import BenefitDetailView from '@/views/BenefitDetailView.vue'
 import CollectionView from '@/views/CollectionView.vue'
@@ -39,9 +40,9 @@ const router = createRouter({
       component: RegisterView,
     },
     {
-        path: '/forgot-password',
-        name: 'forgot-password',
-        component: ForgotPasswordView,
+      path: '/forgot-password',
+      name: 'forgot-password',
+      component: ForgotPasswordView,
     },
     {
       path: '/reset-password',
@@ -102,6 +103,11 @@ const router = createRouter({
           path: 'benefits',
           name: 'admin-benefits',
           component: AdminBenefitView
+        },
+        {
+          path: 'inventory-reports',
+          name: 'admin-inventory-reports',
+          component: AdminInventoryReportView
         },
         {
           path: 'crawler',
