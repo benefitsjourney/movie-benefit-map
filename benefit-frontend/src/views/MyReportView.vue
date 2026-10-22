@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from "vue";
+import { useRoute } from "vue-router";
 import { Icon } from "@iconify/vue";
 import megaphoneIcon from "@iconify-icons/mdi/bullhorn-outline";
 import clipboardIcon from "@iconify-icons/mdi/clipboard-text-outline";
@@ -45,7 +46,9 @@ const TABS = [
   { key: "inventory", label: "庫存回報", icon: megaphoneIcon },
   { key: "benefit", label: "缺漏回報", icon: clipboardIcon },
 ];
-const activeTab = ref("inventory");
+// 網址帶 ?tab=benefit 時直接打開缺漏回報（缺漏回報送出後會導過來）
+const route = useRoute();
+const activeTab = ref(route.query.tab === "benefit" ? "benefit" : "inventory");
 
 // ── 庫存回報：GET /inventory-reports/me ──
 const inventoryPage = ref(1);
@@ -70,7 +73,8 @@ const benefitColumns = [
   { key: "benefitName", label: "特典名稱", minWidth: "16rem", emphasis: true },
   // 資料庫有的電影／影城用正式名稱，沒有就顯示使用者自己填的名稱
   { key: "movieName", label: "電影", minWidth: "14rem", format: (v, row) => v || row.customMovieName },
-  { key: "cinemaName", label: "影城", minWidth: "12rem", format: (v, row) => v || row.customCinemaName },
+  { key: "cinemaName", label: "影城", minWidth: "14rem", format: (v, row) => { 
+    const name = v || row.customCinemaName; return row.cinemaCount > 1 ? `${name} 等 ${row.cinemaCount} 間` : name; } },
   { key: "status", label: "審核狀態", minWidth: "9rem", align: "center" },
   { key: "note", label: "說明", minWidth: "16rem" },
 ];
@@ -145,7 +149,8 @@ function goToPage(next) {
       <!-- 缺漏回報 -->
       <template v-else>
         <ResultBanner :icon="clipboardIcon" title="我的缺漏回報" :count="benefit.totalElements.value" unit-text="筆回報"
-          empty-text="還沒有回報過缺漏特典。" />
+          empty-text="還沒有回報過缺漏特典。" action-to="/report-benefit" :action-icon="clipboardIcon"
+          action-label="回報缺漏特典" />
 
         <div v-if="benefit.items.value.length" ref="listTop" class="report-sheet">
           <DataTable caption="我的缺漏回報" :columns="benefitColumns" :rows="benefit.items.value" row-key="benefitReportId"

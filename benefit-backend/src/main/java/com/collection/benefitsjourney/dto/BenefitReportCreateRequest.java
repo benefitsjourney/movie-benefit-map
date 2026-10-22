@@ -8,6 +8,7 @@ import com.collection.benefitsjourney.enums.BenefitType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 
 /**
  * 使用者回報缺漏特典。
@@ -57,7 +58,10 @@ public record BenefitReportCreateRequest(
 
         // 資料來源網址
         @Size(max = 300, message = "來源網址長度不可超過300字元")
-        String sourceUrl
-
+        String sourceUrl,
+        
+        // 會員勾選的影城（可多選），存進matchedCinemaIds，審核時會預先勾好
+        @Size(max = 100, message = "影城最多選100間")
+        List<Integer> cinemaIds
 ) {
 }

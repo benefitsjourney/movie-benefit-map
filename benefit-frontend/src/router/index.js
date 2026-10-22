@@ -18,6 +18,7 @@ import BenefitView from '@/views/BenefitView.vue'
 import BenefitDetailView from '@/views/BenefitDetailView.vue'
 import CollectionView from '@/views/CollectionView.vue'
 import MyReportView from '@/views/MyReportView.vue'
+import BenefitReportFormView from '@/views/BenefitReportFormView.vue'
 import CinemaView from '@/views/CinemaView.vue'
 import MapView from '@/views/MapView.vue'
 import MovieView from '@/views/MovieView.vue'
@@ -77,6 +78,12 @@ const router = createRouter({
           path: 'my-reports',
           name: 'my-reports',
           component: MyReportView,
+          meta: { requiresAuth: true },
+        },
+        {
+          path: 'report-benefit',
+          name: 'report-benefit',
+          component: BenefitReportFormView,
           meta: { requiresAuth: true },
         },
         {

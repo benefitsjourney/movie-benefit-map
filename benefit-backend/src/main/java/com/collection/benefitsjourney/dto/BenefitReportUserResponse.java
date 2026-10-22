@@ -20,7 +20,9 @@ public record BenefitReportUserResponse(
         String sourceUrl,
         String reviewNote,
         LocalDateTime createdAt,
-        LocalDateTime updatedAt) {
+        LocalDateTime updatedAt,
+        // 勾選的影城數量（「信義威秀 等3間」顯示用）
+        int cinemaCount) {
 
     public static BenefitReportUserResponse from(BenefitReportBean bean) {
         return new BenefitReportUserResponse(
@@ -38,6 +40,18 @@ public record BenefitReportUserResponse(
                 bean.getSourceUrl(),
                 bean.getReviewNote(),
                 bean.getCreatedAt(),
-                bean.getUpdatedAt());
+                bean.getUpdatedAt(),
+                countCinemas(bean));
+    }
+
+    /** matchedCinemaIds是"1,2,3"，數有幾間；沒有的話看cinema_id有沒有值 */
+    private static int countCinemas(BenefitReportBean bean) {
+        String ids = bean.getMatchedCinemaIds();
+        if (ids != null && !ids.isBlank()) {
+            return (int) java.util.Arrays.stream(ids.split(","))
+                    .filter(s -> !s.isBlank())
+                    .count();
+        }
+        return bean.getCinema() != null ? 1 : 0;
     }
 }
