@@ -54,6 +54,7 @@ const links = [
       :links="links"
       switch-to="/map"
       switch-label="返回前台"
+      switch-first
       :switch-icon="arrowLeftIcon"
       theme="purple"
     />

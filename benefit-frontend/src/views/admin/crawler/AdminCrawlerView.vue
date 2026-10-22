@@ -1,5 +1,5 @@
 <script setup>
-import { onUnmounted, reactive } from "vue";
+import { onMounted, onUnmounted, reactive } from "vue";
 import { useRouter } from "vue-router";
 import { Icon } from "@iconify/vue";
 import movieIcon from "@iconify-icons/mdi/movie-open-outline";
@@ -8,8 +8,10 @@ import databaseIcon from "@iconify-icons/mdi/database-sync-outline";
 import fileUploadIcon from "@iconify-icons/mdi/file-upload-outline";
 import webIcon from "@iconify-icons/mdi/web";
 import refreshIcon from "@iconify-icons/mdi/refresh";
+import clockIcon from "@iconify-icons/mdi/clock-outline";
 
 import http from "@/plugins/axios";
+import { dateTimeText } from "@/components/ui/DataTable.vue";
 import { apiMessage, authText } from "@/utils/apiError";
 import PageIntro from "@/components/layout/PageIntro.vue";
 import TicketCard from "@/components/ui/TicketCard.vue";
@@ -30,6 +32,8 @@ const crawlers = [
     verb: "更新",
     subject: "影城",
     stamp: "影城",
+    logType: "CINEMA",
+    color: "purple",
     icon: movieIcon,
     resultTo: "/admin/cinemas",
     resultLabel: "查看影城",
@@ -44,6 +48,8 @@ const crawlers = [
     verb: "更新",
     subject: "電影",
     stamp: "電影",
+    logType: "MOVIE",
+    color: "purple",
     icon: clapperboardIcon,
     resultTo: "/admin/movies",
     resultLabel: "查看電影",
@@ -58,6 +64,8 @@ const crawlers = [
     verb: "同步",
     subject: "特典",
     stamp: "特典",
+    logType: "BENEFIT",
+    color: "pink",
     icon: webIcon,
     resultTo: "/map",
     resultLabel: "查看地圖",
@@ -71,6 +79,8 @@ const crawlers = [
     verb: "匯入",
     subject: "特典",
     stamp: "特典",
+    logType: "BENEFIT",
+    color: "pink",
     icon: fileUploadIcon,
     resultTo: "/map",
     resultLabel: "查看地圖",
@@ -84,6 +94,8 @@ const crawlers = [
     verb: "比對",
     subject: "特典",
     stamp: "特典",
+    logType: "BENEFIT",
+    color: "pink",
     icon: refreshIcon,
     resultTo: "/admin/benefit-reports",
     resultLabel: "前往特典審核",
@@ -92,6 +104,53 @@ const crawlers = [
 
 /** 依爬蟲設定建立各自的執行狀態，避免為每張卡片重複宣告狀態 */
 const jobs = reactive(Object.fromEntries(crawlers.map(({ key }) => [key, createJob()])));
+
+/** 各分類最新一筆爬蟲紀錄的時間；同一分類的卡片共用 */
+const LOG_TYPES = [...new Set(crawlers.map((crawler) => crawler.logType))];
+const latestUpdatedAt = reactive(
+  Object.fromEntries(LOG_TYPES.map((logType) => [logType, { status: "loading", text: "" }])),
+);
+
+/** 將紀錄時間轉成畫面上的日期時間，去掉小數秒 */
+function formatUpdatedAt(value) {
+  return dateTimeText(value).replace(/\.\d+$/, "");
+}
+
+/** 向爬蟲紀錄 API 取該分類最新一筆，並顯示其結束時間 */
+async function loadLatestUpdatedAt(logType) {
+  try {
+    const { data } = await http.get("/crawler-logs", {
+      params: {
+        crawlerType: logType,
+        orderBy: "EXECUTED_AT",
+        sort: "DESC",
+        page: 1,
+        size: 1,
+      },
+    });
+    const latest = data?.content?.[0];
+    latestUpdatedAt[logType] = {
+      status: "ready",
+      text: formatUpdatedAt(latest?.finishedAt || latest?.executedAt),
+    };
+  } catch {
+    if (latestUpdatedAt[logType]?.status === "loading") {
+      latestUpdatedAt[logType] = { status: "error", text: "" };
+    }
+  }
+}
+
+function loadAllLatestUpdatedAt() {
+  return Promise.all(LOG_TYPES.map((logType) => loadLatestUpdatedAt(logType)));
+}
+
+/** 卡片上的最後更新時間文字 */
+function updatedLabel(crawler) {
+  const record = latestUpdatedAt[crawler.logType];
+  if (!record || record.status === "loading") return "讀取最後更新時間…";
+  if (record.status === "error") return "無法取得更新時間";
+  return record.text ? `最後更新 ${record.text}` : "尚無更新紀錄";
+}
 
 /** 只要有任務正在執行，就禁止同時啟動其他同步 */
 const anyRunning = () =>
@@ -226,6 +285,8 @@ function stopElapsed(job) {
 }
 
 /** 離開頁面時清除計時器與全域 Alert，避免殘留 */
+onMounted(loadAllLatestUpdatedAt);
+
 onUnmounted(() => {
   window.clearInterval(elapsedTimer);
   closeAppAlert();
@@ -281,6 +342,7 @@ async function syncCrawler(crawler, payload) {
 
   try {
     const data = await requestCrawler(crawler, payload);
+    void loadLatestUpdatedAt(crawler.logType);
     const elapsedSeconds = Math.floor(stopElapsed(job));
     job.status = "success";
     const done = await openAppAlert({
@@ -300,6 +362,7 @@ async function syncCrawler(crawler, payload) {
     else if (done.isExtra && crawler.reviewTo)
       router.push({ name: crawler.reviewTo });
   } catch (error) {
+    void loadLatestUpdatedAt(crawler.logType);
     job.status = "error";
     job.error = authText(error) || apiMessage(error, "更新失敗，請檢查連線。");
     const seconds = formatSeconds(stopElapsed(job));
@@ -340,11 +403,15 @@ async function syncCrawler(crawler, payload) {
         <TicketCard
           v-for="crawler in crawlers"
           :key="crawler.key"
-          color="purple"
+          :color="crawler.color"
           :stamp="crawler.stamp"
           :title="crawler.title"
           :detail="crawler.description"
         >
+          <p class="sync-updated">
+            <Icon :icon="clockIcon" aria-hidden="true" />
+            <span>{{ updatedLabel(crawler) }}</span>
+          </p>
           <template #action>
             <button
               type="button"
@@ -393,6 +460,22 @@ async function syncCrawler(crawler, payload) {
   font-size: var(--text-feature-title);
 }
 
+.sync-updated {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.65rem 0 0;
+  color: var(--ticket-ink);
+  font-size: var(--text-control);
+  font-weight: 800;
+  line-height: 1.4;
+}
+
+.sync-updated svg {
+  flex-shrink: 0;
+  font-size: 1.15em;
+}
+
 @media (max-width: 519px) {
   .sync-panel-title {
     font-size: var(--text-feature-title);
@@ -402,6 +485,12 @@ async function syncCrawler(crawler, payload) {
 @media (min-width: 768px) {
   .ticket-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .ticket-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 </style>

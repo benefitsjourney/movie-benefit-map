@@ -2,8 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import FrontLayout from '@/layouts/FrontLayout.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
-import AdminCinemaMovieCrawlerView from '@/views/admin/AdminCinemaMovieCrawlerView.vue'
-import AdminCrawlerLogView from '@/views/admin/AdminCrawlerLogView.vue'
+import AdminCrawlerView from '@/views/admin/crawler/AdminCrawlerView.vue'
+import AdminCrawlerLogView from '@/views/admin/crawler/AdminCrawlerLogView.vue'
 import AdminCinemaView from '@/views/admin/cinema-movie/AdminCinemaView.vue'
 import AdminCinemaDetail from '@/views/admin/cinema-movie/AdminCinemaDetail.vue'
 import AdminCinemaForm from '@/views/admin/cinema-movie/AdminCinemaForm.vue'
@@ -177,7 +177,7 @@ const router = createRouter({
         {
           path: 'crawler',
           name: 'admin-crawler',
-          component: AdminCinemaMovieCrawlerView,
+          component: AdminCrawlerView,
         },
         {
           path: 'crawler-logs',

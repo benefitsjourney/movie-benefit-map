@@ -60,8 +60,12 @@ const props = defineProps({
     required: true,
   },
   showSwitch: {
-  type: Boolean,
-  default: true,
+    type: Boolean,
+    default: true,
+  },
+  switchFirst: {
+    type: Boolean,
+    default: false,
   },
   theme: {
     type: String,
@@ -191,8 +195,8 @@ onBeforeUnmount(() => {
         </template>
       </div>
 
-      <div class="nav-actions">
-        <RouterLink v-if="!auth.isLoggedIn.value" to="/login" class="nav-switch" @click="closeMenu">
+      <div class="nav-actions" :class="{ 'is-switch-first': switchFirst }">
+        <RouterLink v-if="!auth.isLoggedIn.value" to="/login" class="nav-switch nav-login" @click="closeMenu">
         <Icon :icon="loginIcon" aria-hidden="true" /> 註冊／登入 </RouterLink>
 
         <button v-else type="button" class="nav-switch nav-auth-button" @click="handleLogout" >
@@ -447,6 +451,15 @@ button.nav-pill {
   align-items: center;
   gap: 0.45rem;
   margin-left: auto;
+}
+
+.nav-actions.is-switch-first > .nav-login,
+.nav-actions.is-switch-first > .nav-auth-button {
+  order: 2;
+}
+
+.nav-actions.is-switch-first > .nav-toggle {
+  order: 3;
 }
 
 .nav-switch {
