@@ -4,7 +4,6 @@ import java.time.LocalDate;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -19,7 +18,6 @@ public class UpdateProfileRequest {
     @Email(message = "Email 格式不正確")
     private String email;
 
-    @NotNull(message = "生日不能為空")
     private LocalDate birthDate;
     
 }

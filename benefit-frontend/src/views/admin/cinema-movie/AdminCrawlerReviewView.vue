@@ -51,11 +51,6 @@ const REVIEW_FIELD_LABELS = {
   image_url: "電影圖片",
   release_date: "上映日期",
 };
-const ENTITY_ROUTES = {
-  CINEMA: "admin-cinema-detail",
-  MOVIE: "admin-movie-detail",
-};
-
 function crawlerTypeLabel(value) {
   return CRAWLER_TYPE_OPTIONS.find((option) => option.value === value)?.label ?? value ?? "";
 }
@@ -82,11 +77,9 @@ function reviewValueText(value, row) {
   return dateTimeText(value);
 }
 
-function reviewEntityRoute(row) {
-  const name = ENTITY_ROUTES[row?.crawlerType];
-  const id = Number(row?.entityId);
-  if (!name || !Number.isInteger(id) || id <= 0) return null;
-  return { name, params: { id } };
+function reviewEntityName(row) {
+  const name = String(row?.entityName ?? "").trim();
+  return name || "—";
 }
 
 function isReviewed(row) {
@@ -151,7 +144,7 @@ const columns = [
     align: "center",
     format: crawlerTypeLabel,
   },
-  { key: "entityId", label: "資料編號", minWidth: "7rem", nowrap: true, align: "center" },
+  { key: "entityName", label: "名稱", minWidth: "14rem" },
   {
     key: "fieldName",
     label: "欄位",
@@ -258,6 +251,7 @@ async function changeStatus(row, reviewStatus) {
     title: prompt.title,
     text: prompt.text,
     rows: [
+      { label: crawlerTypeLabel(row.crawlerType) || "名稱", value: reviewEntityName(row) },
       { label: "欄位", value: reviewFieldLabel(row.fieldName) },
       { label: "現有資料", value: reviewValueText(row.previousValue, row) || "（空）" },
       { label: "爬取資料", value: reviewValueText(row.crawlerValue, row) || "（空）" },
@@ -309,11 +303,8 @@ async function changeStatus(row, reviewStatus) {
       <div ref="listTop" class="review-sheet">
         <DataTable caption="爬蟲審核資料表" :columns="columns" :rows="reviews" row-key="cinemaMovieReviewId"
           empty-text="目前沒有符合條件的審核。" :loading="loading" theme="purple">
-          <template #cell-entityId="{ row }">
-            <RouterLink v-if="reviewEntityRoute(row)" class="entity-link" :to="reviewEntityRoute(row)">
-              {{ row.entityId }}
-            </RouterLink>
-            <template v-else>{{ row.entityId ?? "—" }}</template>
+          <template #cell-entityName="{ row }">
+            {{ reviewEntityName(row) }}
           </template>
           <template #cell-actions="{ row }">
             <div class="review-actions">
@@ -369,19 +360,4 @@ async function changeStatus(row, reviewStatus) {
   cursor: not-allowed;
 }
 
-.entity-link {
-  color: #8d72ed;
-  font-weight: 800;
-  text-underline-offset: 0.18em;
-}
-
-.entity-link:hover {
-  color: #5c4696;
-}
-
-.entity-link:focus-visible {
-  outline: 2px solid #8d72ed;
-  outline-offset: 3px;
-  border-radius: 4px;
-}
 </style>

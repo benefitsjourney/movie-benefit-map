@@ -2,8 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import FrontLayout from '@/layouts/FrontLayout.vue'
 import AdminLayout from '@/layouts/AdminLayout.vue'
-import AdminCinemaMovieCrawlerView from '@/views/admin/AdminCinemaMovieCrawlerView.vue'
-import AdminCrawlerLogView from '@/views/admin/AdminCrawlerLogView.vue'
+import AdminCrawlerView from '@/views/admin/crawler/AdminCrawlerView.vue'
+import AdminCrawlerLogView from '@/views/admin/crawler/AdminCrawlerLogView.vue'
 import AdminCinemaView from '@/views/admin/cinema-movie/AdminCinemaView.vue'
 import AdminCinemaDetail from '@/views/admin/cinema-movie/AdminCinemaDetail.vue'
 import AdminCinemaForm from '@/views/admin/cinema-movie/AdminCinemaForm.vue'
@@ -14,6 +14,7 @@ import AdminCrawlerReviewView from '@/views/admin/cinema-movie/AdminCrawlerRevie
 import AdminBenefitReportView from '@/views/admin/AdminBenefitReportView.vue'
 import AdminBenefitView from '@/views/admin/AdminBenefitView.vue'
 import AdminInventoryReportView from '@/views/admin/AdminInventoryReportView.vue'
+import AdminExcelExportView from '@/views/admin/AdminExcelExportView.vue'
 import BenefitView from '@/views/BenefitView.vue'
 import BenefitDetailView from '@/views/BenefitDetailView.vue'
 import CollectionView from '@/views/CollectionView.vue'
@@ -26,6 +27,15 @@ import LoginView from '@/views/LoginView.vue'
 import RegisterView from '@/views/RegisterView.vue'
 import ForgotPasswordView from '@/views/ForgotPasswordView.vue'
 import ResetPasswordView from '@/views/ResetPasswordView.vue'
+import AccountLayout from '@/layouts/AccountLayout.vue'
+import AccountHomeView from '@/account/AccountHomeView.vue'
+import AccountProfileView from '@/account/AccountProfileView.vue'
+import AccountListingsView from '@/account/AccountListingsView.vue'
+import AccountFavoritesView from '@/account/AccountFavoritesView.vue'
+import AccountBenefitsView from '@/account/AccountBenefitsView.vue'
+import AccountMessagesView from '@/account/AccountMessagesView.vue'
+import MessageInboxView from '@/messages/MessageInboxView.vue'
+import MessageConversationView from '@/messages/MessageConversationView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -50,6 +60,48 @@ const router = createRouter({
       path: '/reset-password',
       name: 'reset-password',
       component: ResetPasswordView,
+    },
+    {
+    path: '/account',
+    component: AccountLayout,
+    meta: { requiresAuth: true },
+      children: [
+        {
+          path: '',
+          name: 'account-home',
+          component: AccountHomeView,
+        },
+        {
+          path: 'profile',
+          name: 'account-profile',
+          component: AccountProfileView,
+        },
+        {
+          path: 'listings',
+          name: 'account-listings',
+          component: AccountListingsView,
+        },
+        {
+          path: 'favorites',
+          name: 'account-favorites',
+          component: AccountFavoritesView,
+        },
+        {
+          path: 'benefits',
+          name: 'account-benefits',
+          component: AccountBenefitsView,
+        },
+        {
+        path: 'messages',
+        name: 'account-messages',
+        component: MessageInboxView,
+        },
+        {
+          path: 'messages/:conversationId',
+          name: 'message-conversation',
+          component: MessageConversationView,
+        },
+      ],
     },
     {
       path: '/',
@@ -126,7 +178,7 @@ const router = createRouter({
         {
           path: 'crawler',
           name: 'admin-crawler',
-          component: AdminCinemaMovieCrawlerView,
+          component: AdminCrawlerView,
         },
         {
           path: 'crawler-logs',
@@ -179,6 +231,11 @@ const router = createRouter({
         {
           path: 'movies/:id/edit',
           redirect: (to) => ({ name: 'admin-movie-detail', params: { id: to.params.id } }),
+        },
+        {
+          path: 'excel',
+          name: 'admin-excel',
+          component: AdminExcelExportView,
         },
       ],
     },

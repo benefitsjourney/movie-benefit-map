@@ -9,7 +9,7 @@ import com.collection.benefitsjourney.enums.ReviewStatus;
 public record CinemaMovieReviewResponse(
         Integer cinemaMovieReviewId,
         CinemaResourceType crawlerType,
-        Integer entityId,
+        String entityName,
         String fieldName,
         String crawlerValue,
         String previousValue,
@@ -18,11 +18,11 @@ public record CinemaMovieReviewResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
 
-    public static CinemaMovieReviewResponse from(CinemaMovieReviewBean review) {
+    public static CinemaMovieReviewResponse from(CinemaMovieReviewBean review, String entityName) {
         return new CinemaMovieReviewResponse(
                 review.getCinemaMovieReviewId(),
                 review.getCrawlerType(),
-                review.getEntityId(),
+                entityName,
                 review.getFieldName(),
                 review.getCrawlerValue(),
                 review.getPreviousValue(),
