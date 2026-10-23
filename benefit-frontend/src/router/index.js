@@ -22,6 +22,7 @@ import MyReportView from '@/views/MyReportView.vue'
 import BenefitReportFormView from '@/views/BenefitReportFormView.vue'
 import CalendarView from '@/views/CalendarView.vue'
 import ReminderView from '@/views/ReminderView.vue'
+import RankingView from '@/views/RankingView.vue'
 import CinemaView from '@/views/CinemaView.vue'
 import MapView from '@/views/MapView.vue'
 import MovieView from '@/views/MovieView.vue'
@@ -150,6 +151,11 @@ const router = createRouter({
           name: 'reminders',
           component: ReminderView,
           meta: { requiresAuth: true },
+        },
+        {
+          path: 'ranking',
+          name: 'ranking',
+          component: RankingView,
         },
         {
           path: 'movies',
