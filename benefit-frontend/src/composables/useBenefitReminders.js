@@ -4,21 +4,50 @@ import http from "@/plugins/axios";
 import { openAppAlert } from "@/components/ui/Alert.vue";
 
 /**
- * 追蹤特典（顯示在行事曆、我的追蹤頁）。
+ * 追蹤特典／電影（顯示在行事曆、我的追蹤頁）。
  * 追蹤狀態放在檔案層級，所以同一頁有好幾顆追蹤按鈕時會一起更新。
  *
- * loadReminders()：GET /reminders/me，記下我追蹤了哪些特典（沒登入就當作都沒追蹤）
- * isFollowing(benefitId)：有沒有追蹤
- * toggleFollow(benefit)：沒追蹤→追蹤（POST /reminders）；已追蹤→取消（DELETE /reminders/{id}）
- * benefit 要有 benefitId、benefitName
+ * loadReminders()：GET /reminders/me，記下我追蹤了哪些特典、哪些電影（沒登入就當作都沒追蹤）
+ *
+ * 特典：
+ *   isFollowing(benefitId)、isBusy(benefitId)
+ *   toggleFollow(benefit)：沒追蹤→追蹤（POST /reminders）；已追蹤→取消（DELETE /reminders/{id}）
+ *   benefit 要有 benefitId、benefitName
+ *
+ * 電影：
+ *   isMovieFollowing(movieId)、isMovieBusy(movieId)
+ *   toggleMovieFollow(movie)：同上，movie 要有 movieId、movieName
  */
 
 // benefitId → reminderId
 const followMap = ref(new Map());
-// 正在送出的 benefitId，避免連點
+// movieId → reminderId
+const movieFollowMap = ref(new Map());
+// 正在送出的 id，避免連點
 const busyIds = ref(new Set());
+const movieBusyIds = ref(new Set());
 let loadingPromise = null;
 let loadedToken = null;
+
+// 特典、電影各自的設定（共用下面同一套追蹤邏輯）
+const TARGETS = {
+  BENEFIT: {
+    map: followMap,
+    busy: busyIds,
+    idKey: "benefitId",
+    nameOf: (item) => (item.benefitName ? `「${item.benefitName}」` : "這個特典"),
+    dateText: "日期",
+    loginText: "登入後就能追蹤特典，開始日和截止日會出現在你的行事曆上。",
+  },
+  MOVIE: {
+    map: movieFollowMap,
+    busy: movieBusyIds,
+    idKey: "movieId",
+    nameOf: (item) => (item.movieName ? `《${item.movieName}》` : "這部電影"),
+    dateText: "上映日",
+    loginText: "登入後就能追蹤電影，上映日會出現在你的行事曆上。",
+  },
+};
 
 const loggedIn = () => Boolean(localStorage.getItem("token"));
 
@@ -49,25 +78,34 @@ export function useBenefitReminders() {
     const token = localStorage.getItem("token");
     if (!token) {
       followMap.value = new Map();
+      movieFollowMap.value = new Map();
       loadedToken = null;
       return;
     }
     // 同一個登入身分已經查過，就不用重查
     if (!force && loadedToken === token) return;
+    // 同時有好幾顆按鈕要查時，共用同一次查詢
     if (loadingPromise) return loadingPromise;
 
     loadingPromise = (async () => {
       try {
         const { data } = await http.get("/reminders/me");
-        const next = new Map();
+        const benefits = new Map();
+        const movies = new Map();
         for (const item of Array.isArray(data) ? data : []) {
-          if (item.benefitId != null) next.set(item.benefitId, item.reminderId);
+          if (item.reminderType === "MOVIE") {
+            if (item.movieId != null) movies.set(item.movieId, item.reminderId);
+          } else if (item.benefitId != null) {
+            benefits.set(item.benefitId, item.reminderId);
+          }
         }
-        followMap.value = next;
+        followMap.value = benefits;
+        movieFollowMap.value = movies;
         loadedToken = token;
       } catch {
         // 載入失敗不擋畫面，先全部顯示「追蹤」
         followMap.value = new Map();
+        movieFollowMap.value = new Map();
       } finally {
         loadingPromise = null;
       }
@@ -75,35 +113,39 @@ export function useBenefitReminders() {
     return loadingPromise;
   }
 
-  function isFollowing(benefitId) {
-    return followMap.value.has(benefitId);
+  // ── 共用邏輯（type 是 BENEFIT 或 MOVIE） ──
+  function has(type, id) {
+    return TARGETS[type].map.value.has(id);
   }
 
-  function isBusy(benefitId) {
-    return busyIds.value.has(benefitId);
+  function busy(type, id) {
+    return TARGETS[type].busy.value.has(id);
   }
 
-  function setBusy(benefitId, on) {
-    const next = new Set(busyIds.value);
-    if (on) next.add(benefitId);
-    else next.delete(benefitId);
-    busyIds.value = next;
+  function setBusy(type, id, on) {
+    const target = TARGETS[type];
+    const next = new Set(target.busy.value);
+    if (on) next.add(id);
+    else next.delete(id);
+    target.busy.value = next;
   }
 
-  function setFollow(benefitId, reminderId) {
-    const next = new Map(followMap.value);
-    if (reminderId == null) next.delete(benefitId);
-    else next.set(benefitId, reminderId);
-    followMap.value = next;
+  function setFollow(type, id, reminderId) {
+    const target = TARGETS[type];
+    const next = new Map(target.map.value);
+    if (reminderId == null) next.delete(id);
+    else next.set(id, reminderId);
+    target.map.value = next;
   }
 
-  async function follow(benefit) {
+  async function followTarget(type, item) {
+    const id = item[TARGETS[type].idKey];
     try {
-      const { data } = await http.post("/reminders", {
-        reminderType: "BENEFIT",
-        benefitId: benefit.benefitId,
-      });
-      setFollow(benefit.benefitId, data.reminderId);
+      const body = type === "MOVIE"
+        ? { reminderType: "MOVIE", movieId: id }
+        : { reminderType: "BENEFIT", benefitId: id };
+      const { data } = await http.post("/reminders", body);
+      setFollow(type, id, data.reminderId);
       return true;
     } catch (error) {
       const code = error?.response?.status;
@@ -127,16 +169,17 @@ export function useBenefitReminders() {
     }
   }
 
-  async function unfollow(benefit, { confirm = false } = {}) {
-    const reminderId = followMap.value.get(benefit.benefitId);
+  async function unfollowTarget(type, item, { confirm = false } = {}) {
+    const target = TARGETS[type];
+    const id = item[target.idKey];
+    const reminderId = target.map.value.get(id);
     if (reminderId == null) return false;
 
     if (confirm) {
-      const name = benefit.benefitName ? `「${benefit.benefitName}」` : "這個特典";
       const result = await openAppAlert({
         variant: "warning",
         title: "取消追蹤？",
-        text: `${name}的日期就不會再出現在你的行事曆上。`,
+        text: `${target.nameOf(item)}的${target.dateText}就不會再出現在你的行事曆上。`,
         confirmText: "取消追蹤",
         cancelText: "保留",
       });
@@ -145,13 +188,13 @@ export function useBenefitReminders() {
 
     try {
       await http.delete(`/reminders/${reminderId}`);
-      setFollow(benefit.benefitId, null);
+      setFollow(type, id, null);
       return true;
     } catch (error) {
       const code = error?.response?.status;
       if (code === 404) {
         // 已經不存在了，當作取消成功
-        setFollow(benefit.benefitId, null);
+        setFollow(type, id, null);
         return true;
       }
       if (code === 401) {
@@ -170,21 +213,34 @@ export function useBenefitReminders() {
   }
 
   /** 回傳 true 代表狀態有改變 */
-  async function toggleFollow(benefit, options = {}) {
-    if (!benefit?.benefitId || isBusy(benefit.benefitId)) return false;
+  async function toggleTarget(type, item, options = {}) {
+    const target = TARGETS[type];
+    const id = item?.[target.idKey];
+    if (id == null || busy(type, id)) return false;
     if (!loggedIn()) {
-      await askLogin("登入後就能追蹤特典，開始日和截止日會出現在你的行事曆上。");
+      await askLogin(target.loginText);
       return false;
     }
-    setBusy(benefit.benefitId, true);
+    setBusy(type, id, true);
     try {
-      return isFollowing(benefit.benefitId)
-        ? await unfollow(benefit, options)
-        : await follow(benefit);
+      return has(type, id)
+        ? await unfollowTarget(type, item, options)
+        : await followTarget(type, item);
     } finally {
-      setBusy(benefit.benefitId, false);
+      setBusy(type, id, false);
     }
   }
+
+  // ── 特典（原本的名稱不變，其他頁面照舊使用） ──
+  const isFollowing = (benefitId) => has("BENEFIT", benefitId);
+  const isBusy = (benefitId) => busy("BENEFIT", benefitId);
+  const toggleFollow = (benefit, options) => toggleTarget("BENEFIT", benefit, options);
+  const unfollow = (benefit, options) => unfollowTarget("BENEFIT", benefit, options);
+
+  // ── 電影 ──
+  const isMovieFollowing = (movieId) => has("MOVIE", movieId);
+  const isMovieBusy = (movieId) => busy("MOVIE", movieId);
+  const toggleMovieFollow = (movie, options) => toggleTarget("MOVIE", movie, options);
 
   return {
     loadReminders,
@@ -192,5 +248,8 @@ export function useBenefitReminders() {
     isBusy,
     toggleFollow,
     unfollow,
+    isMovieFollowing,
+    isMovieBusy,
+    toggleMovieFollow,
   };
 }

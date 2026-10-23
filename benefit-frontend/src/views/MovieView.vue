@@ -16,6 +16,7 @@ import http from "@/plugins/axios";
 import { MOVIE_SORT_DEFAULT, MOVIE_SORT_OPTIONS, parseMovieSort } from "@/constants/sort";
 import { useApiCollection } from "@/composables/useApiCollection";
 import BenefitDialog from "@/components/ui/BenefitDialog.vue";
+import MovieFollowButton from "@/components/ui/MovieFollowButton.vue";
 import PageIntro from "@/components/layout/PageIntro.vue";
 import Pagination from "@/components/ui/Pagination.vue";
 import ResultBanner from "@/components/layout/ResultBanner.vue";
@@ -201,11 +202,13 @@ function goToPage(next) {
         <TicketCard v-for="(movie, index) in movies" :key="movie.movieId" color="yellow" :appear="index < 6"
           :title="movie.movieName">
           <template #poster>
-            <img v-if="posterUrl(movie)" :src="posterUrl(movie)" :alt="`${movie.movieName} 海報`" loading="lazy"
-              decoding="async" referrerpolicy="no-referrer" @error="markPosterBroken(movie)" />
-            <span v-else class="poster-fallback">
-              <Icon :icon="filmIcon" aria-hidden="true" />
-            </span>
+            <MovieFollowButton :movie="movie" corner>
+              <img v-if="posterUrl(movie)" :src="posterUrl(movie)" :alt="`${movie.movieName} 海報`" loading="lazy"
+                decoding="async" referrerpolicy="no-referrer" @error="markPosterBroken(movie)" />
+              <span v-else class="poster-fallback">
+                <Icon :icon="filmIcon" aria-hidden="true" />
+              </span>
+            </MovieFollowButton>
           </template>
           <template #detail>
             <Icon :icon="calendarIcon" aria-hidden="true" />
