@@ -16,6 +16,7 @@ import { openAppAlert } from "@/components/ui/Alert.vue";
 
 import http from "@/plugins/axios";
 import { useFavoriteBenefits } from "@/composables/useFavoriteBenefits";
+import BenefitFollowButton from "@/components/ui/BenefitFollowButton.vue";
 import PageIntro from "@/components/layout/PageIntro.vue";
 import DetailCard from "@/components/layout/DetailCard.vue";
 import StatePanel from "@/components/layout/StatePanel.vue";
@@ -293,6 +294,7 @@ const favoriteBusy = computed(() => Boolean(benefit.value) && isBusy(benefit.val
                 <Icon :icon="favored ? heartIcon : heartOutlineIcon" aria-hidden="true" />
                 {{ favoriteBusy ? "處理中…" : favored ? "已收藏" : "加入收藏" }}
               </button>
+              <BenefitFollowButton :benefit="benefit" />
               <RouterLink v-if="favored" to="/collection" class="collect-link">
                 到我的收藏上傳照片
                 <Icon :icon="arrowIcon" aria-hidden="true" />
