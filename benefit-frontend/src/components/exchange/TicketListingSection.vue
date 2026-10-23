@@ -223,10 +223,10 @@ function clearSearch() {
                 <button class="heart-button" type="button" :aria-label="isFavorited(listingId(item))
                     ? '取消收藏'
                     : '加入收藏'" :title="isLoggedIn
-                            ? (isFavorited(listingId(item))
-                                ? '取消收藏'
-                                : '加入收藏')
-                            : '登入後才能收藏'" @click="emit('toggle-favorite', item)">
+                        ? (isFavorited(listingId(item))
+                            ? '取消收藏'
+                            : '加入收藏')
+                        : '登入後才能收藏'" @click="emit('toggle-favorite', item)">
                     {{ isFavorited(listingId(item)) ? "♥" : "♡" }}
                 </button>
 
@@ -287,43 +287,63 @@ function clearSearch() {
 </template>
 
 <style scoped>
+/* ========== 票券刊登區域 ========== */
+.listing-section {
+    width: 100%;
+    min-width: 0;
+    color: #1e293b;
+}
+
+/* ========== 區塊標題 ========== */
 .section-heading {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    margin-bottom: 1.2rem;
+    margin-bottom: 1.4rem;
 }
 
 .section-heading h2 {
     margin: 0;
-    font-size: 1.35rem;
-    font-weight: 750;
+    color: #1e293b;
+    font-size: 1.4rem;
+    font-weight: 800;
+    letter-spacing: .02em;
 }
 
 .section-heading p {
-    margin: .4rem 0 0;
+    margin: .45rem 0 0;
     color: #64748b;
+    font-size: .92rem;
+    line-height: 1.7;
 }
 
 .count-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    min-height: 2rem;
+    padding: .4rem .85rem;
+    border: 1px solid #dbeafe;
     border-radius: 999px;
-    background: #f1f5f9;
-    color: #475569;
-    padding: .35rem .75rem;
-    white-space: nowrap;
+    background: #eff6ff;
+    color: #1d4ed8;
     font-size: .85rem;
+    font-weight: 750;
+    white-space: nowrap;
 }
 
+/* ========== 搜尋區域 ========== */
 .search-panel {
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(180px, 1fr) auto;
     align-items: end;
-    gap: .8rem;
-    margin-bottom: 1.2rem;
-    padding: 1rem;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    padding: 1.15rem;
     border: 1px solid #e2e8f0;
-    border-radius: .8rem;
+    border-radius: 1rem;
     background: #f8fafc;
 }
 
@@ -333,69 +353,167 @@ function clearSearch() {
 
 .search-field .form-label {
     display: block;
+    margin-bottom: .5rem;
+    color: #334155;
+    font-size: .88rem;
+    font-weight: 700;
+}
+
+.search-field .form-control {
+    display: block;
+    width: 100%;
+    min-height: 42px;
+    padding: .65rem .8rem;
+    border: 1px solid #cbd5e1;
+    border-radius: .65rem;
+    background: #fff;
+    color: #1e293b;
+    font-size: .92rem;
+    box-shadow: none;
+    transition:
+        border-color .2s ease,
+        box-shadow .2s ease;
+}
+
+.search-field .form-control::placeholder {
+    color: #94a3b8;
+}
+
+.search-field .form-control:hover {
+    border-color: #94a3b8;
+}
+
+.search-field .form-control:focus {
+    border-color: #647fe5;
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(100 127 229 / 15%);
 }
 
 .clear-button {
-    min-height: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: .65rem 1rem;
+    border: 1px solid #cbd5e1;
+    border-radius: .65rem;
+    background: #fff;
+    color: #475569;
+    font-size: .9rem;
+    font-weight: 650;
+    white-space: nowrap;
+    transition:
+        background-color .2s ease,
+        border-color .2s ease,
+        color .2s ease;
+}
+
+.clear-button:hover {
+    border-color: #94a3b8;
+    background: #e2e8f0;
+    color: #1e293b;
 }
 
 .search-hint {
     grid-column: 1 / -1;
-    margin: 0;
+    margin: -.15rem 0 0;
     color: #64748b;
-    font-size: .85rem;
+    font-size: .84rem;
 }
 
+/* ========== 票券卡片排列 ========== */
 .listing-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fit,
+            minmax(min(100%, 270px), 1fr));
+    align-items: stretch;
+    gap: 1.15rem;
 }
 
 .listing-card {
     position: relative;
+    display: flex;
+    flex-direction: column;
     min-width: 0;
+    padding: 1.25rem;
+    overflow: hidden;
     border: 1px solid #e2e8f0;
     border-radius: 1rem;
     background: #fff;
-    padding: 1.15rem;
-    box-shadow: 0 5px 18px rgb(15 23 42 / 4%);
+    box-shadow: 0 4px 14px rgb(15 23 42 / 4%);
+    transition:
+        transform .2s ease,
+        border-color .2s ease,
+        box-shadow .2s ease;
 }
 
+.listing-card:hover {
+    transform: translateY(-3px);
+    border-color: #cbd5e1;
+    box-shadow: 0 10px 26px rgb(15 23 42 / 8%);
+}
+
+/* ========== 收藏按鈕 ========== */
 .heart-button {
     position: absolute;
-    top: .75rem;
-    right: .8rem;
-    border: 0;
-    background: #fff;
-    color: #c2415d;
-    font-size: 1.8rem;
-    line-height: 1;
+    top: .85rem;
+    right: .85rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.45rem;
+    height: 2.45rem;
+    padding: 0;
+    border: 1px solid #f1f5f9;
     border-radius: 50%;
-    width: 2.5rem;
-    height: 2.5rem;
+    background: #f8fafc;
+    color: #c2415d;
+    font-size: 1.65rem;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+        transform .2s ease,
+        background-color .2s ease,
+        border-color .2s ease;
 }
 
 .heart-button:hover {
+    transform: scale(1.07);
+    border-color: #fecdd3;
     background: #fff1f2;
 }
 
+.heart-button:focus-visible {
+    outline: 3px solid rgb(194 65 93 / 35%);
+    outline-offset: 2px;
+}
+
+.heart-button:active {
+    transform: scale(.95);
+}
+
+/* ========== 卡片類型與狀態 ========== */
 .card-topline {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: .5rem;
+    min-height: 2rem;
     padding-right: 2.4rem;
-    margin-bottom: .8rem;
+    margin-bottom: .85rem;
 }
 
 .type-label,
 .status-label {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    min-height: 1.65rem;
+    padding: .25rem .6rem;
     border-radius: 999px;
-    padding: .25rem .55rem;
     font-size: .76rem;
-    font-weight: 700;
+    font-weight: 750;
+    line-height: 1.4;
 }
 
 .ticket-label {
@@ -406,75 +524,216 @@ function clearSearch() {
 .status-label {
     background: #f1f5f9;
     color: #475569;
+    overflow-wrap: anywhere;
 }
 
+/* ========== 卡片標題與敘述 ========== */
 .listing-card h3 {
-    font-size: 1.15rem;
-    font-weight: 750;
-    padding-right: 1.5rem;
+    margin: 0 0 .7rem;
+    padding-right: 1.4rem;
+    color: #0f172a;
+    font-size: 1.12rem;
+    font-weight: 800;
+    line-height: 1.6;
     overflow-wrap: anywhere;
 }
 
 .listing-description {
+    margin: 0;
+    min-height: 3.2rem;
     color: #475569;
+    font-size: .92rem;
+    line-height: 1.8;
     white-space: pre-wrap;
     overflow-wrap: anywhere;
-    min-height: 3rem;
 }
 
+/* ========== 影城、電影與放映日期 ========== */
 .ticket-details {
     display: grid;
-    gap: .55rem;
-    margin: 1rem 0 0;
+    gap: .65rem;
+    margin: 1.1rem 0 0;
+    padding-top: 1rem;
+    border-top: 1px solid #f1f5f9;
 }
 
 .ticket-details div {
     display: grid;
-    grid-template-columns: 5.2rem minmax(0, 1fr);
-    gap: .5rem;
+    grid-template-columns: 5rem minmax(0, 1fr);
+    align-items: start;
+    gap: .6rem;
 }
 
 .ticket-details dt {
+    margin: 0;
     color: #64748b;
-    font-weight: 500;
+    font-size: .86rem;
+    font-weight: 600;
 }
 
 .ticket-details dd {
     margin: 0;
-    font-weight: 650;
+    color: #334155;
+    font-size: .9rem;
+    font-weight: 700;
+    line-height: 1.6;
     overflow-wrap: anywhere;
 }
 
+/* ========== 空白、搜尋無結果及載入狀態 ========== */
 .empty-state {
     padding: 2rem 1rem;
-    text-align: center;
+    margin-bottom: 1rem;
     border: 1px dashed #cbd5e1;
-    border-radius: .9rem;
-    color: #64748b;
+    border-radius: 1rem;
     background: #f8fafc;
+    color: #64748b;
+    font-size: .95rem;
+    line-height: 1.8;
+    text-align: center;
 }
 
+/* ========== 分頁 ========== */
 .pagination {
     display: flex;
     align-items: center;
     justify-content: center;
     flex-wrap: wrap;
     gap: .8rem;
-    margin-top: 1.5rem;
+    margin-top: 1.6rem;
+}
+
+.pagination .btn {
+    min-height: 38px;
+    padding: .5rem .9rem;
+    border-radius: .65rem;
+    font-size: .88rem;
+    font-weight: 650;
+    transition:
+        background-color .2s ease,
+        border-color .2s ease;
+}
+
+.pagination .btn:disabled {
+    opacity: .45;
+    cursor: not-allowed;
 }
 
 .page-info {
     color: #475569;
     font-size: .9rem;
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+/* ========== 鍵盤操作與無障礙 ========== */
+.clear-button:focus-visible,
+.pagination .btn:focus-visible {
+    outline: 3px solid rgb(100 127 229 / 35%);
+    outline-offset: 2px;
+}
+
+/* ========== 平板與手機 ========== */
+@media (max-width: 768px) {
+    .search-panel {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .clear-button {
+        width: 100%;
+    }
+
+    .search-hint {
+        grid-column: 1 / -1;
+    }
+
+    .listing-grid {
+        grid-template-columns: repeat(auto-fit,
+                minmax(min(100%, 250px), 1fr));
+    }
 }
 
 @media (max-width: 600px) {
+    .section-heading {
+        align-items: flex-start;
+        gap: .65rem;
+    }
+
+    .section-heading h2 {
+        font-size: 1.25rem;
+    }
+
+    .section-heading p {
+        font-size: .85rem;
+    }
+
+    .count-pill {
+        padding: .35rem .65rem;
+        font-size: .8rem;
+    }
+
     .search-panel {
         grid-template-columns: minmax(0, 1fr);
+        gap: .85rem;
+        padding: .9rem;
     }
 
     .search-hint {
         grid-column: auto;
+    }
+
+    .listing-grid {
+        grid-template-columns: minmax(0, 1fr);
+        gap: .9rem;
+    }
+
+    .listing-card {
+        padding: 1rem;
+        border-radius: .85rem;
+    }
+
+    .listing-card h3 {
+        font-size: 1.05rem;
+    }
+
+    .listing-description {
+        min-height: 0;
+        font-size: .88rem;
+    }
+
+    .ticket-details div {
+        grid-template-columns: 4.7rem minmax(0, 1fr);
+        gap: .45rem;
+    }
+
+    .pagination {
+        gap: .55rem;
+    }
+
+    .pagination .btn {
+        padding: .45rem .7rem;
+    }
+
+    .page-info {
+        font-size: .84rem;
+    }
+}
+
+/* ========== 尊重使用者的減少動態效果設定 ========== */
+@media (prefers-reduced-motion: reduce) {
+
+    .listing-card,
+    .heart-button,
+    .clear-button,
+    .search-field .form-control,
+    .pagination .btn {
+        transition: none;
+    }
+
+    .listing-card:hover,
+    .heart-button:hover,
+    .heart-button:active {
+        transform: none;
     }
 }
 </style>
