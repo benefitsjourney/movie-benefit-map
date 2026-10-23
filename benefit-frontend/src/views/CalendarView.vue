@@ -1,3 +1,4 @@
+
 <script setup>
 import { computed, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
@@ -26,6 +27,7 @@ import PageIntro from "@/components/layout/PageIntro.vue";
 import StatePanel from "@/components/layout/StatePanel.vue";
 import AppModal from "@/components/ui/AppModal.vue";
 import BenefitFollowButton from "@/components/ui/BenefitFollowButton.vue";
+import MovieFollowButton from "@/components/ui/MovieFollowButton.vue";
 
 const router = useRouter();
 const route = useRoute();
@@ -527,6 +529,7 @@ function onFollowChange() {
               <Icon :icon="arrowIcon" aria-hidden="true" />
             </RouterLink>
             <BenefitFollowButton v-if="isBenefit(detail)" :benefit="detail" @change="onFollowChange" />
+            <MovieFollowButton v-else :movie="detail" @change="onFollowChange" />
             <a v-if="googleCalendarUrl(detail)" class="action-btn" :href="googleCalendarUrl(detail)" target="_blank"
               rel="noopener noreferrer">
               <Icon :icon="googleIcon" aria-hidden="true" />
