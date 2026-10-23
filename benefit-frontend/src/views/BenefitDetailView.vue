@@ -259,7 +259,7 @@ const favoriteBusy = computed(() => Boolean(benefit.value) && isBusy(benefit.val
     <template v-else-if="benefit">
       <!-- 特典資訊 -->
       <DetailCard :title="displayText(benefit.benefitName)" :title-icon="giftIcon" back-to="/benefits"
-        back-label="返回特典一覽">
+        back-label="返回特典一覽" theme="coral">
         <div class="benefit-info">
           <div class="benefit-image">
             <img v-if="imageUrl" :src="imageUrl" :alt="`${benefit.benefitName} 圖片`" referrerpolicy="no-referrer"
@@ -306,7 +306,7 @@ const favoriteBusy = computed(() => Boolean(benefit.value) && isBusy(benefit.val
 
       <ImageViewer v-model="viewerOpen" :images="[imageUrl]" :title="benefit.benefitName" />
       <!-- 各影城庫存 -->
-      <DetailCard title="各影城庫存" :title-icon="pinIcon">
+      <DetailCard title="各影城庫存" :title-icon="pinIcon" theme="coral">
         <template v-if="stocks.length">
           <div class="stock-tools">
             <label class="stock-search">

@@ -11,6 +11,7 @@ import shieldIcon from "@iconify-icons/mdi/shield-account-outline";
 import heartIcon from "@iconify-icons/mdi/heart-outline";
 import megaphoneIcon from "@iconify-icons/mdi/bullhorn-outline";
 import calendarIcon from "@iconify-icons/mdi/calendar-month-outline";
+import trophyIcon from "@iconify-icons/mdi/trophy-outline";
 
 const auth = useAuth();
 
@@ -19,6 +20,7 @@ const links = computed(() => {
     { to: "/map", label: "地圖查詢", icon: mapIcon },
     { to: "/benefits", label: "特典一覽", icon: giftIcon },
     { to: "/calendar", label: "行事曆", icon: calendarIcon },
+    { to: "/ranking", label: "排行榜", icon: trophyIcon },
     { to: "/cinemas", label: "影城探索", icon: movieIcon },
     { to: "/movies", label: "電影探索", icon: clapperboardIcon },
     ];

@@ -57,6 +57,8 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 || (uri.matches("/benefits/\\d+") && method.equals("GET"))
                 || (uri.matches("/movies/\\d+/benefits") && method.equals("GET"))
                 || (uri.equals("/benefits/calendar") && method.equals("GET"))
+                || (uri.equals("/benefits/calendar") && method.equals("GET"))
+                || (uri.equals("/users/report-ranking") && method.equals("GET"))
 
                 // 庫存狀態 API 白名單（地圖頁公開查詢）
                 || (uri.matches("/benefits/\\d+/cinemas/status") && method.equals("GET"))
