@@ -1,5 +1,6 @@
 package com.collection.benefitsjourney.service.sourcerules;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -43,8 +44,8 @@ public interface BenefitPostRules {
     }
 
     /** 特別場沒有列出影城、但提到特殊廳（IMAX／4DX）時，預設有該廳的影城簡稱，沒有就回傳空list */
-    default java.util.List<String> defaultCinemasByFormat(String normalizedBody) {
-        return java.util.List.of();
+    default List<String> defaultCinemasByFormat(String normalizedBody) {
+        return List.of();
     }
 
     /** 「凡購買上映期間…」這種整檔期都能領、沒有起訖週期的特典（送完為止，全連鎖影城）：預設不是 */
@@ -69,4 +70,37 @@ public interface BenefitPostRules {
     default boolean isPreorderBenefit(String normalizedBody) {
         return false;
     }
+
+    /** 品牌名稱，寫進回報單的影城欄位（例如「威秀影城」），沒有就回傳null */
+    default String brandName() {
+        return null;
+    }
+
+    /**
+     * 一篇貼文是否要依「購買…即送／即可獲得」逐筆拆開（每一樣特典、每一個版本、每一個期間各一筆）。
+     * 預設不拆，照原本一篇一筆的方式解析。
+     */
+    default boolean splitOffers() {
+        return false;
+    }
+
+    /**
+     * 版本限定的特典：依購買條件（例如「限SCREENX版本」「IMAX/4DX版本」）回傳有該廳的影城簡稱。
+     * 不是版本限定（不限版本、任一版本、一般版本、2D）回傳null，代表全連鎖影城。
+     * @param condition 購買條件那一段文字
+     * @param body 整篇正文，用來找「特殊版本為…」這種定義
+     */
+    default List<String> versionCinemas(String condition, String body) {
+        return null;
+    }
+
+    /**
+     * 從一段文字找出影城簡稱。回傳null代表用Parser預設的切法（依、｜/切開）。
+     * 品牌有固定影城清單時可以覆寫，只回傳認得的影城，例如「📍大巨蛋 10/3（六）」→ 大巨蛋。
+     */
+    default List<String> extractCinemaNames(String text) {
+        return null;
+    }
 }
+
+

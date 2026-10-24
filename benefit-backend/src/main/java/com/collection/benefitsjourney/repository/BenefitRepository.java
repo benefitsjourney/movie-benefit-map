@@ -110,6 +110,21 @@ public interface BenefitRepository extends JpaRepository<BenefitBean, Integer> {
     @Query("UPDATE BenefitReportBean r SET r.benefit = NULL WHERE r.benefit.benefitId = :benefitId")
     int detachReportsFromBenefit(@Param("benefitId") Integer benefitId);
     
+    /** 爬蟲同款比對：這部電影的所有特典（上架中、已下架都算），用來判斷同款、追加印製、疑似同款 */
+    @Query("""
+            SELECT DISTINCT b FROM BenefitBean b
+            JOIN CinemaMovieBenefitBean c ON c.benefit = b
+            WHERE c.movie.movieId = :movieId
+            ORDER BY b.benefitId ASC
+            """)
+    List<BenefitBean> findAllByMovieId(@Param("movieId") Integer movieId);
+
+    /** 自動下架：上架中、有結束日、而且結束日已經過了 */
+    List<BenefitBean> findByStatusAndEndDateBefore(String status, java.time.LocalDateTime now);
+
+    /** 自動下架：上架中、送完為止（沒有結束日）、開始日早於cutoff（開始日起20週） */
+    List<BenefitBean> findByStatusAndEndDateIsNullAndStartDateBefore(String status, java.time.LocalDateTime cutoff);
+
     /**
      * GET /benefits、GET /benefits/admin：特典列表搜尋（前台、後台共用）
      * status：APPROVED／EXPIRED；keyword搜特典名稱或電影名稱；status、keyword、benefitType傳null代表不篩選
@@ -139,3 +154,4 @@ public interface BenefitRepository extends JpaRepository<BenefitBean, Integer> {
     
     
 }
+

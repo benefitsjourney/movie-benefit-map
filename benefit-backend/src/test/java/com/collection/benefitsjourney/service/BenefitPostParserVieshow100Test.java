@@ -49,7 +49,7 @@ class BenefitPostParserVieshow100Test {
     }
 
     @Test
-    @DisplayName("100篇總數：24筆資料齊全、11筆待人工確認、66篇略過")
+    @DisplayName("100篇總數：25筆資料齊全、3筆待人工確認、73篇略過")
     void totals() {
         int benefit = 0;
         int incomplete = 0;
@@ -67,9 +67,9 @@ class BenefitPostParserVieshow100Test {
                 }
             }
         }
-        assertEquals(24, benefit);
-        assertEquals(11, incomplete);
-        assertEquals(66, ignoredPosts);
+        assertEquals(25, benefit);
+        assertEquals(3, incomplete);
+        assertEquals(73, ignoredPosts);
     }
 
     @Test
@@ -103,12 +103,9 @@ class BenefitPostParserVieshow100Test {
     }
 
     @Test
-    @DisplayName("遊戲人生第一週：特典名稱抓得到，日期貼文沒寫→仍需人工補日期")
+    @DisplayName("遊戲人生第一週特典開箱：只有開箱、沒有活動日期→略過，內容在另一篇售票貼文")
     void yugioh() {
-        ParsedBenefitPost r = parse("棋局降臨").get(0);
-        assertEquals(Classification.INCOMPLETE, r.classification());
-        assertEquals("棋局降臨A3海報+第一週劇照明信片套組", r.benefitName());
-        assertTrue(r.reviewNote().contains("活動日期"));
+        assertTrue(parse("棋局降臨").isEmpty());
     }
 
     @Test
@@ -124,13 +121,13 @@ class BenefitPostParserVieshow100Test {
     }
 
     @Test
-    @DisplayName("快打旋風預購禮／特別場：格式太雜，但不能直接丟掉→轉人工")
+    @DisplayName("快打旋風4DX特別場預購：格式太雜，但不能直接丟掉→轉人工；預購粉絲禮、角色海報組只是開箱文→略過")
     void streetFighterSuspects() {
-        for (String s : List.of("影迷限定４ＤＸ珍藏海報", "預購粉絲禮", "角色A3海報組(共3款)")) {
-            List<ParsedBenefitPost> r = parse(s);
-            assertTrue(!r.isEmpty(), s);
-            assertNotEquals(Classification.BENEFIT, r.get(0).classification(), s);
-        }
+        List<ParsedBenefitPost> r = parse("影迷限定４ＤＸ珍藏海報");
+        assertTrue(!r.isEmpty());
+        assertNotEquals(Classification.BENEFIT, r.get(0).classification());
+        assertTrue(parse("預購粉絲禮").isEmpty());
+        assertTrue(parse("角色A3海報組(共3款)").isEmpty());
     }
 
     @Test
@@ -142,10 +139,10 @@ class BenefitPostParserVieshow100Test {
     }
 
     @Test
-    @DisplayName("疑似特典的備註要說清楚是「疑似」")
+    @DisplayName("轉人工的備註要說清楚缺什麼")
     void suspectNote() {
-        ParsedBenefitPost r = parse("角色A3海報組(共3款)").get(0);
-        assertTrue(r.reviewNote().contains("疑似特典"));
+        ParsedBenefitPost r = parse("影迷限定４ＤＸ珍藏海報").get(0);
+        assertTrue(r.reviewNote().contains("特典名稱"));
     }
 
     @Test
@@ -158,3 +155,4 @@ class BenefitPostParserVieshow100Test {
         assertTrue(all.stream().allMatch(x -> x.sourceUrl() != null && !x.sourceUrl().isBlank()));
     }
 }
+

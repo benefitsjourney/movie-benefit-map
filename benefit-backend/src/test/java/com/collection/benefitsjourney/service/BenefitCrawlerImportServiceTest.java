@@ -299,29 +299,196 @@ class BenefitCrawlerImportServiceTest {
         assertEquals(new ImportSummary(0, 0, 1, 0), s);
     }
 
+    /** 已存在的特典（同電影），日期可指定 */
+    private BenefitBean existingBenefit(int id, String name, String type, LocalDateTime start, LocalDateTime end,
+                                        String sourceUrl) {
+        BenefitBean b = new BenefitBean();
+        b.setBenefitId(id);
+        b.setBenefitName(name);
+        b.setBenefitType(type);
+        b.setStatus("APPROVED");
+        b.setStartDate(start);
+        b.setEndDate(end);
+        b.setSourceUrl(sourceUrl);
+        return b;
+    }
+
     @Test
-    @DisplayName("不同貼文重複宣傳同一部電影的同一個特典（回報單已有）：只留第一筆")
+    @DisplayName("同款已有待審核回報單（爬蟲建立）：不新增，把影城補進回報單，算重複略過")
     void duplicateBySemanticReport() {
         givenData();
-        when(reportRepo.existsByMovie_MovieIdAndBenefitNameAndStartDate(eq(35), eq("海報"), any())).thenReturn(true);
+        BenefitReportBean pending = pendingNoMovie(null, "1");
+        pending.setMovie(resident);
+        pending.setBenefitName("「海報」");          // 比對名稱一樣是「海報」
+        when(reportRepo.findByMovie_MovieIdAndStatusAndUserIsNull(35, "PENDING")).thenReturn(List.of(pending));
 
         ImportSummary s = service.importAll(List.of(weekly("惡靈古堡：爆發夜", "海報")), true);
 
         assertEquals(new ImportSummary(0, 0, 1, 0), s);
+        assertEquals("1,2", pending.getMatchedCinemaIds());
+        verify(reportRepo).save(pending);
         verify(benefitRepo, never()).save(any());
     }
 
     @Test
-    @DisplayName("不同貼文重複宣傳同一部電影的同一個特典（正式特典已有）：只留第一筆")
-    void duplicateBySemanticBenefit() {
+    @DisplayName("同款已上架（例如威秀已上架，這次是秀泰）：不新增特典，把影城加到原本那筆，算直接上架")
+    void mergeIntoExistingBenefit() {
         givenData();
-        when(benefitRepo.countByMovieAndNameAndStartDate(eq(35), eq("海報"), any())).thenReturn(1L);
+        BenefitBean existing = existingBenefit(99, "「海報」款A3", "REGULAR",
+                LocalDateTime.of(2026, 10, 16, 0, 0), FAR_FUTURE, "https://www.facebook.com/vieshow/posts/9");
+        when(benefitRepo.findAllByMovieId(35)).thenReturn(List.of(existing));
+
+        ImportSummary s = service.importAll(List.of(weekly("惡靈古堡：爆發夜", "海報")), true);
+
+        assertEquals(new ImportSummary(1, 1, 0, 0), s);
+        verify(benefitRepo, never()).save(any());
+        verify(reportRepo, never()).save(any());
+        ArgumentCaptor<CinemaMovieBenefitBean> link = ArgumentCaptor.forClass(CinemaMovieBenefitBean.class);
+        verify(linkRepo, times(2)).save(link.capture());
+        assertSame(existing, link.getAllValues().get(0).getBenefit());
+    }
+
+    @Test
+    @DisplayName("同貼文同特典重新匯入：不新增，但把缺少的影城補上")
+    void duplicateFillsMissingCinemas() {
+        givenData();
+        BenefitBean existing = existingBenefit(5, "海報", "REGULAR",
+                LocalDateTime.of(2026, 10, 16, 0, 0), FAR_FUTURE, "https://www.facebook.com/vieshow/posts/1");
+        when(benefitRepo.existsBySourceUrlAndBenefitName("https://www.facebook.com/vieshow/posts/1", "海報"))
+                .thenReturn(true);
+        when(benefitRepo.findBySourceUrlAndBenefitName("https://www.facebook.com/vieshow/posts/1", "海報"))
+                .thenReturn(List.of(existing));
+        when(linkRepo.existsByCinema_CinemaIdAndMovie_MovieIdAndBenefit_BenefitId(eq(1), any(), any())).thenReturn(true);
+        when(linkRepo.existsByCinema_CinemaIdAndMovie_MovieIdAndBenefit_BenefitId(eq(2), any(), any())).thenReturn(false);
 
         ImportSummary s = service.importAll(List.of(weekly("惡靈古堡：爆發夜", "海報")), true);
 
         assertEquals(new ImportSummary(0, 0, 1, 0), s);
+        ArgumentCaptor<CinemaMovieBenefitBean> link = ArgumentCaptor.forClass(CinemaMovieBenefitBean.class);
+        verify(linkRepo).save(link.capture());
+        assertEquals(2, link.getValue().getCinema().getCinemaId());
+        assertSame(existing, link.getValue().getBenefit());
+    }
+
+    @Test
+    @DisplayName("同名但日期沒重疊，貼文寫了追加印製：新的一筆，名稱加「（追加印製）」，備註寫原本的特典編號")
+    void additionalPrint() {
+        givenData();
+        givenBenefitSaveAssignsId(10);
+        BenefitBean old = existingBenefit(99, "海報", "SPECIAL_UNTIL_OUT",
+                LocalDateTime.of(2026, 9, 1, 0, 0), LocalDateTime.of(2026, 9, 7, 23, 59, 59),
+                "https://www.facebook.com/vieshow/posts/9");
+        when(benefitRepo.findAllByMovieId(35)).thenReturn(List.of(old));
+        ParsedBenefitPost p = weekly("惡靈古堡：爆發夜", "海報");
+        p = new ParsedBenefitPost(p.postId(), p.sourceUrl(), p.username(), "好評追加印製．10/16起開放兌換",
+                p.publishedAt(), p.movieName(), p.benefitName(), p.memberOnly(), p.benefitType(), p.startDate(),
+                p.endDate(), p.imageUrls(), p.reviewNote(), p.classification(), p.chainKeyword(), p.cinemaNames());
+
+        ImportSummary s = service.importAll(List.of(p), true);
+
+        assertEquals(new ImportSummary(1, 1, 0, 0), s);
+        ArgumentCaptor<BenefitBean> benefit = ArgumentCaptor.forClass(BenefitBean.class);
+        verify(benefitRepo).save(benefit.capture());
+        assertEquals("海報（追加印製）", benefit.getValue().getBenefitName());
+        assertTrue(benefit.getValue().getReviewNote().contains("與特典#99同名，日期不同"));
+    }
+
+    @Test
+    @DisplayName("名稱很像（一個包含另一個）＋日期重疊：不合併、不上架，寫成待審核")
+    void similarNameGoesPending() {
+        givenData();
+        BenefitBean existing = existingBenefit(99, "我是我 A3 海報", "REGULAR",
+                LocalDateTime.of(2026, 10, 16, 0, 0), FAR_FUTURE, "https://www.facebook.com/showtimecinemas/posts/9");
+        when(benefitRepo.findAllByMovieId(35)).thenReturn(List.of(existing));
+
+        ImportSummary s = service.importAll(List.of(weekly("惡靈古堡：爆發夜", "我是我A3海報(另附紅藍鏡片組)")), true);
+
+        assertEquals(new ImportSummary(1, 0, 0, 0), s);
         verify(benefitRepo, never()).save(any());
-        verify(reportRepo, never()).save(any());
+        ArgumentCaptor<BenefitReportBean> cap = ArgumentCaptor.forClass(BenefitReportBean.class);
+        verify(reportRepo).save(cap.capture());
+        assertTrue(cap.getValue().getReviewNote().contains("疑似與特典#99相同，請確認"));
+    }
+
+    @Test
+    @DisplayName("另一個品牌同一週已有同電影的週特典，但名稱完全不同：寫成待審核")
+    void otherBrandSameWeek() {
+        givenData();
+        LocalDateTime start = LocalDateTime.of(2026, 10, 16, 0, 0);
+        LocalDateTime end = LocalDateTime.of(2026, 10, 22, 23, 59, 59);
+        BenefitBean showtime = existingBenefit(99, "原作者 nagano 全新繪製透卡", "REGULAR", start, end,
+                "https://www.facebook.com/showtimecinemas/posts/9");
+        when(benefitRepo.findAllByMovieId(35)).thenReturn(List.of(showtime));
+
+        ImportSummary s = service.importAll(List.of(weekly("惡靈古堡：爆發夜", "日本進口 全新繪製原畫透卡", end)), true);
+
+        assertEquals(new ImportSummary(1, 0, 0, 0), s);
+        verify(benefitRepo, never()).save(any());
+        ArgumentCaptor<BenefitReportBean> cap = ArgumentCaptor.forClass(BenefitReportBean.class);
+        verify(reportRepo).save(cap.capture());
+        assertTrue(cap.getValue().getReviewNote().contains("同一週秀泰已有特典#99"));
+    }
+
+    @Test
+    @DisplayName("秀泰貼文：影城只在秀泰裡比對（「站前」不會對到桃園站前in89），回報單影城欄位存「秀泰影城」")
+    void showtimeOnlyMatchesShowtimeCinemas() {
+        when(movieRepo.findAll()).thenReturn(List.of(resident));
+        when(cinemaRepo.findAll()).thenReturn(List.of(xinyi, showtimes, cinema(60, "台中站前秀泰影城"),
+                cinema(45, "桃園站前in89豪華影城")));
+        ParsedBenefitPost p = new ParsedBenefitPost("id", "https://www.facebook.com/showtimecinemas/posts/5",
+                "showtimecinemas", "text", LocalDateTime.of(2026, 10, 12, 19, 0), "惡靈古堡：爆發夜", "特別場套組",
+                Boolean.FALSE, "SPECIAL_BY_DATE", LocalDateTime.of(2026, 10, 24, 0, 0), FAR_FUTURE, List.of(),
+                "爬蟲自動建立，請確認電影與日期", Classification.BENEFIT, null, List.of("大巨蛋", "站前"));
+
+        service.importAll(List.of(p), false);
+
+        ArgumentCaptor<BenefitReportBean> cap = ArgumentCaptor.forClass(BenefitReportBean.class);
+        verify(reportRepo).save(cap.capture());
+        assertEquals("秀泰影城", cap.getValue().getCustomCinemaName());
+        assertEquals("8,60", cap.getValue().getMatchedCinemaIds());
+    }
+
+    @Test
+    @DisplayName("存進資料庫的名稱：去掉外層括號、開頭的#、週次標籤")
+    void storageName() {
+        givenData();
+        givenBenefitSaveAssignsId(10);
+
+        service.importAll(List.of(weekly("惡靈古堡：爆發夜", "【電玩概念款A3海報特典】")), true);
+
+        ArgumentCaptor<BenefitBean> benefit = ArgumentCaptor.forClass(BenefitBean.class);
+        verify(benefitRepo).save(benefit.capture());
+        assertEquals("電玩概念款A3海報特典", benefit.getValue().getBenefitName());
+    }
+
+    @Test
+    @DisplayName("電影比對：第一個《》不是電影時，依序試後面的《》")
+    void tryEveryTitle() {
+        givenData();
+        ParsedBenefitPost p = weekly("號角日報", "海報");
+        p = new ParsedBenefitPost(p.postId(), p.sourceUrl(), p.username(), "蜘蛛人登上《號角日報》頭版，《惡靈古堡：爆發夜》特別場",
+                p.publishedAt(), p.movieName(), p.benefitName(), p.memberOnly(), p.benefitType(), p.startDate(),
+                p.endDate(), p.imageUrls(), p.reviewNote(), p.classification(), p.chainKeyword(), p.cinemaNames());
+
+        service.importAll(List.of(p), false);
+
+        ArgumentCaptor<BenefitReportBean> cap = ArgumentCaptor.forClass(BenefitReportBean.class);
+        verify(reportRepo).save(cap.capture());
+        assertSame(resident, cap.getValue().getMovie());
+    }
+
+    @Test
+    @DisplayName("比對名稱：威秀「「破曉前行」款A3海報」和秀泰「破曉前行款 A3 海報」是同一款，名稱很像的判斷至少4個字")
+    void normalizer() {
+        assertEquals("破曉前行海報", BenefitNameNormalizer.forMatching("「破曉前行」款A3海報"));
+        assertEquals("破曉前行海報", BenefitNameNormalizer.forMatching("破曉前行款 A3 海報"));
+        assertEquals("自動充氣氣球", BenefitNameNormalizer.forMatching("日本進口 自動充氣氣球"));
+        assertEquals("12x17cmuv亮光卡", BenefitNameNormalizer.forMatching("第二週觀影特典｜12x17cm UV亮光特典卡"));
+        assertEquals("12x17cm UV亮光特典卡", BenefitNameNormalizer.forStorage("第二週觀影特典｜12x17cm UV亮光特典卡"));
+        assertEquals("摺頁劇照", BenefitNameNormalizer.forStorage("《蜘蛛人:重生日》摺頁劇照"));
+        assertEquals("A24電影紀念票", BenefitNameNormalizer.forStorage("#A24電影紀念票"));
+        assertTrue(BenefitNameNormalizer.isSimilar("我是我海報", "我是我海報另附紅藍鏡片組"));
+        assertTrue(!BenefitNameNormalizer.isSimilar("海報", "主視覺海報"));
     }
 
     @Test
@@ -631,3 +798,4 @@ class BenefitCrawlerImportServiceTest {
         assertEquals(new ImportSummary(5, 5, 0, 0), s);
     }
 }
+

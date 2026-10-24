@@ -135,10 +135,10 @@ class VieshowPostRulesTest {
         }
 
         @Test
-        @DisplayName("Stray Kids：活動限定入場特典「即將公開」（兩篇）")
+        @DisplayName("Stray Kids：直播的「特典即將公開」→排除字優先，直接略過（兩篇）")
         void strayKids() {
-            assertEquals(Classification.INCOMPLETE, rules.classifyPost(post("即將啟售")));
-            assertEquals(Classification.INCOMPLETE, rules.classifyPost(post("情報解禁")));
+            assertEquals(Classification.NOT_BENEFIT, rules.classifyPost(post("即將啟售")));
+            assertEquals(Classification.NOT_BENEFIT, rules.classifyPost(post("情報解禁")));
         }
     }
 
@@ -213,4 +213,48 @@ class VieshowPostRulesTest {
             assertEquals(Classification.NOT_BENEFIT, rules.classifyPost(post("加碼抽")));
         }
     }
+
+    @Nested
+    @DisplayName("第四版新增")
+    class Version4 {
+        @Test
+        @DisplayName("排除字補齊：本週特典一次看、小編開箱時間、補領、發放調整公告、零秒差直播")
+        void moreExcludeWords() {
+            for (String s : List.of(
+                    "📦 小編開箱時間又到啦【10/22(四)－10/28(三)】本週特典一次看",
+                    "角色海報追加特別場-活動特典發放調整公告】活動特典補領期間：10/2(五)白天營業時間起",
+                    "#威秀影城零秒差直播 現場直播限定特典：即將公開‧ 敬請期待！")) {
+                assertEquals(Classification.NOT_BENEFIT, rules.classifyPost(s), s);
+            }
+        }
+
+        @Test
+        @DisplayName("開箱文：有「開箱」但沒有活動日期→略過；週特典寫「搶先開箱」但有日期→照常是特典")
+        void openBox() {
+            assertEquals(Classification.NOT_BENEFIT, rules.classifyPost(
+                    "開打前先開箱《快打旋風》預購粉絲禮！兩張超帥海報都很有收藏感！10/16(五) 格鬥對決，威秀大銀幕見！"));
+            assertEquals(Classification.BENEFIT, rules.classifyPost(
+                    "搶先開箱！凡購買10/16(五)起任一版本電影票１張，於10/16(五)白天營業時間起至原購票影城，"
+                            + "即可兌換領取「破曉前行」款A3海報１張。"));
+        }
+
+        @Test
+        @DisplayName("特別場附帶的現場加碼抽獎不會讓整篇被略過")
+        void specialWithLottery() {
+            String t = "《泥面人》4DX特別場\n放映日期：10/24(六)\n觀賞4DX特別場，入場即可獲得特別場套組：\n"
+                    + "◆ 原文漫畫 x1\n現場加碼抽獎：電影主題毛巾";
+            assertEquals(Classification.BENEFIT, rules.classifyPost(t));
+        }
+
+        @Test
+        @DisplayName("版本限定：IMAX和4DX都寫就合起來，不限版本、任一版本是全台")
+        void versionCinemas() {
+            List<String> both = rules.versionCinemas("凡購買《快打旋風》真人版 IMAX/4DX版本電影票1張", "");
+            assertEquals(10, both.size());   // IMAX有7間、4DX有4間，高雄大遠百兩種都有只算一次
+            assertEquals(4, rules.versionCinemas("憑09/18(五)起4DX版本任一場次電影票", "").size());
+            assertEquals(null, rules.versionCinemas("凡購買10/16(五)起任一版本電影票１張", ""));
+            assertEquals(null, rules.versionCinemas("凡購買10/23(五)起任一場次電影票１張（不限版本）", ""));
+        }
+    }
 }
+

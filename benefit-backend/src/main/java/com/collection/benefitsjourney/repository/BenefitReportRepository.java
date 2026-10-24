@@ -34,4 +34,8 @@ public interface BenefitReportRepository extends JpaRepository<BenefitReportBean
 
     /** 重新比對電影：找出爬蟲建立（沒有使用者）、還在待審核的回報單 */
     List<BenefitReportBean> findByStatusAndUserIsNull(String status);
+
+    /** 爬蟲同款比對：這部電影由爬蟲建立（沒有使用者）、還在待審核的回報單 */
+    List<BenefitReportBean> findByMovie_MovieIdAndStatusAndUserIsNull(Integer movieId, String status);
 }
+
