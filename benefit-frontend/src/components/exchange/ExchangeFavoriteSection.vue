@@ -1,5 +1,6 @@
 <!-- ========== components/exchange/ExchangeFavoriteSection.vue ========== -->
 <!-- 這個元件只顯示會員的交換收藏，取消收藏時通知主頁呼叫 API。 -->
+<!-- 顯示會員的交換收藏，並在取消收藏時發出 remove-favorite 事件。它不直接呼叫 API。 -->
 <script setup>
 defineProps({
     favorites: {

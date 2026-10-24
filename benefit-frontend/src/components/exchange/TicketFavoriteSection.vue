@@ -1,5 +1,6 @@
 <!-- ========== components/exchange/TicketFavoriteSection.vue ========== -->
 <!-- 這個元件只處理會員的票券收藏清單。 -->
+<!-- 顯示公開票券刊登、關鍵字搜尋、放映日期篩選、分頁、收藏與聯絡事件。 -->
 <script setup>
 defineProps({
     favorites: {
