@@ -128,10 +128,14 @@ class BenefitPostParserTest {
     }
 
     @Test
-    @DisplayName("LISA明信片：沒有日期 → INCOMPLETE；Stray Kids 特典未公布 → INCOMPLETE")
+    @DisplayName("LISA明信片：限量兌換沒寫日期 → 用發文日，送完為止；Stray Kids直播 → 排除字優先，略過")
     void incompleteCases() {
-        assertEquals(Classification.INCOMPLETE, parse("電影限定明信片").get(0).classification());
-        assertEquals(Classification.INCOMPLETE, parse("即將啟售").get(0).classification());
+        ParsedBenefitPost lisa = parse("電影限定明信片").get(0);
+        assertEquals(Classification.BENEFIT, lisa.classification());
+        assertEquals("SPECIAL_UNTIL_OUT", lisa.benefitType());
+        assertEquals(lisa.publishedAt().toLocalDate().atStartOfDay(), lisa.startDate());
+        assertNull(lisa.endDate());
+        assertTrue(parse("即將啟售").isEmpty());
     }
 
     @Test
@@ -159,3 +163,5 @@ class BenefitPostParserTest {
         assertEquals(LocalDateTime.of(2027, 1, 5, 23, 59, 59), r.endDate());
     }
 }
+
+

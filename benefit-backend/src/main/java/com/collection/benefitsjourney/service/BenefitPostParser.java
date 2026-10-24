@@ -7,9 +7,12 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -22,6 +25,7 @@ import com.collection.benefitsjourney.service.sourcerules.BenefitPostRules;
 /**
  * 把一篇貼文的文字解析成結構化資料（ParsedBenefitPost）。
  * 比對電影、影城、去重、寫入由BenefitCrawlerImportService負責。 支援三種類型：一般週特典、入場贈送型特別場、限量兌換型特別場。
+ * 規則類別的splitOffers回傳true時（例如秀泰），一篇貼文依「購買…即送」逐筆拆開，特別場依場次拆開。
  */
 @Component
 public class BenefitPostParser {
@@ -37,7 +41,7 @@ public class BenefitPostParser {
 
 	/** 「凡購買10/16(五)~10/22(四)期間…」或「凡購買10/16(五)起…」 */
 	private static final Pattern DATE_RANGE = Pattern.compile(
-			"凡?購買.{0,20}?(\\d{1,2})/(\\d{1,2})(?:\\s*\\([^)]*\\))?\\s*起?\\s*(?:[~\\-–—]\\s*(\\d{1,2})/(\\d{1,2}))?");
+			"凡?購買\\s*(?:《[^》]*》)?.{0,20}?(\\d{1,2})/(\\d{1,2})(?:\\s*\\([^)]*\\))?\\s*起?\\s*(?:[~\\-–—]\\s*(\\d{1,2})/(\\d{1,2}))?");
 	/** 「10/02(五)~10/09(五)期間」→ 領取期間 */
 	private static final Pattern PERIOD_RANGE = Pattern.compile(
 			"(\\d{1,2})/(\\d{1,2})(?:\\s*\\([^)]*\\))?\\s*[~\\-–—]\\s*(\\d{1,2})/(\\d{1,2})(?:\\s*\\([^)]*\\))?\\s*期間");
@@ -60,7 +64,8 @@ public class BenefitPostParser {
 
 	/** 限量兌換型特別場 */
 	private static final Pattern MONTH_DAY = Pattern.compile("(\\d{1,2})/(\\d{1,2})");
-	private static final Pattern EVENT_DATE_LINE = Pattern.compile("(?:放映日期|放映日|活動日期|直播時間)\\s*:\\s*([^\\n]+)");
+	private static final Pattern EVENT_DATE_LINE = Pattern
+			.compile("(?:放映日期|放映日|活動日期|活動時間|直播時間|首映日期)\\s*[:｜|]\\s*([^\\n]+)");
 	private static final Pattern PREMIERE_DATE = Pattern.compile("凡購票觀賞.{0,10}?(\\d{1,2})/(\\d{1,2})");
 	/** 「10/16(五)起」「10/07(三)白天營業時間起」；後者要先於「憑09/18(五)起」這種票根日期 */
 	private static final Pattern START_FROM = Pattern
@@ -80,13 +85,89 @@ public class BenefitPostParser {
 			.compile("(?m)^[^\\n]*?(4DX|IMAX)[^\\n「]*?[➤→>:][^\\n「]*「([^」]+)」");
 	private static final Pattern GIFT_AFTER_KEY = Pattern.compile("(?:專屬特典\\s*:|即可獲得|保證獲得)[^「\\n]{0,4}「([^」]+)」");
 	private static final Pattern LIMITED_LINE = Pattern.compile("本場限定\\s*[:｜|]\\s*([^\\n]+)");
-	private static final Pattern CINEMA_LABEL = Pattern
-			.compile("(?:放映影城|首映影城|活動影城|直播影城|影城據點)(?:[^\\n:：－—]*?[:：－—]\\s*(.*)|\\s*$)");
+	private static final Pattern CINEMA_LABEL = Pattern.compile(
+			"(?:放映影城|首映影城|活動影城|直播影城|影城據點|預售影城|領取影城|限定場影城)(?:(?:\\s*[｜|]|[^\\n:：－—｜|]*?[:：－—-])\\s*(.*)|\\s*$)");
 	/** 有寫「活動影城：」之類的標題（卻沒抓到影城）→ 不能當全連鎖 */
-	private static final Pattern CINEMA_LABEL_ANY = Pattern.compile("(?:放映影城|首映影城|活動影城|直播影城|影城據點)\\s*[:：]");
+	private static final Pattern CINEMA_LABEL_ANY = Pattern
+			.compile("(?:放映影城|首映影城|活動影城|直播影城|影城據點|預售影城|領取影城|限定場影城)\\s*[:：｜|]");
 	private static final Pattern LIST_PREFIX = Pattern.compile("^#[^—－\\-]*[—－-]\\s*");
-	private static final Pattern LEADING_DECOR = Pattern.compile("^[┆\\s✦•·▪]+");
+	private static final Pattern LEADING_DECOR = Pattern.compile("^[┆\\s✦•·▪◆✧◼▸➤📍]+");
 	private static final Pattern TOKEN_SPLIT = Pattern.compile("[、,，及｜|/・]");
+
+	// ---------- 第四版新增 ----------
+	/** 「2026/11/5」「2026.10.15」：年份拿掉，只留月日 */
+	private static final Pattern YEAR_PREFIX = Pattern.compile("(?:19|20)\\d{2}[/.](\\d{1,2})[/.](\\d{1,2})");
+	/** 每週輪替的週特典：第N週、首週、最終特典 */
+	private static final Pattern WEEK_MARK = Pattern.compile("第\\s*[0-9一二三四五六七八九十]+\\s*週|首週|最終(?:觀影)?特典|最終回特典");
+	/** 追加印製、重映：不是每週輪替的特典 */
+	private static final Pattern NOT_WEEKLY = Pattern.compile("追加|加印|重映");
+	/** 「購票與領取時間：09/28(一)-10/11(日)」「領取時間：10/7(三)-11/20(五)」 */
+	private static final Pattern PICKUP_PERIOD = Pattern.compile("(?:購票與領取時間|領取時間)\\s*[:｜|]\\s*(\\d{1,2})/(\\d{1,2})"
+			+ "(?:\\s*\\([^)]*\\))?\\s*[~\\-–—]\\s*(\\d{1,2})/(\\d{1,2})");
+	/** 「特典領取時間：10/01(四)起」 */
+	private static final Pattern PICKUP_FROM = Pattern.compile("領取時間\\s*[:｜|]\\s*(\\d{1,2})/(\\d{1,2})");
+	/** 「僅限10/22當日」 */
+	private static final Pattern ONLY_DAY = Pattern.compile("僅限\\s*(\\d{1,2})/(\\d{1,2})\\s*當日");
+	/** 括號裡看起來像贈品的名稱（找不到其他寫法時才用） */
+	private static final Pattern QUOTED_ITEM = Pattern
+			.compile("[「【]([^」】\\n]{2,30}?(?:海報|卡|明信片|吊飾|貼紙|徽章|色紙|書籤|杯墊|冊子|套組|劇照))[」】]");
+
+	/** 連映、聯映 */
+	private static final Pattern JOINT_SCREENING = Pattern.compile("連映|聯映");
+	/** 多週套票：「第一週(10/16-10/18) 單人套票」 */
+	private static final Pattern WEEK_PACKAGE = Pattern.compile("(第\\s*[0-9一二三四五六七八九十]+\\s*週)[^\\n]*套票");
+	private static final Pattern LINE_TITLE = Pattern.compile("^[^《\\p{L}\\p{N}]*《([^》]+)》");
+
+	/** 特別場品項：「1 張【獨家】「墜入鯨口」A3 海報」 */
+	private static final Pattern ITEM_QTY_FIRST = Pattern.compile("^\\d+\\s*[張組份個本套枚入盒包]\\s*(.+)$");
+	/** 特別場品項：「◆ 原文漫畫 x1」「【獨家】人物設定A5場刊*1」「▸ 首映限定特典 ×1」 */
+	private static final Pattern ITEM_MARKED = Pattern
+			.compile("^[◆✧◼✦▸⭐★•▪]?\\s*(.+?)\\s*[xX×*]\\s*\\d+\\s*(?:[(（][^)）]*[)）])?\\s*$");
+	/** 特別場品項：「⭐造型紀念卡 1 組（全套 5 張）」 */
+	private static final Pattern ITEM_TAIL_QTY = Pattern
+			.compile("^[◆✧◼✦▸⭐★]\\s*(.+?)\\s*\\d+\\s*[張組份個本套枚入盒包]\\s*(?:[(（][^)）]*[)）])?\\s*$");
+	/** 不是特典的品項：電影票、飲料、爆米花，還有當週特典（週特典另外一筆，會重複） */
+	private static final Pattern NOT_ITEM = Pattern.compile(
+			"電影票|飲料|爆米花|可樂|氣泡水|調酒|茶|當週特典|第.{1,3}週特典|購票特典|即可|購買|兌換|獲得|凡|限購|每人|\\$");
+
+	/** 場次表的標題 */
+	private static final Pattern SCHEDULE_LABEL = Pattern
+			.compile("活動日期|活動時間|放映日期|放映日|首映日期|直播時間|活動影城|放映影城|首映影城|影城據點|直播影城");
+	private static final Pattern SCHEDULE_LABEL_TEXT = Pattern.compile(
+			"(?:活動日期|活動時間|放映日期|放映日|首映日期|直播時間|活動影城|放映影城|首映影城|影城據點|直播影城)(?:及影城|、影城)?\\s*[:｜|]?");
+	/** 售票、開賣這類行不是場次表 */
+	private static final Pattern SALE_LINE = Pattern
+			.compile("開賣|開售|售票|購票|訂票|限購|啟售|預售|公布|兌換|領取|上映|臨櫃|官網|APP|營業時間");
+	private static final Pattern TIME = Pattern.compile("\\d{1,2}:\\d{2}");
+	private static final Pattern WEEKDAY = Pattern.compile("\\([^)]*\\)");
+
+	/** 一行裡的特典：「即可獲得限量「X」1 張」「即送【X】乙份」「兌換【百花繚亂款】A3 海報 1 張」 */
+	private static final Pattern INLINE_GIFT = Pattern.compile(
+			"(?:即可獲得|即可領取|即送|即贈|兌換|領取)(?:限量|相對應版本|對應版本)?\\s*[「【]([^」】\\n]+)[」】]"
+					+ "([^\\n「【。，,、]{0,10}?)(?=\\s*(?:\\d+|乙|一)\\s*[張個份組套本枚]|\\s*[！!。，,(]|\\s*$)");
+	/** 「即可領取相對應版本「X」」：配合▸版本清單，一個版本一筆 */
+	private static final Pattern CORRESPOND_GIFT = Pattern.compile("對應版本\\s*[「【]([^」】\\n]+)[」】]");
+	/** 後面接著條列的那一行：「即可獲得：」「即可獲得對應版本特典：」 */
+	private static final Pattern LIST_INTRO = Pattern.compile("(?:獲得|領取|兌換|即送|即贈)[^\\n]{0,16}[:：]\\s*$");
+	/** 條列的特典：「①「我是我 A3 海報」1 張」「▸ 特殊版本｜「獨照小卡」1 組」「▸ 2D 版本：2D 版海報 1 張」 */
+	private static final Pattern LIST_ITEM = Pattern.compile("^[①-⑳▸•◆✦]\\s*(.+)$");
+	private static final Pattern QUOTED = Pattern.compile("[「【]([^」】\\n]+)[」】]");
+	private static final Pattern TRAILING_QTY = Pattern.compile("\\s*(?:\\d+|乙|一)\\s*[張個份組套本枚](?:\\s*[(（][^)）]*[)）])?\\s*$");
+	/** 期間標題：「｜09/28－10/11 期間限定｜」「🎬第一週觀影特典｜9/24－10/1」 */
+	private static final Pattern SEGMENT_HEAD = Pattern.compile("(\\d{1,2})/(\\d{1,2})(?:\\s*\\([^)]*\\))?\\s*[~\\-–—]\\s*"
+			+ "(\\d{1,2})/(\\d{1,2})(?:\\s*\\([^)]*\\))?\\s*(?:期間限定)?\\s*[｜|]?\\s*$");
+	/** 版本名稱，用來在特典名稱後面加「（限SCREENX版本）」 */
+	private static final Pattern VERSION_WORD = Pattern.compile(
+			"((?:ULTRA\\s*)?4DX|SCREENX|DOLBY\\s*VISION\\s*\\+?\\s*ATMOS|INFINITY\\s*VISION|IMAX|REMMI|特殊)\\s*版本",
+			Pattern.CASE_INSENSITIVE);
+	/** 名稱裡已經寫了版本 */
+	private static final Pattern NAME_HAS_VERSION = Pattern.compile("4DX|SCREENX|DOLBY|杜比|IMAX|INFINITY|REMMI|2D",
+			Pattern.CASE_INSENSITIVE);
+	/** 「預計海報兌換期間｜11/13－11/30」 */
+	private static final Pattern EXCHANGE_PERIOD = Pattern
+			.compile("兌換期間\\s*[:｜|]\\s*(\\d{1,2}/\\d{1,2})\\s*[~\\-–—]\\s*(\\d{1,2}/\\d{1,2})");
+	/** 秀泰影城清單的標題（後面幾行是影城） */
+	private static final Pattern CINEMA_LIST_LABEL = Pattern.compile("領取影城|限定場影城|活動影城|首映影城|影城據點");
 
 	private final List<BenefitPostRules> rulesList;
 
@@ -121,6 +202,13 @@ public class BenefitPostParser {
 		BenefitType type = rules.classifyBenefitType(text).orElse(null);
 		String movie = findMovie(text);
 
+		// 一張票看好幾部電影（連映、聯映、多週套票）：資料結構一張回報單只能對一部電影，送審核
+		String multi = multiFilmNote(text);
+		if (multi != null) {
+			return List.of(build(postId, postUrl, username, text, published, movie, null, type, null, null, multi,
+					Classification.INCOMPLETE, null, List.of()));
+		}
+
 		if (cls == Classification.INCOMPLETE || type == null) {
 			String why = rules.incompleteNote(text);
 			return List.of(build(postId, postUrl, username, text, published, movie, null, type, null, null,
@@ -129,6 +217,11 @@ public class BenefitPostParser {
 
 		String body = normalize(rules.removeBoilerplate(text));
 		LocalDate postDate = published == null ? null : published.toLocalDate();
+		if (rules.splitOffers()) {
+			Post post = new Post(postId, postUrl, username, text, published, movie, postDate);
+			return type == BenefitType.SPECIAL_BY_DATE ? parseSessions(post, body, rules)
+					: parseOffers(post, body, type, rules);
+		}
 		if (type == BenefitType.SPECIAL_UNTIL_OUT) {
 			List<ParsedBenefitPost> byVersion = parseByVersion(postId, postUrl, username, text, published, movie, body,
 					postDate, rules);
@@ -143,6 +236,8 @@ public class BenefitPostParser {
 		};
 		if (type == BenefitType.SPECIAL_UNTIL_OUT && d.end() != null) {
 			type = BenefitType.REGULAR; // 貼文有指定領取期間，期間結束就下架
+		} else if (type == BenefitType.REGULAR && d.start() != null && d.end() == null) {
+			type = BenefitType.SPECIAL_UNTIL_OUT; // 版本限定、只寫「A起」沒寫第幾週：送完為止
 		}
 
 		boolean formatDefault = false;
@@ -186,6 +281,7 @@ public class BenefitPostParser {
 		String gift = findWeeklyGift(body);
 		LocalDate start = null;
 		LocalDate end = null;
+		boolean sevenDays = false;
 		Matcher m = DATE_RANGE.matcher(body);
 		if (m.find() && postDate != null) {
 			start = toDate(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)), postDate);
@@ -196,6 +292,7 @@ public class BenefitPostParser {
 				}
 			} else if (start != null) {
 				end = start.plusDays(REGULAR_DAYS - 1);
+				sevenDays = true;
 			}
 		} else if (postDate != null) {
 			Matcher r = ANY_RANGE.matcher(body); // 兌換資訊格式：「場次期間：09/25(五)-10/01(四)」
@@ -209,9 +306,33 @@ public class BenefitPostParser {
 			} else if (f.find()) {
 				start = toDate(Integer.parseInt(f.group(1)), Integer.parseInt(f.group(2)), postDate);
 				end = start == null ? null : start.plusDays(REGULAR_DAYS - 1);
+				sevenDays = true;
 			}
 		}
+		// 貼文列出影城（例如「活動影城：」）就照列的，不當全連鎖
+		List<String> listed = findCinemas(body, rules);
+		if (!listed.isEmpty()) {
+			return new Draft(gift, start, end, null, listed);
+		}
+		// 版本限定（例如「IMAX/4DX版本電影票1張」）：只綁有該廳的影城，只寫「A起」沒寫第幾週就算送完為止
+		List<String> byVersion = rules.versionCinemas(purchaseLine(body), body);
+		if (byVersion != null && !byVersion.isEmpty()) {
+			if (sevenDays && !WEEK_MARK.matcher(body).find()) {
+				end = null;
+			}
+			return new Draft(gift, start, end, null, byVersion);
+		}
 		return new Draft(gift, start, end, rules.chainCinemaKeyword(), List.of());
+	}
+
+	/** 購買條件那一行：「凡購買…電影票」 */
+	private String purchaseLine(String body) {
+		for (String line : body.split("\\R")) {
+			if (line.contains("購買") && (line.contains("電影票") || line.contains("場次"))) {
+				return line;
+			}
+		}
+		return "";
 	}
 
 	/** 週特典的贈品名：先看「特典內容／贈品內容：」，再看「兌換領取…1張」，最後看「兌換「…」」 */
@@ -246,12 +367,19 @@ public class BenefitPostParser {
 				items.add(item);
 			}
 		}
-		return items.isEmpty() ? null : String.join("、", items);
+		if (!items.isEmpty()) {
+			return String.join("、", items);
+		}
+		Matcher q = QUOTED_ITEM.matcher(body); // 最後才找括號裡看起來像贈品的名稱，例如「沙丘凝視特典A3海報」
+		return q.find() ? cleanName(q.group(1)) : null;
 	}
 
 	/** 入場贈送型特別場：特典在活動當天入場發，起訖＝放映日期。影城看「放映影城」那一段。 */
 	private Draft parseSpecialByDate(String body, LocalDate postDate, BenefitPostRules rules) {
 		String gift = findBundle(body);
+		if (gift == null) {
+			gift = bundleName(findItems(body)); // ◆✧▸開頭、x1結尾或「1 張 …」的品項
+		}
 		if (gift == null) {
 			Matcher r = REDEEM_GIFT.matcher(body);
 			if (r.find()) {
@@ -303,12 +431,22 @@ public class BenefitPostParser {
 				}
 			}
 		}
+		if (days.isEmpty()) {
+			days.addAll(scheduleDates(body, postDate, rules)); //「10/03(六)｜台北松仁、新竹大遠百」這種一行日期加影城
+		}
+		if (days.isEmpty()) {
+			days.addAll(specialLineDates(body, postDate)); //「#角色海報特別場 10/24(六) coming soon」
+		}
 		if (days.isEmpty() && body.contains("雙十") && postDate != null) { //「雙十特別場」＝10/10
 			addDate("10", "10", postDate, days);
 		}
 		LocalDate start = days.stream().min(LocalDate::compareTo).orElse(null);
 		LocalDate end = days.stream().max(LocalDate::compareTo).orElse(null);
-		return new Draft(gift, start, end, null, findCinemas(body, rules));
+		List<String> cinemas = findCinemas(body, rules);
+		if (cinemas.isEmpty()) {
+			cinemas = scheduleCinemas(body, rules);
+		}
+		return new Draft(gift, start, end, null, cinemas);
 	}
 
 	/** 限量兌換型：只有開始日（「10/16(五)起」），送完為止，沒有結束日 */
@@ -344,7 +482,14 @@ public class BenefitPostParser {
 			Matcher pd = PREORDER_DATE.matcher(body);
 			Matcher s = START_FROM.matcher(body);
 			Matcher period = PERIOD_RANGE.matcher(body);
-			if (period.find()) { //「凡10/02(五)～10/09(五)期間，購買…」
+			Matcher pickup = PICKUP_PERIOD.matcher(body);
+			if (pickup.find()) { //「購票與領取時間：09/28(一)-10/11(日)」
+				start = toDate(Integer.parseInt(pickup.group(1)), Integer.parseInt(pickup.group(2)), postDate);
+				end = toDate(Integer.parseInt(pickup.group(3)), Integer.parseInt(pickup.group(4)), postDate);
+				if (start != null && end != null && end.isBefore(start)) {
+					end = end.plusYears(1);
+				}
+			} else if (period.find()) { //「凡10/02(五)～10/09(五)期間，購買…」
 				start = toDate(Integer.parseInt(period.group(1)), Integer.parseInt(period.group(2)), postDate);
 				end = toDate(Integer.parseInt(period.group(3)), Integer.parseInt(period.group(4)), postDate);
 				if (start != null && end != null && end.isBefore(start)) {
@@ -381,6 +526,9 @@ public class BenefitPostParser {
 			if (first.find()) {
 				start = toDate(Integer.parseInt(first.group(1)), Integer.parseInt(first.group(2)), postDate);
 			}
+		}
+		if (start == null && gift != null) {
+			start = postDate; //限量兌換沒寫開始日：跟預購禮一樣用發文日
 		}
 		// 沒列影城、也不是特殊廳／特別場視為全連鎖都能領，特別場沒列影城則留給人工
 		boolean cinemaLabelWithoutList = CINEMA_LABEL_ANY.matcher(body).find();
@@ -454,7 +602,8 @@ public class BenefitPostParser {
 
 	private void addTokens(String line, List<String> out, Map<String, String> aliases) {
 		String s = LIST_PREFIX.matcher(LEADING_DECOR.matcher(line).replaceFirst("").trim()).replaceFirst("")
-				.replaceAll("\\([^)]*\\)", "");
+				.replaceAll("\\([^)]*\\)", "").replaceAll("^【[^】]*】\\s*", "") //「【IMAX】板橋大遠百、…」
+				.replaceAll("\\d{1,2}/\\d{1,2}", ""); //「10/03(六)｜台北松仁、…」的日期不是影城
 		String region = "";
 		int bar = s.indexOf('│');
 		if (bar > 0) { //「台北 │ 信義威秀、京站威秀影城」→台北信義威秀、台北京站威秀影城
@@ -564,10 +713,593 @@ public class BenefitPostParser {
 			case '：' -> sb.append(':');
 			case '＃' -> sb.append('#');
 			case '＊' -> sb.append('*');
+			case '－' -> sb.append('-');
+			case '＋' -> sb.append('+');
 			case '　' -> sb.append(' ');
 			default -> sb.append(c >= '０' && c <= '９' ? (char) (c - '０' + '0') : c);
 			}
 		}
-		return sb.toString();
+		return YEAR_PREFIX.matcher(sb.toString()).replaceAll("$1/$2"); //「2026/11/5」→「11/5」
+	}
+
+	// ---------- 第四版：多部電影 ----------
+
+	/** 連映、聯映、多週套票、標題列了好幾部電影：回傳審核備註，不是就回傳null */
+	private String multiFilmNote(String text) {
+		String t = normalize(text);
+		Set<String> weeks = new LinkedHashSet<>();
+		Matcher w = WEEK_PACKAGE.matcher(t);
+		while (w.find()) {
+			weeks.add(w.group(1).replaceAll("\\s+", ""));
+		}
+		if (weeks.size() >= 2) {
+			return "多週套票，請手動拆";
+		}
+		List<String> titles = new ArrayList<>();
+		Matcher m = MOVIE.matcher(t);
+		while (m.find()) {
+			String name = m.group(1).replace("#", "").trim();
+			if (!name.isEmpty() && !titles.contains(name)) {
+				titles.add(name);
+			}
+		}
+		if (JOINT_SCREENING.matcher(t).find()) {
+			return titles.size() >= 2 ? "連映場，含多部電影：" + String.join("、", titles.subList(0, Math.min(3, titles.size())))
+					: "連映場，含多部電影";
+		}
+		List<String> lineTitles = new ArrayList<>();
+		for (String line : t.split("\\R")) {
+			Matcher lt = LINE_TITLE.matcher(line.trim());
+			if (lt.find()) {
+				String name = lt.group(1).replace("#", "").trim();
+				if (!lineTitles.contains(name)) {
+					lineTitles.add(name);
+				}
+			}
+		}
+		if (lineTitles.size() >= 2) {
+			return "含多部電影：" + String.join("、", lineTitles.subList(0, Math.min(3, lineTitles.size()))) + "，請確認";
+		}
+		return null;
+	}
+
+	// ---------- 第四版：特別場品項、場次表（兩家共用） ----------
+
+	/** 一段文字裡的特別場品項，排除電影票、飲料、爆米花、當週特典 */
+	private List<String> findItems(String block) {
+		List<String> items = new ArrayList<>();
+		for (String raw : block.split("\\R")) {
+			String line = raw.trim();
+			String name = null;
+			Matcher q = ITEM_QTY_FIRST.matcher(line);
+			Matcher x = ITEM_MARKED.matcher(line);
+			Matcher t = ITEM_TAIL_QTY.matcher(line);
+			if (q.matches()) {
+				name = q.group(1);
+			} else if (x.matches()) {
+				name = x.group(1);
+			} else if (t.matches()) {
+				name = t.group(1);
+			}
+			if (name == null) {
+				continue;
+			}
+			name = cleanItem(name);
+			if (name.isEmpty() || NOT_ITEM.matcher(name).find() || items.contains(name)) {
+				continue;
+			}
+			items.add(name);
+		}
+		return items;
+	}
+
+	/** 品項名稱：拿掉#、開頭的符號、多餘空白 */
+	private String cleanItem(String raw) {
+		String s = raw.replace("#", "").replaceAll("\\s+", " ").trim();
+		int i = 0;
+		while (i < s.length()) {
+			int cp = s.codePointAt(i);
+			if (Character.isLetterOrDigit(cp) || "【「《(（".indexOf(cp) >= 0) {
+				break;
+			}
+			i += Character.charCount(cp);
+		}
+		return s.substring(i).trim();
+	}
+
+	/** 「特別場套組：A、B、C」，超過資料庫上限100字時先拿掉空白，還是太長就截斷 */
+	private String bundleName(List<String> items) {
+		if (items.isEmpty()) {
+			return null;
+		}
+		String name = "特別場套組：" + String.join("、", items);
+		if (name.length() > 100) {
+			name = name.replace(" ", "");
+		}
+		return name.length() > 100 ? name.substring(0, 99) + "…" : name;
+	}
+
+	/** 場次表的那幾行：「📅活動日期：…」「📍活動影城：…」「10/03(六)｜台北松仁、新竹大遠百」「大巨蛋｜10/25(日)」 */
+	private List<String> scheduleLines(String block, BenefitPostRules rules) {
+		List<String> out = new ArrayList<>();
+		boolean inBlock = false;
+		for (String raw : block.split("\\R")) {
+			String line = raw.trim();
+			if (line.isEmpty() || isSeparator(line)) {
+				inBlock = false;
+				continue;
+			}
+			boolean label = SCHEDULE_LABEL.matcher(cleanItem(line)).lookingAt() || line.startsWith("📅")
+					|| line.startsWith("📍") || line.startsWith("🗓") || line.startsWith("📆");
+			if (!label && (SALE_LINE.matcher(line).find() || isItemLine(line))) {
+				inBlock = false;
+				continue;
+			}
+			boolean hasDate = MONTH_DAY.matcher(line).find();
+			List<String> tokens = cinemaTokens(stripSchedule(line), rules);
+			boolean shortTokens = !tokens.isEmpty() && tokens.stream().allMatch(tok -> tok.length() <= 12);
+			if (label || (inBlock && (hasDate || shortTokens)) || (hasDate && shortTokens)) {
+				out.add(line);
+				inBlock = inBlock || label;
+			} else {
+				inBlock = false;
+			}
+		}
+		return out;
+	}
+
+	private List<LocalDate> scheduleDates(String block, LocalDate postDate, BenefitPostRules rules) {
+		List<LocalDate> days = new ArrayList<>();
+		for (String line : scheduleLines(block, rules)) {
+			addAllDates(TIME.matcher(line).replaceAll(""), postDate, days);
+		}
+		return days;
+	}
+
+	private List<String> scheduleCinemas(String block, BenefitPostRules rules) {
+		List<String> out = new ArrayList<>();
+		for (String line : scheduleLines(block, rules)) {
+			for (String tok : cinemaTokens(stripSchedule(line), rules)) {
+				if (!out.contains(tok)) {
+					out.add(tok);
+				}
+			}
+		}
+		return out;
+	}
+
+	/** 有「特別場」又有日期的那一行，例如「#角色海報特別場 10/24(六) coming soon」 */
+	private List<LocalDate> specialLineDates(String body, LocalDate postDate) {
+		List<LocalDate> days = new ArrayList<>();
+		for (String line : body.split("\\R")) {
+			if (line.contains("特別場") && MONTH_DAY.matcher(line).find() && !SALE_LINE.matcher(line).find()) {
+				addAllDates(TIME.matcher(line).replaceAll(""), postDate, days);
+				break;
+			}
+		}
+		return days;
+	}
+
+	/** 場次表的一行拿掉標題、日期、星期、時間，剩下的是影城 */
+	private String stripSchedule(String line) {
+		String s = SCHEDULE_LABEL_TEXT.matcher(line).replaceAll(" ");
+		s = WEEKDAY.matcher(s).replaceAll("");
+		s = TIME.matcher(s).replaceAll("");
+		s = s.replaceAll("\\d{1,2}/\\d{1,2}", "").replaceAll("[~\\-–—]", " ").replace("起", "");
+		return s;
+	}
+
+	/** 影城簡稱：規則有固定清單就用規則的，沒有就依、｜/切開 */
+	private List<String> cinemaTokens(String text, BenefitPostRules rules) {
+		if (rules != null) {
+			List<String> known = rules.extractCinemaNames(text);
+			if (known != null) {
+				return known;
+			}
+		}
+		List<String> out = new ArrayList<>();
+		addTokens(text, out, rules == null ? Map.of() : rules.cinemaAliases());
+		List<String> clean = new ArrayList<>();
+		for (String tok : out) {
+			String c = cleanItem(tok);
+			if (c.codePoints().anyMatch(Character::isLetter) && !clean.contains(c)) {
+				clean.add(c);
+			}
+		}
+		return clean;
+	}
+
+	private boolean isItemLine(String line) {
+		return ITEM_QTY_FIRST.matcher(line).matches() || ITEM_MARKED.matcher(line).matches();
+	}
+
+	/** 分隔線：整行沒有任何文字或數字，例如「━━━━━━ 🌊 ━━━━━━」 */
+	private boolean isSeparator(String line) {
+		return line.codePointCount(0, line.length()) >= 3 && line.codePoints().noneMatch(Character::isLetterOrDigit);
+	}
+
+	// ---------- 第四版：逐筆拆開（splitOffers） ----------
+
+	/** 一篇貼文的共用欄位 */
+	private record Post(String postId, String postUrl, String username, String text, LocalDateTime published,
+			String movie, LocalDate postDate) {
+	}
+
+	/** 一樣特典：名稱、購買條件、版本（▸條列的版本，沒有就是null）、所在期間 */
+	private record Offer(String gift, String condition, String version, LocalDate[] segment) {
+	}
+
+	/** 特別場：依分隔線切成場次，一個場次一筆「特別場套組」 */
+	private List<ParsedBenefitPost> parseSessions(Post p, String body, BenefitPostRules rules) {
+		List<String> sessions = splitSessions(body);
+		long withItems = sessions.stream().filter(s -> !findItems(s).isEmpty()).count();
+		List<ParsedBenefitPost> out = new ArrayList<>();
+		for (String session : sessions) {
+			List<String> items = findItems(session);
+			if (items.isEmpty()) {
+				continue;
+			}
+			String scope = withItems == 1 ? body : session; // 只有一個場次時，日期影城可能寫在分隔線外面
+			List<LocalDate> days = scheduleDates(scope, p.postDate(), rules);
+			if (days.isEmpty()) {
+				Matcher line = EVENT_DATE_LINE.matcher(scope);
+				if (line.find()) {
+					addAllDates(TIME.matcher(line.group(1)).replaceAll(""), p.postDate(), days);
+				}
+			}
+			if (days.isEmpty()) {
+				days.addAll(specialLineDates(scope, p.postDate()));
+			}
+			List<String> cinemas = scheduleCinemas(scope, rules);
+			if (cinemas.isEmpty()) {
+				cinemas = findCinemas(scope, rules);
+			}
+			String gift = bundleName(items);
+			if (days.isEmpty()) {
+				out.add(build(p.postId(), p.postUrl(), p.username(), p.text(), p.published(), p.movie(), gift,
+						BenefitType.SPECIAL_BY_DATE, null, null, "無法解析：活動日期", Classification.INCOMPLETE, null,
+						cinemas));
+				continue;
+			}
+			LocalDate start = days.stream().min(LocalDate::compareTo).orElseThrow();
+			LocalDate end = days.stream().max(LocalDate::compareTo).orElseThrow();
+			String note = "爬蟲自動建立，請確認電影與日期" + (cinemas.isEmpty() ? "，找不到活動影城" : "");
+			out.add(build(p.postId(), p.postUrl(), p.username(), p.text(), p.published(), p.movie(), gift,
+					BenefitType.SPECIAL_BY_DATE, start.atStartOfDay(), end.atTime(LocalTime.of(23, 59, 59)), note,
+					Classification.BENEFIT, null, cinemas));
+		}
+		if (out.isEmpty()) {
+			out.add(build(p.postId(), p.postUrl(), p.username(), p.text(), p.published(), p.movie(), null,
+					BenefitType.SPECIAL_BY_DATE, null, null, "特典只在圖片（貼文沒有列出特典品項），請人工確認",
+					Classification.INCOMPLETE, null, List.of()));
+		}
+		return out;
+	}
+
+	/** 依分隔線切場次，一段裡有兩個以上「$」價格標題時再切開 */
+	private List<String> splitSessions(String body) {
+		List<String> chunks = new ArrayList<>();
+		StringBuilder cur = new StringBuilder();
+		for (String raw : body.split("\\R")) {
+			String line = raw.trim();
+			if (isSeparator(line) || line.startsWith("▌")) {
+				if (cur.length() > 0) {
+					chunks.add(cur.toString());
+				}
+				cur = new StringBuilder();
+				if (isSeparator(line)) {
+					continue;
+				}
+			}
+			cur.append(line).append('\n');
+		}
+		if (cur.length() > 0) {
+			chunks.add(cur.toString());
+		}
+		List<String> out = new ArrayList<>();
+		for (String chunk : chunks) {
+			out.addAll(splitByPrice(chunk));
+		}
+		return out;
+	}
+
+	private List<String> splitByPrice(String chunk) {
+		List<String> parts = new ArrayList<>();
+		StringBuilder cur = new StringBuilder();
+		int prices = 0;
+		for (String line : chunk.split("\\R")) {
+			if (line.contains("$") && !findItemsInLine(line)) {
+				prices++;
+				if (prices > 1 && cur.length() > 0) {
+					parts.add(cur.toString());
+					cur = new StringBuilder();
+				}
+			}
+			cur.append(line).append('\n');
+		}
+		parts.add(cur.toString());
+		return parts;
+	}
+
+	private boolean findItemsInLine(String line) {
+		return !findItems(line).isEmpty();
+	}
+
+	/** 週特典、預售禮：依「購買…即送／即可獲得」逐筆拆開 */
+	private List<ParsedBenefitPost> parseOffers(Post p, String body, BenefitType type, BenefitPostRules rules) {
+		String[] lines = body.split("\\R");
+		List<Offer> offers = new ArrayList<>();
+		String condition = "";
+		LocalDate[] segment = null;
+		for (int i = 0; i < lines.length; i++) {
+			String line = lines[i].trim();
+			if (line.isEmpty()) {
+				continue;
+			}
+			LocalDate[] head = segmentHead(line, p.postDate());
+			if (head != null) {
+				segment = head;
+				condition = "";
+				continue;
+			}
+			if (line.contains("購買")) {
+				condition = line;
+			}
+			if (LIST_INTRO.matcher(line).find()) {
+				List<Offer> listed = listOffers(lines, i + 1, condition, segment);
+				if (!listed.isEmpty()) {
+					offers.addAll(listed);
+					continue;
+				}
+			}
+			Matcher cv = CORRESPOND_GIFT.matcher(line);
+			if (cv.find()) {
+				List<String> versions = versionList(lines);
+				if (!versions.isEmpty()) {
+					for (String v : versions) {
+						offers.add(new Offer(cleanName(cv.group(1)) + "（" + v + "）", condition, v, segment));
+					}
+					continue;
+				}
+			}
+			Matcher g = INLINE_GIFT.matcher(line);
+			while (g.find()) {
+				String tail = g.group(2) == null ? "" : g.group(2).trim();
+				String name = cleanName(g.group(1) + (tail.isEmpty() ? "" : " " + tail)).replace(" 款", "款");
+				offers.add(new Offer(name, condition.isEmpty() ? line : condition, null, segment));
+			}
+		}
+		if (offers.isEmpty()) {
+			return List.of(build(p.postId(), p.postUrl(), p.username(), p.text(), p.published(), p.movie(), null, type,
+					null, null, "無法解析：特典名稱", Classification.INCOMPLETE, null, List.of()));
+		}
+
+		List<String> listedCinemas = listedCinemas(body, rules);
+		String extraNote = "";
+		Matcher ex = EXCHANGE_PERIOD.matcher(body);
+		if (ex.find()) {
+			extraNote = "，海報兌換期間" + ex.group(1) + "～" + ex.group(2);
+		}
+		// 同一篇同名的合成一筆，影城合起來（例：4DX加贈的SCREENX版海報和SCREENX版海報）
+		Map<String, ParsedBenefitPost> byName = new LinkedHashMap<>();
+		for (Offer o : offers) {
+			LocalDate[] range = offerDates(o, body, type, rules, p.postDate());
+			List<String> cinemas = listedCinemas;
+			String chain = null;
+			String name = o.gift();
+			if (cinemas.isEmpty()) {
+				List<String> byVersion = rules.versionCinemas(o.version() != null ? o.version() : o.condition(), body);
+				if (byVersion == null || byVersion.isEmpty()) {
+					chain = rules.chainCinemaKeyword();
+					cinemas = List.of();
+				} else {
+					cinemas = byVersion;
+					name = withVersionSuffix(name, o.version() != null ? o.version() : o.condition());
+				}
+			}
+			BenefitType t = range[1] == null ? BenefitType.SPECIAL_UNTIL_OUT : BenefitType.REGULAR;
+			ParsedBenefitPost built;
+			if (range[0] == null) {
+				built = build(p.postId(), p.postUrl(), p.username(), p.text(), p.published(), p.movie(), name, t, null,
+						null, "無法解析：活動日期", Classification.INCOMPLETE, chain, cinemas);
+			} else {
+				built = build(p.postId(), p.postUrl(), p.username(), p.text(), p.published(), p.movie(), name, t,
+						range[0].atStartOfDay(), range[1] == null ? null : range[1].atTime(LocalTime.of(23, 59, 59)),
+						"爬蟲自動建立，請確認電影與日期" + extraNote, Classification.BENEFIT, chain, cinemas);
+			}
+			ParsedBenefitPost old = byName.get(name);
+			byName.put(name, old == null ? built : mergeCinemas(old, built));
+		}
+		return new ArrayList<>(byName.values());
+	}
+
+	/** 同一篇同名的兩筆：影城合起來，其中一筆是全連鎖就用全連鎖 */
+	private ParsedBenefitPost mergeCinemas(ParsedBenefitPost a, ParsedBenefitPost b) {
+		String chain = a.chainKeyword() != null ? a.chainKeyword() : b.chainKeyword();
+		Set<String> cinemas = new LinkedHashSet<>(a.cinemaNames());
+		cinemas.addAll(b.cinemaNames());
+		return new ParsedBenefitPost(a.postId(), a.sourceUrl(), a.username(), a.text(), a.publishedAt(), a.movieName(),
+				a.benefitName(), a.memberOnly(), a.benefitType(), a.startDate(), a.endDate(), a.imageUrls(),
+				a.reviewNote(), a.classification(), chain, chain != null ? List.of() : new ArrayList<>(cinemas));
+	}
+
+	/** 期間標題那一行（沒有「購買」、「領取」，只有日期區間），回傳起訖 */
+	private LocalDate[] segmentHead(String line, LocalDate postDate) {
+		if (postDate == null || line.contains("購買") || line.contains("領取") || line.contains("開放")) {
+			return null;
+		}
+		Matcher m = SEGMENT_HEAD.matcher(line);
+		if (!m.find() || !(line.contains("｜") || line.contains("|") || line.contains("期間限定"))) {
+			return null;
+		}
+		LocalDate start = toDate(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)), postDate);
+		LocalDate end = toDate(Integer.parseInt(m.group(3)), Integer.parseInt(m.group(4)), postDate);
+		if (start == null || end == null) {
+			return null;
+		}
+		return new LocalDate[] { start, end.isBefore(start) ? end.plusYears(1) : end };
+	}
+
+	/** 「即可獲得：」後面的條列：①「X」、▸ 版本｜「X」、▸ 版本：X 1 張＋加贈 Y 1 張 */
+	private List<Offer> listOffers(String[] lines, int from, String condition, LocalDate[] segment) {
+		List<Offer> out = new ArrayList<>();
+		for (int i = from; i < lines.length; i++) {
+			String line = lines[i].trim();
+			if (line.isEmpty()) {
+				continue;
+			}
+			Matcher item = LIST_ITEM.matcher(line);
+			if (!item.matches()) {
+				break;
+			}
+			String rest = item.group(1);
+			String version = null;
+			int cut = indexOfAny(rest, "｜", "|", ":", "：");
+			boolean circled = line.charAt(0) >= '①' && line.charAt(0) <= '⑳';
+			if (!circled && cut > 0) {
+				version = rest.substring(0, cut).trim();
+				rest = rest.substring(cut + 1).trim();
+			}
+			Matcher q = QUOTED.matcher(rest);
+			if (q.find()) {
+				out.add(new Offer(cleanName(q.group(1)), condition, version, segment));
+				continue;
+			}
+			for (String part : rest.split("[+＋]")) {
+				String name = TRAILING_QTY.matcher(part.replace("加贈", "")).replaceFirst("").trim();
+				if (!name.isEmpty() && TRAILING_QTY.matcher(part).find()) {
+					out.add(new Offer(cleanName(name), condition, version, segment));
+				}
+			}
+		}
+		return out;
+	}
+
+	/** ▸版本清單（例：▸ 2D｜局部光）的版本名稱，條列裡沒有特典名稱時用 */
+	private List<String> versionList(String[] lines) {
+		List<String> out = new ArrayList<>();
+		for (String raw : lines) {
+			String line = raw.trim();
+			if (!line.startsWith("▸")) {
+				continue;
+			}
+			String rest = line.substring(1).trim();
+			int cut = indexOfAny(rest, "｜", "|");
+			if (cut <= 0 || QUOTED.matcher(rest).find() || TRAILING_QTY.matcher(rest).find()) {
+				continue;
+			}
+			out.add(rest.substring(0, cut).trim());
+		}
+		return out;
+	}
+
+	private int indexOfAny(String s, String... keys) {
+		int best = -1;
+		for (String k : keys) {
+			int at = s.indexOf(k);
+			if (at >= 0 && (best < 0 || at < best)) {
+				best = at;
+			}
+		}
+		return best;
+	}
+
+	/** 一樣特典的起訖：領取時間 → 購買條件的期間 → 期間標題 → 僅限當日 → 領取時間起 → 購買條件的「A起」 → 預售日 → 發文日 */
+	private LocalDate[] offerDates(Offer o, String body, BenefitType type, BenefitPostRules rules, LocalDate postDate) {
+		LocalDate[] none = { null, null };
+		if (postDate == null) {
+			return none;
+		}
+		String cond = o.condition() == null ? "" : o.condition();
+		Matcher pick = PICKUP_PERIOD.matcher(body);
+		if (o.segment() == null && pick.find()) {
+			return range(pick, postDate);
+		}
+		Matcher r = ANY_RANGE.matcher(cond);
+		if (r.find()) {
+			return range(r, postDate);
+		}
+		if (o.segment() != null) {
+			return o.segment();
+		}
+		Matcher only = ONLY_DAY.matcher(body);
+		if (only.find()) {
+			LocalDate d = toDate(Integer.parseInt(only.group(1)), Integer.parseInt(only.group(2)), postDate);
+			return new LocalDate[] { d, d };
+		}
+		boolean preorder = type == BenefitType.SPECIAL_UNTIL_OUT || rules.isPreorderBenefit(body);
+		Matcher pf = PICKUP_FROM.matcher(body);
+		if (preorder && pf.find()) {
+			return new LocalDate[] { toDate(Integer.parseInt(pf.group(1)), Integer.parseInt(pf.group(2)), postDate),
+					null };
+		}
+		Matcher from = START_FROM.matcher(cond);
+		Matcher single = MONTH_DAY.matcher(cond);
+		LocalDate start = null;
+		if (from.find()) {
+			start = toDate(Integer.parseInt(from.group(1)), Integer.parseInt(from.group(2)), postDate);
+		} else if (!preorder && single.find()) {
+			start = toDate(Integer.parseInt(single.group(1)), Integer.parseInt(single.group(2)), postDate);
+		}
+		if (start != null) {
+			boolean weekly = type == BenefitType.REGULAR && WEEK_MARK.matcher(body).find()
+					&& !NOT_WEEKLY.matcher(body).find();
+			return new LocalDate[] { start, weekly ? start.plusDays(REGULAR_DAYS - 1) : null };
+		}
+		if (preorder) {
+			Matcher pd = PREORDER_DATE.matcher(body);
+			LocalDate d = pd.find() ? toDate(Integer.parseInt(pd.group(1)), Integer.parseInt(pd.group(2)), postDate)
+					: null;
+			return new LocalDate[] { d != null ? d : postDate, null };
+		}
+		return none;
+	}
+
+	private LocalDate[] range(Matcher m, LocalDate postDate) {
+		LocalDate start = toDate(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)), postDate);
+		LocalDate end = toDate(Integer.parseInt(m.group(3)), Integer.parseInt(m.group(4)), postDate);
+		if (start != null && end != null && end.isBefore(start)) {
+			end = end.plusYears(1);
+		}
+		return new LocalDate[] { start, end };
+	}
+
+	/** 貼文列出的影城（領取影城、首波限定場影城…），標題那一行和後面幾行 */
+	private List<String> listedCinemas(String body, BenefitPostRules rules) {
+		String[] lines = body.split("\\R");
+		List<String> out = new ArrayList<>();
+		for (int i = 0; i < lines.length; i++) {
+			if (!CINEMA_LIST_LABEL.matcher(lines[i]).find() || lines[i].contains("購買")) {
+				continue;
+			}
+			addAllNew(out, cinemaTokens(stripSchedule(lines[i]), rules));
+			for (int j = i + 1; j < lines.length; j++) {
+				List<String> next = cinemaTokens(stripSchedule(lines[j]), rules);
+				if (lines[j].isBlank() || next.isEmpty() || isSeparator(lines[j].trim())) {
+					break;
+				}
+				addAllNew(out, next);
+			}
+			break;
+		}
+		return out;
+	}
+
+	private void addAllNew(List<String> out, List<String> more) {
+		for (String s : more) {
+			if (!out.contains(s)) {
+				out.add(s);
+			}
+		}
+	}
+
+	/** 版本限定的特典，名稱後面加「（限SCREENX版本）」，名稱已經寫了版本就不加 */
+	private String withVersionSuffix(String name, String versionText) {
+		if (name == null || NAME_HAS_VERSION.matcher(name).find()) {
+			return name;
+		}
+		Matcher v = VERSION_WORD.matcher(versionText == null ? "" : versionText);
+		String label = v.find() ? v.group(1).replaceAll("\\s+", " ").trim() : null;
+		return label == null ? name : name + "（限" + label + "版本）";
 	}
 }

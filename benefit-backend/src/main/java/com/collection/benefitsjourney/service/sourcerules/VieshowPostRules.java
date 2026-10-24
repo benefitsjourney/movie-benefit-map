@@ -3,6 +3,7 @@ package com.collection.benefitsjourney.service.sourcerules;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Component;
@@ -22,7 +23,7 @@ public class VieshowPostRules implements BenefitPostRules {
 
     // ---------- 一般週特典 ----------
     /** 週特典公告一定有的一句話：「凡購買…期間…於…白天營業時間起至原購票影城，即可兌換領取」 */
-    private static final Pattern WEEKLY_KEY_1 = Pattern.compile("凡?購買[^\\n]{0,40}期間|凡購買");
+    private static final Pattern WEEKLY_KEY_1 = Pattern.compile("凡?購買[^\\n]{0,40}期間|凡購買|凡於\\s*\\d{1,2}/\\d{1,2}");
     private static final Pattern WEEKLY_KEY_2 = Pattern.compile("原購票影城|白天營業時間起");
     /** 另一種週特典公告格式：「兌換資訊／兌換資格／特典內容：【…】／贈品內容：…」，不一定有「凡購買」 */
     private static final Pattern EXCHANGE_INFO = Pattern.compile("兌換資訊|兌換資格|特典內容\\s*:|贈品內容\\s*:");
@@ -46,7 +47,7 @@ public class VieshowPostRules implements BenefitPostRules {
 
     /** 特別場貼文裡「有講到贈品」的線索，沒有就是資訊不完整 */
     private static final Pattern SPECIAL_GIFT_HINT = Pattern.compile(
-            "本場限定|入場(?:時)?即可獲得|特別場套組|特別場限定|場次限定|首映限定特典|專屬特典\\s*:\\s*「"
+            "本場限定|入場(?:時)?即可獲得|特別場套組|特別場套票內容|特別場限定|場次限定|首映限定特典|專屬特典\\s*:\\s*「"
                     + "|【#?獨家】|獨家設計工藝特典");
 
     /** 特別場／特殊影廳線索（「特別場票根」是罐頭文裡的字要排除） */
@@ -65,10 +66,20 @@ public class VieshowPostRules implements BenefitPostRules {
 
     // ---------- 要排除的 ----------
     /** 每週懶人包：只有「懶人包」不能用「開箱」，因為真正的週特典貼文也會寫「搶先開箱」 */
-    private static final Pattern ROUNDUP = Pattern.compile("懶人包|本週特典開箱");
+    private static final Pattern ROUNDUP = Pattern.compile("懶人包|本週特典開箱|本週特典一次看|小編開箱時間");
 
     /** 更換公告（特典瑕疵重印）：不是新特典 */
-    private static final Pattern REPLACE_NOTICE = Pattern.compile("特典更換公告|更換公告|更換資訊|更換期間|換貨資訊|換貨方式");
+    private static final Pattern REPLACE_NOTICE = Pattern
+            .compile("特典更換公告|更換公告|更換資訊|更換期間|換貨資訊|換貨方式|發放調整公告|補領");
+
+    /** 排除字優先：直播、抽獎、見面會這類活動貼文直接略過（「倒數」「生日快樂」常出現在一般售票貼文，不列在這裡） */
+    private static final Pattern EVENT_NOISE = Pattern.compile(
+            "VR\\s*(?:演唱會|CONCERT)|直播|Quiz|抽獎|得獎名單|見面會|映後|同樂會|應援", Pattern.CASE_INSENSITIVE);
+
+    /** 開箱文：有「開箱」但找不到活動日期就略過，內容會在另一篇完整的售票貼文出現 */
+    private static final Pattern OPEN_BOX = Pattern.compile("開箱");
+    private static final Pattern EVENT_DATE = Pattern.compile(
+            "\\d{1,2}/\\d{1,2}(?:\\s*\\([^)]*\\))?\\s*(?:起|期間|[-~])|(?:活動日期|活動時間|放映日期|領取時間)\\s*[:｜|]");
 
     /** 「活動限定入場特典：即將公開」→特典還沒公布，資訊不完整 */
     private static final Pattern NOT_ANNOUNCED_YET = Pattern.compile("特典\\s*:\\s*(?:即將公開|敬請期待)");
@@ -109,6 +120,10 @@ public class VieshowPostRules implements BenefitPostRules {
     public Classification classifyPost(String originalText) {
         String t = normalize(originalText);
         if (t.isBlank() || ROUNDUP.matcher(t).find() || REPLACE_NOTICE.matcher(t).find()) {
+            return Classification.NOT_BENEFIT;
+        }
+        // 排除字優先：直播、抽獎、見面會這類貼文，就算寫了「特典：即將公開」也直接略過
+        if (isEventNoise(t) || isOpenBoxOnly(t)) {
             return Classification.NOT_BENEFIT;
         }
         if (NOT_ANNOUNCED_YET.matcher(t).find()) {
@@ -269,8 +284,46 @@ public class VieshowPostRules implements BenefitPostRules {
     }
 
     @Override
+    public String brandName() {
+        return "威秀影城";
+    }
+
+    /** 購買條件寫了IMAX或4DX版本：只綁有該廳的影城，兩種都寫就合起來，「不限版本」「任一版本」照舊是全台 */
+    @Override
+    public List<String> versionCinemas(String condition, String body) {
+        String t = condition == null ? "" : normalize(condition).toUpperCase();
+        if (!t.contains("版本") || t.contains("不限版本") || t.contains("任一版本")) {
+            return null;
+        }
+        java.util.Set<String> out = new java.util.LinkedHashSet<>();
+        if (t.contains("IMAX")) {
+            out.addAll(CINEMAS_IMAX);
+        }
+        if (t.contains("4DX")) {
+            out.addAll(CINEMAS_4DX);
+        }
+        return out.isEmpty() ? null : new java.util.ArrayList<>(out);
+    }
+
+    @Override
     public boolean isPreorderBenefit(String normalizedBody) {
         return normalizedBody != null && PREORDER.matcher(normalizedBody).find();
+    }
+
+    /** 特別場附帶的「現場加碼抽獎」不算，其他活動字眼一律略過 */
+    private boolean isEventNoise(String normalized) {
+        Matcher m = EVENT_NOISE.matcher(normalized);
+        while (m.find()) {
+            boolean lottery = m.group().equals("抽獎") || m.group().equals("得獎名單");
+            if (!lottery || !normalized.contains("特別場")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isOpenBoxOnly(String normalized) {
+        return OPEN_BOX.matcher(normalized).find() && !EVENT_DATE.matcher(normalized).find();
     }
 
     private boolean isWeekly(String normalized) {
@@ -284,6 +337,8 @@ public class VieshowPostRules implements BenefitPostRules {
             return "";
         }
         return TextFold.fold(s).replace('／', '/').replace('（', '(').replace('）', ')')
-                .replace('：', ':').replace('～', '~').replace('　', ' ');
+                .replace('：', ':').replace('～', '~').replace('－', '-').replace('　', ' ');
     }
 }
+
+
