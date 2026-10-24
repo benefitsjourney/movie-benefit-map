@@ -189,11 +189,25 @@ export function useExchangeActions({
         }
 
         if (!exchangeForm.useBenefitId) {
-            await Swal.fire(
-                "請選擇持有特典",
-                "請從自己的持有特典中選擇一筆資料。",
-                "warning",
-            );
+            await Swal.fire({
+                title: "請選擇持有特典",
+                text: "請從自己的持有特典中選擇一筆資料。",
+                icon: "warning",
+                target: document.body,
+                heightAuto: false,
+                didOpen: () => {
+                    const container = Swal.getContainer();
+
+                    if (container) {
+                        container.style.setProperty(
+                            "z-index",
+                            "99999",
+                            "important",
+                        );
+                    }
+                },
+            });
+
             return;
         }
 

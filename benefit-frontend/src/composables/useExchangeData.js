@@ -97,7 +97,29 @@ export function useExchangeData({ token }) {
         );
     }
 
+
     function useBenefitImage(item) {
+        // 1. 優先使用會員持有特典的第一張照片
+        const heldPhotoUrl = firstValue(item?.photos?.[0], [
+            "photoUrl",
+            "photo_url",
+        ]);
+
+        if (heldPhotoUrl) {
+            return heldPhotoUrl;
+        }
+
+        // 2. 沒有會員持有照片時，使用官方特典圖片
+        const officialImageUrl = firstValue(item, [
+            "officialImageUrl",
+            "official_image_url",
+        ]);
+
+        if (officialImageUrl) {
+            return officialImageUrl;
+        }
+
+        // 3. 保留原本的圖片欄位作為最後備援
         return firstValue(item, [
             "imageUrl",
             "image_url",

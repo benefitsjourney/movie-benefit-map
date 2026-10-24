@@ -1,12 +1,11 @@
 <!-- ========== components/exchange/ExchangeListingFormModal.vue ========== -->
-<!-- 這個元件接收主頁傳入的表單、持有特典清單、編輯 ID 和儲存狀態。它只負責顯示表單及通知主頁送出或關閉。 -->
 <!-- 負責新增、修改交換刊登的彈窗，包含持有特典選擇及圖片預覽。 -->
-<!-- 顯示新增／修改交換刊登表單，包括標題、敘述及持有特典選擇。送出時發出事件，由父元件處理實際儲存。 -->
-
 <script setup>
-import { computed } from "vue";
+import { computed, ref, watch, onBeforeUnmount } from "vue";
 import AppModal from "@/components/ui/AppModal.vue";
 import TicketCard from "@/components/ui/TicketCard.vue";
+import { Icon } from "@iconify/vue";
+import giftIcon from "@iconify-icons/mdi/gift-outline";
 
 const props = defineProps({
     modelValue: {
@@ -59,20 +58,109 @@ const selectedUseBenefit = computed(() =>
     ),
 );
 
-/**
- * 返回按鈕沿用原本的 close 事件。
- * 儲存期間不可關閉視窗。
- */
+// 目前預覽圖片的網址。初始優先使用 useBenefitImage() 回傳的會員持有照片。
+const previewImageUrl = ref("");
+
+// 是否開啟圖片放大預覽視窗。
+const isImagePreviewOpen = ref(false);
+
+// 切換持有特典時，重新設定預覽圖片，並關閉上一張特典的放大預覽。
+watch(
+    selectedUseBenefit,
+    (item) => {
+        isImagePreviewOpen.value = false;
+
+        previewImageUrl.value = item
+            ? props.useBenefitImage(item) || ""
+            : "";
+    },
+    { immediate: true },
+);
+
+// 圖片載入失敗時：
+// 1. 優先嘗試官方特典圖片。
+// 2. 如果官方圖片也失敗，或沒有官方圖片，
+//    清空網址並顯示圖片佔位區塊。
+function handleBenefitImageError() {
+    const item = selectedUseBenefit.value;
+
+    if (!item) {
+        previewImageUrl.value = "";
+        isImagePreviewOpen.value = false;
+        return;
+    }
+
+    const officialImageUrl =
+        item.officialImageUrl ||
+        item.official_image_url ||
+        "";
+
+    if (
+        officialImageUrl &&
+        previewImageUrl.value !== officialImageUrl
+    ) {
+        previewImageUrl.value = officialImageUrl;
+        return;
+    }
+
+    previewImageUrl.value = "";
+    isImagePreviewOpen.value = false;
+}
+
+// 開啟圖片放大預覽。沒有可用圖片時不開啟視窗。
+function openImagePreview() {
+    if (!previewImageUrl.value) return;
+
+    isImagePreviewOpen.value = true;
+}
+
+// 關閉圖片放大預覽。
+function closeImagePreview() {
+    isImagePreviewOpen.value = false;
+}
+
+// 按下 Esc 時關閉圖片放大預覽。
+function handlePreviewKeydown(event) {
+    if (event.key === "Escape") {
+        closeImagePreview();
+    }
+}
+
+// 只有在圖片預覽開啟期間才監聽 Esc。
+watch(isImagePreviewOpen, (isOpen) => {
+    if (typeof window === "undefined") return;
+
+    if (isOpen) {
+        window.addEventListener(
+            "keydown",
+            handlePreviewKeydown,
+        );
+    } else {
+        window.removeEventListener(
+            "keydown",
+            handlePreviewKeydown,
+        );
+    }
+});
+
+// 元件卸載時移除事件監聽，避免殘留。
+onBeforeUnmount(() => {
+    if (typeof window !== "undefined") {
+        window.removeEventListener(
+            "keydown",
+            handlePreviewKeydown,
+        );
+    }
+});
+
+// 返回按鈕沿用原本的 close 事件。儲存期間不可關閉視窗。
 function closeModal() {
     if (props.isSaving) return;
 
     emit("close");
 }
 
-/**
- * 票券右上角的 X 按鈕沿用 AppModal 原本的關閉方式：
- * 透過 v-model 通知父元件關閉。
- */
+// 票券右上角的 X 按鈕沿用原本的關閉方式：透過 v-model 通知父元件關閉。
 function requestClose() {
     if (props.isSaving) return;
 
@@ -123,43 +211,56 @@ function requestClose() {
                                 選擇自己的持有特典
                             </label>
 
-                            <select id="use-benefit-select" v-model="form.useBenefitId" class="form-select" required
-                                :disabled="isEditing || isSaving">
-                                <option value="" disabled>
-                                    請選擇持有特典
-                                </option>
+                            <!-- 沒有可選特典時，欄位不可點擊 -->
+                            <div v-if="!isEditing && useBenefits.length === 0" class="form-select" aria-disabled="true"
+                                style="display: flex; align-items: center; color: #7c818b; cursor: not-allowed;">
+                                目前沒有可選擇的持有特典。
+                            </div>
 
+                            <!-- 有特典或修改模式時，顯示原本的選單 -->
+                            <select v-else id="use-benefit-select" v-model="form.useBenefitId" class="form-select"
+                                required :disabled="isEditing || isSaving">
                                 <option v-for="benefit in useBenefits" :key="getUseBenefitId(benefit)"
                                     :value="String(getUseBenefitId(benefit))">
                                     {{ useBenefitTitle(benefit) }}
                                 </option>
                             </select>
 
-                            <p v-if="!useBenefits.length" class="form-text">
-                                尚未載入持有特典。請確認持有特典 API 路徑與回傳格式。
-                            </p>
-
                             <p v-if="isEditing" class="form-text">
                                 修改刊登時，持有特典不可更換。
                             </p>
                         </div>
 
+                        <!-- 持有特典圖片預覽 -->
                         <div v-if="selectedUseBenefit" class="benefit-preview">
-                            <img v-if="useBenefitImage(selectedUseBenefit)" :src="useBenefitImage(selectedUseBenefit)"
-                                alt="持有特典圖片" />
+                            <!-- 有圖片時，顯示可點擊的小圖 -->
+                            <button v-if="previewImageUrl" type="button" class="benefit-preview-image-button"
+                                aria-label="放大查看特典圖片" title="點擊放大圖片" @click="openImagePreview">
+                                <img :src="previewImageUrl" alt="持有特典圖片" @error="handleBenefitImageError" />
+                            </button>
 
+                            <!-- 沒有可用圖片時，顯示禮物圖示 -->
+                            <!-- 沒有可用圖片時，顯示網站原本的禮物圖示 -->
                             <div v-else class="image-placeholder">
-                                尚無圖片
+                                <span class="image-placeholder-icon">
+                                    <Icon :icon="giftIcon" aria-hidden="true" />
+                                </span>
+
+                                <span class="image-placeholder-text">
+                                    暫無可用圖片
+                                </span>
                             </div>
 
                             <div class="benefit-preview-info">
                                 <strong>
                                     {{ useBenefitTitle(selectedUseBenefit) }}
                                 </strong>
-
-                                <p>
+                                <!-- <p>
                                     持有特典編號：
                                     {{ getUseBenefitId(selectedUseBenefit) }}
+                                </p> -->
+                                <p v-if="previewImageUrl" class="image-preview-hint">
+                                    點擊圖片可放大查看
                                 </p>
                             </div>
                         </div>
@@ -188,13 +289,30 @@ function requestClose() {
             </form>
         </div>
     </AppModal>
+
+    <!-- 圖片放大預覽視窗 -->
+    <Teleport to="body">
+        <div v-if="isImagePreviewOpen && previewImageUrl" class="image-preview-overlay" role="dialog" aria-modal="true"
+            aria-label="特典圖片放大預覽" @click.self="closeImagePreview">
+            <button type="button" class="image-preview-close" aria-label="關閉圖片預覽" @click="closeImagePreview">
+                <span aria-hidden="true">×</span>
+            </button>
+
+            <div class="image-preview-content">
+                <img :src="previewImageUrl"
+                    :alt="`${selectedUseBenefit ? useBenefitTitle(selectedUseBenefit) : '持有特典'}－放大預覽`"
+                    class="image-preview-large" @error="handleBenefitImageError" />
+
+                <p v-if="selectedUseBenefit" class="image-preview-caption">
+                    {{ useBenefitTitle(selectedUseBenefit) }}
+                </p>
+            </div>
+        </div>
+    </Teleport>
 </template>
 
 <style scoped>
-/*
- * 表單外層。
- * TicketCard 的票券樣式沿用組員原有設計。
- */
+/* 表單外層。TicketCard 的票券樣式沿用原有設計。 */
 .exchange-form-modal {
     width: 100%;
     min-width: 0;
@@ -206,10 +324,7 @@ function requestClose() {
     margin: 0;
 }
 
-/*
- * 票券標題列。
- * 不修改 TicketCard.vue，只調整目前表單內的標題排列。
- */
+/* 票券標題列。 */
 .exchange-form-modal :deep(.ticket-body h2) {
     width: 100%;
     min-width: 0;
@@ -267,9 +382,7 @@ function requestClose() {
     opacity: 0.45;
 }
 
-/*
- * 表單內容區。
- */
+/* 表單內容區。 */
 .exchange-form-content {
     display: flex;
     flex-direction: column;
@@ -339,9 +452,7 @@ textarea.form-control {
     overflow-wrap: anywhere;
 }
 
-/*
- * 已選擇特典的預覽區。
- */
+/* 已選擇特典的預覽區。 */
 .benefit-preview {
     display: flex;
     align-items: center;
@@ -354,7 +465,8 @@ textarea.form-control {
     background: #fff8f4;
 }
 
-.benefit-preview img,
+/* 小圖外層按鈕及圖片佔位區塊。 */
+.benefit-preview-image-button,
 .image-placeholder {
     display: grid;
     flex-shrink: 0;
@@ -366,17 +478,60 @@ textarea.form-control {
     background: #f3efeb;
 }
 
-.benefit-preview img {
-    object-fit: cover;
-    object-position: center;
+.benefit-preview-image-button {
+    padding: 0;
+    border: none;
+    cursor: zoom-in;
 }
 
+.benefit-preview-image-button img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    transition: opacity 0.2s ease;
+}
+
+.benefit-preview-image-button:hover img {
+    opacity: 0.82;
+}
+
+.benefit-preview-image-button:focus-visible {
+    outline: 3px solid #f2a58d;
+    outline-offset: 3px;
+}
+
+/* 沒有可用圖片時的禮物佔位圖。 */
 .image-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
     padding: 0.4rem;
     border: 1px dashed #d8c9bf;
     color: #7c818b;
-    font-size: 0.8rem;
     text-align: center;
+}
+
+.image-placeholder-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+    line-height: 1.2;
+}
+
+.image-placeholder-icon :deep(svg) {
+    display: block;
+    width: 1em;
+    height: 1em;
+}
+
+.image-placeholder-text {
+    font-size: 0.75rem;
+    line-height: 1.4;
 }
 
 .benefit-preview-info {
@@ -401,10 +556,101 @@ textarea.form-control {
     overflow-wrap: anywhere;
 }
 
-/*
- * 底部操作區沿用 TicketCard 的 ticket-stub。
- * 按鈕沿用 TicketCard 的 ticket-link。
- */
+.benefit-preview-info .image-preview-hint {
+    margin-top: 0.3rem;
+    color: #b66b52;
+    font-size: 0.76rem;
+}
+
+/* 圖片放大預覽視窗。Teleport 將預覽層放到 body，避免被表單或 AppModal 的 overflow、transform 等樣式裁切。 */
+.image-preview-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 3.5rem 1.5rem 1.5rem;
+    background: rgb(20 20 25 / 88%);
+    animation: image-preview-fade-in 0.18s ease;
+}
+
+.image-preview-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    max-width: 1100px;
+    max-height: 100%;
+    min-width: 0;
+}
+
+.image-preview-large {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: calc(100dvh - 8rem);
+    object-fit: contain;
+    border-radius: 0.5rem;
+    box-shadow: 0 8px 32px rgb(0 0 0 / 30%);
+}
+
+.image-preview-caption {
+    max-width: 100%;
+    margin: 0;
+    color: #fff;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.image-preview-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    border: 1px solid rgb(255 255 255 / 55%);
+    border-radius: 50%;
+    background: rgb(255 255 255 / 12%);
+    color: #fff;
+    font-family: inherit;
+    font-size: 2rem;
+    font-weight: 400;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+        background-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.image-preview-close:hover {
+    background: rgb(255 255 255 / 25%);
+    transform: scale(1.05);
+}
+
+.image-preview-close:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 3px;
+}
+
+@keyframes image-preview-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* 底部操作區沿用 TicketCard 的 ticket-stub。 */
 .exchange-form-modal :deep(.ticket-stub) {
     display: flex;
     flex-wrap: wrap;
@@ -455,10 +701,7 @@ textarea.form-control {
     opacity: 0.45;
 }
 
-/*
- * 只調整包含本表單的 AppModal。
- * 使用 :has() 限定目標，不修改 AppModal.vue 的共用樣式。
- */
+/* 只調整包含本表單的 AppModal。不修改 AppModal.vue 的共用樣式。 */
 :global(.modal-dialog-box:has(.exchange-form-modal)) {
     border: none;
     border-radius: 20px;
@@ -479,10 +722,7 @@ textarea.form-control {
     display: none;
 }
 
-/*
- * 防止固定在畫面中央的票券因滑鼠移入而位移。
- * 只影響本表單，不影響其他 TicketCard。
- */
+/* 防止固定在畫面中央的票券因滑鼠移入而位移。只影響本表單，不影響其他 TicketCard。 */
 .exchange-form-modal :deep(.ticket-frame),
 .exchange-form-modal :deep(.ticket-frame:hover) {
     filter: drop-shadow(0 8px 12px color-mix(in srgb, var(--c-ink) 20%, transparent));
@@ -495,9 +735,7 @@ textarea.form-control {
     transform: none;
 }
 
-/*
- * 手機版排版。
- */
+/* 手機版排版。 */
 @media (max-width: 600px) {
     .exchange-form-content {
         gap: 0.95rem;
@@ -531,10 +769,18 @@ textarea.form-control {
         padding: 0.75rem;
     }
 
-    .benefit-preview img,
+    .benefit-preview-image-button,
     .image-placeholder {
         width: 76px;
         height: 76px;
+    }
+
+    .image-placeholder-icon {
+        font-size: 1.5rem;
+    }
+
+    .image-placeholder-text {
+        font-size: 0.68rem;
     }
 
     .exchange-form-modal :deep(.ticket-stub) {
@@ -565,6 +811,34 @@ textarea.form-control {
         overflow-x: hidden;
         overflow-y: auto;
         overscroll-behavior: contain;
+    }
+
+    .image-preview-overlay {
+        padding: 3.5rem 0.75rem 1rem;
+    }
+
+    .image-preview-large {
+        max-width: 100%;
+        max-height: calc(100dvh - 7rem);
+    }
+
+    .image-preview-close {
+        top: 0.65rem;
+        right: 0.65rem;
+        width: 2.5rem;
+        height: 2.5rem;
+    }
+}
+
+/* 使用者若偏好減少動畫，關閉預覽淡入效果。 */
+@media (prefers-reduced-motion: reduce) {
+    .image-preview-overlay {
+        animation: none;
+    }
+
+    .benefit-preview-image-button img,
+    .image-preview-close {
+        transition: none;
     }
 }
 </style>
