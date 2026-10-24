@@ -9,6 +9,7 @@ import com.collection.benefitsjourney.enums.ReviewStatus;
 public record CinemaMovieReviewResponse(
         Integer cinemaMovieReviewId,
         CinemaResourceType crawlerType,
+        Integer entityId,
         String entityName,
         String fieldName,
         String crawlerValue,
@@ -22,6 +23,7 @@ public record CinemaMovieReviewResponse(
         return new CinemaMovieReviewResponse(
                 review.getCinemaMovieReviewId(),
                 review.getCrawlerType(),
+                review.getEntityId(),
                 entityName,
                 review.getFieldName(),
                 review.getCrawlerValue(),

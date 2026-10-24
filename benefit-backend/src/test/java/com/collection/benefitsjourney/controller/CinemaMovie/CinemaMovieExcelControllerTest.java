@@ -111,6 +111,22 @@ class CinemaMovieExcelControllerTest {
 
             verify(excelService).export(CinemaResourceType.CRAWLER_LOG);
         }
+
+        @Test
+        @DisplayName("CINEMA_MOVIE_REVIEW 應回傳 Excel、正確的檔名和二進位內容")
+        void exportCinemaMovieReview() throws Exception {
+            byte[] bytes = { 10, 11, 12 };
+            when(excelService.export(CinemaResourceType.CINEMA_MOVIE_REVIEW)).thenReturn(bytes);
+
+            mockMvc.perform(get("/cinema-movie/export").param("type", "CINEMA_MOVIE_REVIEW"))
+                    .andExpect(status().isOk())
+                    .andExpect(content().contentType(EXCEL_CONTENT_TYPE))
+                    .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"cinema_movie_review.xlsx\""))
+                    .andExpect(content().bytes(bytes));
+
+            verify(excelService).export(CinemaResourceType.CINEMA_MOVIE_REVIEW);
+        }
     }
 
     @Nested

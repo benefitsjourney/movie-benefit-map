@@ -6,6 +6,7 @@ import downloadIcon from "@iconify-icons/mdi/download";
 import movieIcon from "@iconify-icons/mdi/movie-open-outline";
 import filmIcon from "@iconify-icons/mdi/filmstrip";
 import historyIcon from "@iconify-icons/mdi/history";
+import reviewIcon from "@iconify-icons/mdi/clipboard-check-outline";
 
 import http from "@/plugins/axios";
 import { apiMessage, authText } from "@/utils/apiError";
@@ -40,6 +41,15 @@ const EXPORTS = [
     color: "pink",
     icon: historyIcon,
     fileName: "crawler_log.xlsx",
+  },
+  {
+    type: "CINEMA_MOVIE_REVIEW",
+    title: "爬蟲審核",
+    description: "匯出全部爬蟲審核資料。",
+    stamp: "審核",
+    color: "pink",
+    icon: reviewIcon,
+    fileName: "cinema_movie_review.xlsx",
   },
 ];
 
