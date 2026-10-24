@@ -13,6 +13,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 
 import com.collection.benefitsjourney.dto.PageResponse;
+import com.collection.benefitsjourney.enums.CinemaMovie.CinemaMovieReviewSort;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaResourceType;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaSort;
 import com.collection.benefitsjourney.enums.CinemaMovie.MovieSort;
@@ -33,6 +34,7 @@ public class CinemaMovieExcelService {
     private final CinemaService cinemaService;
     private final MovieService movieService;
     private final CrawlerLogService crawlerLogService;
+    private final CinemaMovieReviewsService cinemaMovieReviewsService;
     private final JsonMapper mapper;
 
     /** 匯出指定類型的全部資料 */
@@ -126,6 +128,12 @@ public class CinemaMovieExcelService {
                     null, null,
                     page, size,
                     CrawlerLogSort.SortBy.CRAWLER_LOG_ID,
+                    SortOrder.ASC);
+
+            case CINEMA_MOVIE_REVIEW -> cinemaMovieReviewsService.findAll(
+                    null, null,
+                    page, size,
+                    CinemaMovieReviewSort.SortBy.CINEMA_MOVIE_REVIEW_ID,
                     SortOrder.ASC);
         };
     }

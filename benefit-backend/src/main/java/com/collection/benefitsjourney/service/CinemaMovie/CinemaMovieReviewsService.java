@@ -187,6 +187,7 @@ public class CinemaMovieReviewsService {
                             review.getEntityId(),
                             movieRequest(review.getFieldName(), review.getCrawlerValue()));
                     case CRAWLER_LOG -> throw badRequest("爬蟲紀錄無法寫入影城或電影資料");
+                    case CINEMA_MOVIE_REVIEW -> throw badRequest("爬蟲審核無法寫入影城或電影資料");
                 }
             } catch (IllegalArgumentException | DateTimeParseException exception) {
                 throw badRequest("爬蟲值無法寫入正式資料：" + review.getFieldName());
@@ -223,7 +224,7 @@ public class CinemaMovieReviewsService {
             entityName = switch (review.getCrawlerType()) {
                 case CINEMA -> names.cinemas().get(review.getEntityId());
                 case MOVIE -> names.movies().get(review.getEntityId());
-                case CRAWLER_LOG -> null;
+                case CRAWLER_LOG, CINEMA_MOVIE_REVIEW -> null;
             };
         }
         return CinemaMovieReviewResponse.from(review, entityName);

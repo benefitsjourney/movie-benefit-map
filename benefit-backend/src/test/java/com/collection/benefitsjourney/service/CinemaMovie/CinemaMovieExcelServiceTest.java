@@ -30,14 +30,17 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.collection.benefitsjourney.dto.CinemaMovie.CinemaMovieReviewResponse;
 import com.collection.benefitsjourney.dto.CrawlerLogResponse;
 import com.collection.benefitsjourney.dto.PageResponse;
+import com.collection.benefitsjourney.enums.CinemaMovie.CinemaMovieReviewSort;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaResourceType;
 import com.collection.benefitsjourney.enums.CinemaMovie.CinemaSort;
 import com.collection.benefitsjourney.enums.CinemaMovie.MovieSort;
 import com.collection.benefitsjourney.enums.CrawlerLogSort;
 import com.collection.benefitsjourney.enums.CrawlerStatus;
 import com.collection.benefitsjourney.enums.CrawlerType;
+import com.collection.benefitsjourney.enums.ReviewStatus;
 import com.collection.benefitsjourney.enums.SortOrder;
 import com.collection.benefitsjourney.service.CrawlerLogService;
 
@@ -62,6 +65,9 @@ class CinemaMovieExcelServiceTest {
     @Mock
     private CrawlerLogService crawlerLogService;
 
+    @Mock
+    private CinemaMovieReviewsService cinemaMovieReviewsService;
+
     private CinemaMovieExcelService excelService;
 
     // 測試資料結構：不綁定 CinemaResponse、MovieResponse 的建構子欄位順序。
@@ -83,6 +89,7 @@ class CinemaMovieExcelServiceTest {
                 cinemaService,
                 movieService,
                 crawlerLogService,
+                cinemaMovieReviewsService,
                 JsonMapper.builder().build());
     }
 
@@ -123,6 +130,13 @@ class CinemaMovieExcelServiceTest {
                 isNull(), isNull(),
                 eq(page), eq(PAGE_SIZE),
                 eq(CrawlerLogSort.SortBy.CRAWLER_LOG_ID), eq(SortOrder.ASC));
+    }
+
+    private void stubReviewPage(int page, PageResponse<?> response) {
+        doReturn(response).when(cinemaMovieReviewsService).findAll(
+                isNull(), isNull(),
+                eq(page), eq(PAGE_SIZE),
+                eq(CinemaMovieReviewSort.SortBy.CINEMA_MOVIE_REVIEW_ID), eq(SortOrder.ASC));
     }
 
     private XSSFWorkbook readWorkbook(byte[] bytes) throws IOException {
@@ -305,6 +319,50 @@ class CinemaMovieExcelServiceTest {
                     null, null, 1, PAGE_SIZE,
                     CrawlerLogSort.SortBy.CRAWLER_LOG_ID, SortOrder.ASC);
             verifyNoInteractions(cinemaService, movieService);
+        }
+    }
+
+    @Nested
+    @DisplayName("CINEMA_MOVIE_REVIEW - 匯出爬蟲審核")
+    class CinemaMovieReviewExportTests {
+
+        @Test
+        @DisplayName("正確呼叫 CinemaMovieReviewsService，匯出審核欄位與資料")
+        void exportCinemaMovieReview() throws Exception {
+            stubReviewPage(1, page(List.of(new CinemaMovieReviewResponse(
+                    12,
+                    CinemaResourceType.MOVIE,
+                    "測試電影",
+                    "movie_name",
+                    "新片名",
+                    "舊片名",
+                    ReviewStatus.PENDING,
+                    null,
+                    LocalDateTime.of(2026, 10, 24, 9, 0),
+                    LocalDateTime.of(2026, 10, 24, 9, 5))), 1));
+
+            byte[] result = excelService.export(CinemaResourceType.CINEMA_MOVIE_REVIEW);
+
+            try (XSSFWorkbook workbook = readWorkbook(result)) {
+                Sheet sheet = workbook.getSheet("CINEMA_MOVIE_REVIEW");
+                assertNotNull(sheet);
+                assertEquals(2, sheet.getPhysicalNumberOfRows());
+                assertEquals("cinemaMovieReviewId", sheet.getRow(0).getCell(0).getStringCellValue());
+                assertEquals("entityName", sheet.getRow(0).getCell(2).getStringCellValue());
+                assertEquals("crawlerValue", sheet.getRow(0).getCell(4).getStringCellValue());
+                assertEquals("12", sheet.getRow(1).getCell(0).getStringCellValue());
+                assertEquals("MOVIE", sheet.getRow(1).getCell(1).getStringCellValue());
+                assertEquals("測試電影", sheet.getRow(1).getCell(2).getStringCellValue());
+                assertEquals("movie_name", sheet.getRow(1).getCell(3).getStringCellValue());
+                assertEquals("新片名", sheet.getRow(1).getCell(4).getStringCellValue());
+                assertEquals("舊片名", sheet.getRow(1).getCell(5).getStringCellValue());
+                assertEquals("PENDING", sheet.getRow(1).getCell(6).getStringCellValue());
+            }
+
+            verify(cinemaMovieReviewsService).findAll(
+                    null, null, 1, PAGE_SIZE,
+                    CinemaMovieReviewSort.SortBy.CINEMA_MOVIE_REVIEW_ID, SortOrder.ASC);
+            verifyNoInteractions(cinemaService, movieService, crawlerLogService);
         }
     }
 
