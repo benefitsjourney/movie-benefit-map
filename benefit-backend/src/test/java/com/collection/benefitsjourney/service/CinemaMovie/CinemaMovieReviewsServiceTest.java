@@ -154,6 +154,7 @@ class CinemaMovieReviewsServiceTest {
             CinemaMovieReviewResponse response = result.content().get(0);
             assertEquals(7, response.cinemaMovieReviewId());
             assertEquals(CinemaResourceType.MOVIE, response.crawlerType());
+            assertEquals(12, response.entityId());
             assertEquals("測試電影", response.entityName());
             assertEquals("movieName", response.fieldName());
             assertEquals("新片名", response.crawlerValue());
@@ -187,7 +188,9 @@ class CinemaMovieReviewsServiceTest {
                     CinemaMovieReviewSort.SortBy.CINEMA_MOVIE_REVIEW_ID,
                     SortOrder.ASC);
 
+            assertEquals(100, result.content().get(0).entityId());
             assertEquals("信義威秀", result.content().get(0).entityName());
+            assertEquals(12, result.content().get(1).entityId());
             assertNull(result.content().get(1).entityName());
         }
 

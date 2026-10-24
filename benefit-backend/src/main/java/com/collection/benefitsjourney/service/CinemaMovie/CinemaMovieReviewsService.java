@@ -87,6 +87,21 @@ public class CinemaMovieReviewsService {
             CinemaMovieReviewSort.SortBy orderBy,
             SortOrder sort) {
 
+        Page<CinemaMovieReviewBean> result = findPage(
+                crawlerType, reviewStatus, page, size, orderBy, sort);
+        EntityNames names = entityNames(result.getContent());
+
+        return PageResponse.from(result.map(review -> toResponse(review, names)));
+    }
+
+    private Page<CinemaMovieReviewBean> findPage(
+            CinemaResourceType crawlerType,
+            ReviewStatus reviewStatus,
+            int page,
+            int size,
+            CinemaMovieReviewSort.SortBy orderBy,
+            SortOrder sort) {
+
         Sort.Direction direction = sort == SortOrder.DESC
                 ? Sort.Direction.DESC
                 : Sort.Direction.ASC;
@@ -102,13 +117,10 @@ public class CinemaMovieReviewsService {
 
         PageRequest pageable = PageRequest.of(page - 1, size, order);
 
-        Page<CinemaMovieReviewBean> result = cinemaMovieReviewsRepository.findAllByFilters(
+        return cinemaMovieReviewsRepository.findAllByFilters(
                 crawlerType,
                 reviewStatus,
                 pageable);
-        EntityNames names = entityNames(result.getContent());
-
-        return PageResponse.from(result.map(review -> toResponse(review, names)));
     }
 
     /** 提交差異：重複略過，待審核值變更則更新 */

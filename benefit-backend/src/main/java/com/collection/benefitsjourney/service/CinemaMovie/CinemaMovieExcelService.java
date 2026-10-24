@@ -82,13 +82,19 @@ public class CinemaMovieExcelService {
         }
     }
 
-    /** 將 JSON 欄位寫入 Excel */
+    /**
+     * 將 JSON 欄位寫入 Excel。
+     * entityName 只給畫面顯示，資料表沒有這一欄，寫進 Excel 會讓種子 SQL 對不上。
+     */
     private void writeRow(Sheet sheet, int index, JsonNode json, boolean header) {
 
         Row row = sheet.createRow(index);
         int column = 0;
 
         for (Map.Entry<String, JsonNode> field : json.properties()) {
+            if ("entityName".equals(field.getKey())) {
+                continue;
+            }
 
             JsonNode value = field.getValue();
 
@@ -97,14 +103,17 @@ public class CinemaMovieExcelService {
                     : value == null || value.isNull() ? ""
                             : value.isString() ? value.stringValue() : value.toString();
 
-            // 避免 Excel 公式注入
-            if (!header && !text.isEmpty()
-                    && "=+-@\t\r".indexOf(text.charAt(0)) >= 0) {
-                text = "'" + text;
-            }
-
-            row.createCell(column++).setCellValue(text);
+            row.createCell(column++).setCellValue(escapeFormula(text, header));
         }
+    }
+
+    /** 避免 Excel 公式注入 */
+    private String escapeFormula(String text, boolean header) {
+        if (!header && text != null && !text.isEmpty()
+                && "=+-@\t\r".indexOf(text.charAt(0)) >= 0) {
+            return "'" + text;
+        }
+        return text == null ? "" : text;
     }
 
     /** 根據類型取得指定頁面的資料 */

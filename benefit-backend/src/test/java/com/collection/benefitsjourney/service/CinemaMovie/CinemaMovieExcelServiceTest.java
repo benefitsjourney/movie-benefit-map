@@ -332,6 +332,7 @@ class CinemaMovieExcelServiceTest {
             stubReviewPage(1, page(List.of(new CinemaMovieReviewResponse(
                     12,
                     CinemaResourceType.MOVIE,
+                    88,
                     "測試電影",
                     "movie_name",
                     "新片名",
@@ -347,16 +348,22 @@ class CinemaMovieExcelServiceTest {
                 Sheet sheet = workbook.getSheet("CINEMA_MOVIE_REVIEW");
                 assertNotNull(sheet);
                 assertEquals(2, sheet.getPhysicalNumberOfRows());
+                assertEquals(10, sheet.getRow(0).getPhysicalNumberOfCells());
                 assertEquals("cinemaMovieReviewId", sheet.getRow(0).getCell(0).getStringCellValue());
-                assertEquals("entityName", sheet.getRow(0).getCell(2).getStringCellValue());
+                assertEquals("crawlerType", sheet.getRow(0).getCell(1).getStringCellValue());
+                assertEquals("entityId", sheet.getRow(0).getCell(2).getStringCellValue());
+                assertEquals("fieldName", sheet.getRow(0).getCell(3).getStringCellValue());
                 assertEquals("crawlerValue", sheet.getRow(0).getCell(4).getStringCellValue());
+                assertEquals("updatedAt", sheet.getRow(0).getCell(9).getStringCellValue());
                 assertEquals("12", sheet.getRow(1).getCell(0).getStringCellValue());
                 assertEquals("MOVIE", sheet.getRow(1).getCell(1).getStringCellValue());
-                assertEquals("測試電影", sheet.getRow(1).getCell(2).getStringCellValue());
+                assertEquals("88", sheet.getRow(1).getCell(2).getStringCellValue());
                 assertEquals("movie_name", sheet.getRow(1).getCell(3).getStringCellValue());
                 assertEquals("新片名", sheet.getRow(1).getCell(4).getStringCellValue());
                 assertEquals("舊片名", sheet.getRow(1).getCell(5).getStringCellValue());
                 assertEquals("PENDING", sheet.getRow(1).getCell(6).getStringCellValue());
+                assertEquals("", sheet.getRow(1).getCell(7).getStringCellValue());
+                assertEquals("2026-10-24T09:00:00", sheet.getRow(1).getCell(8).getStringCellValue());
             }
 
             verify(cinemaMovieReviewsService).findAll(
