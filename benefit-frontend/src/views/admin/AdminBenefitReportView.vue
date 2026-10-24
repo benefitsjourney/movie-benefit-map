@@ -231,17 +231,20 @@ watch(reviewOpen, (open) => {
   if (!open) clearNewImage();
 });
 
-// 一般場次（週特典）最長 7 天：結束日最晚是開始日＋6天
+// 一般場次（週特典）最長9天：首週從上映日算起可能8～9天，結束日最晚是開始日＋8天
 const endDateMax = computed(() => {
   if (form.value.benefitType !== "REGULAR" || !form.value.startDate) return "";
   const date = new Date(`${form.value.startDate}T00:00:00`);
-  date.setDate(date.getDate() + 6);
+  date.setDate(date.getDate() + 8);
   return toDateText(date);
 });
 
 // 一般場次選好開始日、結束日還空著時，自動帶入第7天
-watch(endDateMax, (max) => {
-  if (max && !form.value.endDate) form.value.endDate = max;
+watch(() => [form.value.benefitType, form.value.startDate], ([type, start]) => {
+  if (type !== "REGULAR" || !start || form.value.endDate) return;
+  const date = new Date(`${start}T00:00:00`);
+  date.setDate(date.getDate() + 6);
+  form.value.endDate = toDateText(date);
 });
 
 // ── 相似特典：審核時查資料庫已有的特典，判斷是不是重複 ──
@@ -404,7 +407,7 @@ function approveProblems() {
   if (!selectedCinemaIds.value.length && !target.value?.cinemaId) problems.push("影城（至少勾一間）");
   if (f.startDate && f.endDate && f.endDate < f.startDate) problems.push("結束日期不能早於開始日期");
   if (endDateMax.value && f.endDate && f.endDate > endDateMax.value) {
-    problems.push(`一般場次最多 7 天，結束日最晚是 ${endDateMax.value}`);
+    problems.push(`一般場次最多 9 天，結束日最晚是 ${endDateMax.value}`);
   }
   return problems;
 }

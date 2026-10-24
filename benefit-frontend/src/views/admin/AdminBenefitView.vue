@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { Icon } from "@iconify/vue";
 import giftIcon from "@iconify-icons/mdi/gift-outline";
 import tableIcon from "@iconify-icons/mdi/table-large";
@@ -9,6 +9,8 @@ import clipboardIcon from "@iconify-icons/mdi/clipboard-check-outline";
 import pencilIcon from "@iconify-icons/mdi/pencil-outline";
 import deleteIcon from "@iconify-icons/mdi/trash-can-outline";
 import linkIcon from "@iconify-icons/mdi/open-in-new";
+import cameraIcon from "@iconify-icons/mdi/camera-plus-outline";
+import undoIcon from "@iconify-icons/mdi/undo";
 
 import http from "@/plugins/axios";
 import { useApiCollection } from "@/composables/useApiCollection";
@@ -33,6 +35,10 @@ const STATUS_LABELS = {
   APPROVED: "已上架",
   EXPIRED: "已下架",
 };
+
+// 圖片限制跟特典審核、缺漏回報、後端 BenefitReportImageService 一樣
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
 
 function apiMessage(error, fallback) {
   const message = error?.response?.data?.message;
@@ -136,7 +142,62 @@ function toApiDate(value) {
   return value ? `${value.replace("T", " ")}:00` : null;
 }
 
+// ── 編輯視窗的圖片：選圖只先預覽，按「儲存」才真的上傳 ──
+const newImageFile = ref(null);
+const newImagePreview = ref("");
+const imageError = ref("");
+
+// 只接受 http(s) 網址，避免把奇怪的字串放進 <img>
+function httpUrl(url) {
+  return typeof url === "string" && /^https?:\/\//i.test(url) ? url : "";
+}
+
+// 畫面上要顯示的圖：有選新圖就顯示新圖，沒有就顯示特典原本的圖
+const shownImage = computed(() => newImagePreview.value || httpUrl(editTarget.value?.officialImageUrl));
+
+function clearNewImage() {
+  if (newImagePreview.value) URL.revokeObjectURL(newImagePreview.value);
+  newImageFile.value = null;
+  newImagePreview.value = "";
+  imageError.value = "";
+}
+
+function onImageChange(event) {
+  const input = event.target;
+  const file = input.files?.[0] ?? null;
+  input.value = ""; // 清空，同一張圖才能再選一次
+  if (!file) return;
+
+  if (!IMAGE_TYPES.includes(file.type)) {
+    imageError.value = "只能上傳 JPG、PNG、WEBP、GIF 格式的圖片";
+    return;
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    imageError.value = "圖片不可超過 10MB";
+    return;
+  }
+
+  clearNewImage();
+  newImageFile.value = file;
+  newImagePreview.value = URL.createObjectURL(file);
+}
+
+// POST /benefit-reports/images：回傳 { url, publicId }，沒選新圖就回 null
+async function uploadNewImage() {
+  if (!newImageFile.value) return null;
+  const data = new FormData();
+  data.append("file", newImageFile.value);
+  const { data: result } = await http.post("/benefit-reports/images", data);
+  return { url: result.url, publicId: result.publicId };
+}
+
+// 視窗關掉時把暫時的預覽清掉
+watch(editOpen, (open) => {
+  if (!open) clearNewImage();
+});
+
 function openEdit(row) {
+  clearNewImage();
   editTarget.value = row;
   form.value = {
     benefitName: row.benefitName ?? "",
@@ -158,7 +219,7 @@ async function submitEdit() {
     return;
   }
 
-  // 圖片要連 publicId 一起改，這頁先不開放改圖片
+  // 圖片要連 publicId 一起改，沒選新圖就不帶，後端維持原本的圖
   const body = {
     benefitName: name,
     benefitType: form.value.benefitType,
@@ -169,6 +230,11 @@ async function submitEdit() {
 
   saving.value = true;
   try {
+    const image = await uploadNewImage();
+    if (image) {
+      body.officialImageUrl = image.url;
+      body.publicId = image.publicId;
+    }
     await http.patch(`/benefits/${row.benefitId}`, body);
     editOpen.value = false;
     retry();
@@ -242,7 +308,31 @@ async function removeBenefit(row) {
       color="purple" @retry="retry" />
 
     <!-- 編輯視窗 -->
-    <AppModal v-model="editOpen" :title="`編輯：#${editTarget?.benefitId ?? ''}`" :busy="saving">
+    <AppModal v-model="editOpen" :title="`編輯：#${editTarget?.benefitId ?? ''}`" :busy="saving" :close-on-backdrop="false">
+      <div class="field image-row">
+        <a v-if="shownImage" :href="shownImage" target="_blank" rel="noopener noreferrer" class="image-frame"
+          title="點擊看原圖">
+          <img :src="shownImage" alt="特典圖片" referrerpolicy="no-referrer" />
+          <span v-if="newImageFile" class="image-badge">新圖・尚未儲存</span>
+        </a>
+        <span v-else class="image-frame image-empty">無圖片</span>
+
+        <div class="image-actions">
+          <label class="image-pick" :class="{ 'is-disabled': saving }">
+            <Icon :icon="cameraIcon" aria-hidden="true" />
+            {{ shownImage ? "更換圖片" : "補上圖片" }}
+            <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" :disabled="saving"
+              @change="onImageChange" />
+          </label>
+          <button v-if="newImageFile" type="button" class="image-undo" :disabled="saving" @click="clearNewImage">
+            <Icon :icon="undoIcon" aria-hidden="true" />
+            取消更換
+          </button>
+          <p v-if="imageError" class="image-error">{{ imageError }}</p>
+          <p class="field-hint">圖片：JPG、PNG、WEBP、GIF，10MB 以內。選好後按「儲存」才會真的上傳。</p>
+        </div>
+      </div>
+
       <div class="field">
         <label class="field-label" for="edit-name">特典名稱</label>
         <input id="edit-name" v-model="form.benefitName" type="text" class="form-control" maxlength="100" />
@@ -312,5 +402,120 @@ async function removeBenefit(row) {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   gap: 0.75rem;
+}
+
+/* 編輯視窗的圖片，樣式跟特典審核視窗一樣 */
+.image-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.9rem;
+}
+
+.image-actions {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  min-width: 12rem;
+}
+
+.image-frame {
+  position: relative;
+  display: block;
+  width: 7rem;
+  height: 10rem;
+  overflow: hidden;
+  border: 1.5px solid var(--c-border);
+  border-radius: 12px;
+  background: #f8f6ff;
+}
+
+.image-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.image-empty {
+  display: grid;
+  place-items: center;
+  color: var(--c-muted);
+  font-size: var(--text-min);
+  font-weight: 700;
+}
+
+.image-badge {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  padding: 0.15rem 0.3rem;
+  background: rgb(141 114 237 / 90%);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.image-pick {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.8rem;
+  border: 1.5px solid #8d72ed;
+  border-radius: 999px;
+  background: #fff;
+  color: #5c4696;
+  font-size: var(--text-min);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.image-pick:hover,
+.image-pick:focus-within {
+  background: #8d72ed;
+  color: #fff;
+}
+
+.image-pick.is-disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+/* 真正的 input 藏起來，點整個按鈕就會開檔案選擇 */
+.image-pick input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.image-undo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border: 0;
+  background: none;
+  color: var(--c-muted);
+  font-size: var(--text-min);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.image-undo:hover:not(:disabled) {
+  color: #a33b42;
+  text-decoration: underline;
+}
+
+.image-error {
+  margin: 0;
+  color: #9f1239;
+  font-size: var(--text-min);
+  font-weight: 700;
 }
 </style>
