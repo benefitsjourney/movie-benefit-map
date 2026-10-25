@@ -198,7 +198,7 @@ async function loadFavorites() {
     if (results[0].status === "fulfilled") {
         exchangeFavorites.value = unwrapList(results[0].value);
     } else {
-        failures.push(`我的交換收藏：${errorText(results[0].reason)}`);
+        failures.push(`我的特典收藏：${errorText(results[0].reason)}`);
     }
 
     if (results[1].status === "fulfilled") {
@@ -306,7 +306,7 @@ onMounted(async () => {
 
             <nav class="favorite-tabs" aria-label="我的收藏分類">
                 <button type="button" :class="{ active: activeTab === 'exchange' }" @click="activeTab = 'exchange'">
-                    我的交換收藏
+                    我的特典收藏
                 </button>
 
                 <button type="button" :class="{ active: activeTab === 'ticket' }" @click="activeTab = 'ticket'">

@@ -85,13 +85,104 @@ function requestClose() {
 
     emit("update:modelValue", false);
 }
+
+// ========== 放映日期顯示格式 ==========
+// 只調整畫面顯示，不修改 form.ticketShowtime 的實際資料。
+function displayTicketDate(value) {
+    if (!value) return "";
+
+    const match = String(value).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+
+    if (!match) return value;
+
+    return `${match[1]}/${match[2]}/${match[3]}`;
+}
+// ========== 放映日期限制 ==========
+
+// 取得台灣當地日期，格式為 YYYY-MM-DD。
+// 不直接使用 toISOString()，避免 UTC 時區造成日期偏差。
+function getTodayDate() {
+    const now = new Date();
+
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+}
+
+// 今天不能選，因此最早可選日期是明天。
+function getMinTicketDate() {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, "0");
+    const day = String(tomorrow.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+}
+// ========== 點擊日期欄位時開啟日期選擇器 ==========
+function openDatePicker(event) {
+    if (props.isSaving) return;
+
+    const input = event.currentTarget;
+
+    if (!input) return;
+
+    // 優先使用瀏覽器提供的原生日期選擇器。
+    if (typeof input.showPicker === "function") {
+        try {
+            input.showPicker();
+            return;
+        } catch {
+            // 如果瀏覽器不允許程式開啟，
+            // 就保留原生日期欄位的操作方式。
+        }
+    }
+
+    // 不支援 showPicker() 時，仍讓日期欄位取得焦點。
+    input.focus();
+}
+// ========== 表單送出前檢查 ==========
+
+function handleSubmit(event) {
+    // 修改既有刊登時，維持原本的送出流程。
+    if (isEditing.value) {
+        emit("submit");
+        return;
+    }
+
+    const selectedDate = String(props.form.ticketShowtime ?? "");
+
+    // 新增刊登時，不允許選擇今天或過去的日期。
+    if (!selectedDate || selectedDate <= getTodayDate()) {
+        const dateInput = event.currentTarget.querySelector("#ticket-date");
+
+        if (dateInput) {
+            dateInput.setCustomValidity("放映日期必須選擇明天或之後的日期。");
+            dateInput.reportValidity();
+        }
+
+        return;
+    }
+
+    // 日期合法後，清除可能存在的自訂驗證訊息。
+    const dateInput = event.currentTarget.querySelector("#ticket-date");
+
+    if (dateInput) {
+        dateInput.setCustomValidity("");
+    }
+
+    emit("submit");
+}
 </script>
 
 <template>
     <AppModal :model-value="modelValue" :title="isEditing ? '修改票券刊登' : '新增票券刊登'" :busy="isSaving"
         :close-on-backdrop="false" width="42rem" @update:model-value="emit('update:modelValue', $event)">
         <div class="ticket-form-modal">
-            <form id="ticket-listing-form" class="ticket-listing-form" @submit.prevent="emit('submit')">
+            <form id="ticket-listing-form" class="ticket-listing-form" @submit.prevent="handleSubmit">
                 <TicketCard appear color="blue" class="ticket-form-card" :title="isEditing ? '修改票券刊登' : '新增票券刊登'">
                     <template #title>
                         <div class="ticket-form-heading">
@@ -106,11 +197,8 @@ function requestClose() {
                         </div>
                     </template>
 
-                    <template #detail>
-                        <span>票券交換</span>
-                    </template>
-
                     <div class="ticket-form-content">
+                        <!-- 刊登標題 -->
                         <div class="ticket-form-field">
                             <label for="ticket-title" class="form-label">
                                 刊登標題
@@ -120,6 +208,7 @@ function requestClose() {
                                 maxlength="100" required :disabled="isSaving" />
                         </div>
 
+                        <!-- 刊登敘述 -->
                         <div class="ticket-form-field">
                             <label for="ticket-description" class="form-label">
                                 刊登敘述
@@ -129,6 +218,7 @@ function requestClose() {
                                 maxlength="500" :disabled="isSaving" />
                         </div>
 
+                        <!-- 影城名稱 -->
                         <div class="ticket-form-field">
                             <label for="cinema-select" class="form-label">
                                 影城名稱
@@ -151,6 +241,7 @@ function requestClose() {
                             </p>
                         </div>
 
+                        <!-- 電影名稱 -->
                         <div class="ticket-form-field">
                             <label for="movie-select" class="form-label">
                                 電影名稱
@@ -172,19 +263,49 @@ function requestClose() {
                             </p>
                         </div>
 
+                        <!-- 放映日期 -->
                         <div class="ticket-form-field">
-                            <label for="ticket-date" class="form-label">
+                            <!-- 不使用 for，避免點擊標籤時觸發日期選擇器 -->
+                            <label class="form-label">
                                 放映日期
                             </label>
 
-                            <input id="ticket-date" v-model="form.ticketShowtime" class="form-control" type="date"
-                                required :disabled="isSaving" />
+                            <div class="ticket-date-picker">
+                                <!--
+                                    顯示用欄位：
+                                    只顯示日期文字，不直接操作原生日期控制項。
+                                -->
+                                <input type="text" class="form-control ticket-date-display"
+                                    :value="displayTicketDate(form.ticketShowtime)" placeholder="年/月/日" readonly
+                                    tabindex="-1" aria-hidden="true" :disabled="isSaving" />
 
-                            <p class="form-text">
-                                請選擇票券的放映日期。送出時仍由原本的父元件處理日期格式及 API 請求。
+                                <!-- 日曆圖示：固定顯示在日期欄位右側 -->
+                                <svg class="ticket-date-calendar" xmlns="http://www.w3.org/2000/svg" width="20"
+                                    height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                                    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                    <rect x="3" y="5" width="18" height="16" rx="2" />
+                                    <path d="M16 3v4" />
+                                    <path d="M8 3v4" />
+                                    <path d="M3 11h18" />
+                                </svg>
+
+                                <!--
+                                    真正負責日期輸入的欄位：
+                                    透明覆蓋整個日期顯示區域。
+                                    form.ticketShowtime 仍由此欄位維護。
+                                -->
+                                <input id="ticket-date" v-model="form.ticketShowtime" class="ticket-date-native"
+                                    type="date" aria-label="選擇放映日期" required
+                                    :min="isEditing ? undefined : getMinTicketDate()" :disabled="isSaving"
+                                    @click="openDatePicker" @change="$event.target.setCustomValidity('')" />
+                            </div>
+
+                            <p class="form-text" style="color: #B22222;">
+                                請選擇明天或之後的放映日期，今天及過去的日期皆不可選擇。
                             </p>
                         </div>
 
+                        <!-- 刊登資訊預覽 -->
                         <div v-if="selectedCinema || selectedMovie || form.ticketShowtime" class="ticket-preview">
                             <div class="ticket-preview-heading">
                                 刊登資訊預覽
@@ -192,6 +313,7 @@ function requestClose() {
 
                             <div v-if="selectedCinema" class="ticket-preview-row">
                                 <span class="ticket-preview-label">影城</span>
+
                                 <span class="ticket-preview-value">
                                     {{ cinemaOptionName(selectedCinema) }}
                                 </span>
@@ -199,6 +321,7 @@ function requestClose() {
 
                             <div v-if="selectedMovie" class="ticket-preview-row">
                                 <span class="ticket-preview-label">電影</span>
+
                                 <span class="ticket-preview-value">
                                     {{ movieOptionName(selectedMovie) }}
                                 </span>
@@ -206,6 +329,7 @@ function requestClose() {
 
                             <div v-if="form.ticketShowtime" class="ticket-preview-row">
                                 <span class="ticket-preview-label">放映日期</span>
+
                                 <span class="ticket-preview-value">
                                     {{ form.ticketShowtime }}
                                 </span>
@@ -354,6 +478,102 @@ function requestClose() {
     transition:
         border-color 0.2s ease,
         box-shadow 0.2s ease;
+}
+
+/*
+ * 放映日期選擇區域。
+ * 外層容器提供定位基準，原生日期欄位覆蓋整個區域。
+ */
+.ticket-date-picker {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
+    border-radius: 0.65rem;
+}
+
+/*
+ * 顯示用日期欄位。
+ * 使用一般文字顯示日期，避免直接選取原生日期欄位中的年月日。
+ */
+.ticket-date-display {
+    min-height: 48px;
+    padding-right: 3rem;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    caret-color: transparent;
+}
+
+/*
+ * 顯示用欄位不可編輯，因此不讓使用者選取日期文字。
+ */
+.ticket-date-display::selection {
+    background: transparent;
+}
+
+/*
+ * 顯示用欄位的日曆圖示。
+ * 圖示不攔截點擊事件，點擊仍由透明的原生日期欄位接收。
+ */
+.ticket-date-calendar {
+    position: absolute;
+    top: 50%;
+    right: 0.85rem;
+    z-index: 1;
+    width: 20px;
+    height: 20px;
+    color: #65748a;
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+
+/*
+ * 真正的原生日期欄位。
+ * 透明但仍可接收滑鼠、觸控與鍵盤操作。
+ */
+.ticket-date-native {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0.65rem;
+    opacity: 0;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+/*
+ * 焦點狀態：
+ * 原生日期欄位取得焦點時，讓底下可見的顯示欄位呈現焦點樣式。
+ */
+.ticket-date-picker:focus-within .ticket-date-display {
+    border-color: #a9c4f0;
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(169 196 240 / 28%);
+}
+
+/*
+ * 儲存中停用日期欄位。
+ */
+.ticket-date-picker:has(.ticket-date-native:disabled) {
+    cursor: not-allowed;
+}
+
+.ticket-date-display:disabled {
+    background: #f5f2ef;
+    color: #7c818b;
+    cursor: not-allowed;
+}
+
+.ticket-date-native:disabled {
+    cursor: not-allowed;
 }
 
 .form-control:focus,
@@ -548,6 +768,10 @@ textarea.form-control {
         font-size: 16px;
     }
 
+    .ticket-date-display {
+        font-size: 16px;
+    }
+
     textarea.form-control {
         min-height: 100px;
     }
@@ -589,6 +813,57 @@ textarea.form-control {
         overflow-x: hidden;
         overflow-y: auto;
         overscroll-behavior: contain;
+    }
+}
+
+/*
+ * 平板版排版。
+ * 不修改 AppModal.vue，只調整包含票券表單的彈窗。
+ */
+@media (min-width: 601px) and (max-width: 900px) {
+    :global(.modal-backdrop:has(.ticket-form-modal)) {
+        padding: 1rem;
+    }
+
+    :global(.modal-dialog-box:has(.ticket-form-modal)) {
+        width: min(100%, 42rem) !important;
+        max-width: calc(100vw - 2rem);
+        max-height: calc(100dvh - 2rem);
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
+
+    .ticket-form-modal :deep(.ticket-body) {
+        padding: 1.1rem 1rem;
+    }
+
+    .ticket-form-content {
+        gap: 1rem;
+    }
+
+    .form-control,
+    .form-select {
+        min-height: 46px;
+    }
+
+    .ticket-date-picker,
+    .ticket-date-display {
+        min-height: 48px;
+    }
+
+    .ticket-date-display {
+        font-size: 16px;
+    }
+
+    .ticket-form-modal :deep(.ticket-stub) {
+        flex-wrap: wrap;
+        gap: 0.65rem;
+    }
+
+    .ticket-form-actions {
+        flex-wrap: wrap;
+        gap: 0.65rem;
     }
 }
 </style>

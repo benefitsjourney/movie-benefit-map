@@ -34,7 +34,7 @@ function listingId(favorite) {
 
 <template>
     <div v-if="!favorites.length" class="empty-state">
-        目前沒有交換收藏。
+        目前沒有特典收藏。
     </div>
 
     <article v-for="favorite in favorites" :key="listingId(favorite)" class="favorite-row">

@@ -1,5 +1,5 @@
 <!-- ========== components/exchange/ExchangeListingFormModal.vue ========== -->
-<!-- 負責新增、修改交換刊登的彈窗，包含持有特典選擇及圖片預覽。 -->
+<!-- 負責新增、修改特典刊登的彈窗，包含持有特典選擇及圖片預覽。 -->
 <script setup>
 import { computed, ref, watch, onBeforeUnmount } from "vue";
 import AppModal from "@/components/ui/AppModal.vue";
@@ -169,15 +169,15 @@ function requestClose() {
 </script>
 
 <template>
-    <AppModal :model-value="modelValue" :title="isEditing ? '修改交換刊登' : '新增特典刊登'" :busy="isSaving"
+    <AppModal :model-value="modelValue" :title="isEditing ? '修改特典刊登' : '新增特典刊登'" :busy="isSaving"
         :close-on-backdrop="false" width="42rem" @update:model-value="emit('update:modelValue', $event)">
         <div class="exchange-form-modal">
             <form id="exchange-listing-form" class="exchange-listing-form" @submit.prevent="emit('submit')">
-                <TicketCard appear color="green" class="exchange-form-ticket" :title="isEditing ? '修改交換刊登' : '新增特典刊登'">
+                <TicketCard appear color="green" class="exchange-form-ticket" :title="isEditing ? '修改特典刊登' : '新增特典刊登'">
                     <template #title>
                         <div class="exchange-ticket-heading">
                             <span class="exchange-ticket-title">
-                                {{ isEditing ? "修改交換刊登" : "新增特典刊登" }}
+                                {{ isEditing ? "修改特典刊登" : "新增特典刊登" }}
                             </span>
 
                             <button type="button" class="exchange-ticket-close" aria-label="關閉" :disabled="isSaving"
