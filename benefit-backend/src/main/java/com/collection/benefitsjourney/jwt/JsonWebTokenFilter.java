@@ -35,6 +35,11 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
         String uri = request.getRequestURI();
         String method = request.getMethod();
 
+        // OPTIONS 預檢沒有 Token，直接放行
+        if ("OPTIONS".equalsIgnoreCase(method)) {
+            return true;
+        }
+
         System.out.println("JWT Filter URI = " + uri);
 
         return uri.equals("/auth/register")
@@ -158,7 +163,6 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
             return;
         }
 
-       
         // 已停用會員可以查詢自己的資料，以及呼叫自己的狀態 API 重新啟用帳號
         boolean isMyProfileApi = request.getMethod().equals("GET")
                 && request.getRequestURI().equals("/users/me");

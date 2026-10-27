@@ -1,10 +1,17 @@
 package com.collection.benefitsjourney.config;
 
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 
 import com.collection.benefitsjourney.jwt.JsonWebTokenFilter;
 
@@ -16,6 +23,24 @@ public class SecurityConfig {
         this.jsonWebTokenFilter = jsonWebTokenFilter;
     }
 
+    // 跨域預檢沒有 Token，必須先放行，否則 GitHub Pages 的瀏覽器會被擋下
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    public CorsFilter corsFilter() {
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowedOrigins(List.of(
+                "https://benefitsjourney.github.io",
+                "https://movie-benefit-map.onrender.com",
+                "http://localhost:5173",
+                "http://127.0.0.1:5173"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return new CorsFilter(source);
+    }
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
@@ -25,6 +50,7 @@ public class SecurityConfig {
                         jsonWebTokenFilter,
                         UsernamePasswordAuthenticationFilter.class)
 
+                // 路徑白名單改由 JsonWebTokenFilter 處理
                 .authorizeHttpRequests(auth -> auth
                         .anyRequest().permitAll());
 
