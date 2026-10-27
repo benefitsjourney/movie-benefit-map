@@ -12,6 +12,7 @@ import heartIcon from "@iconify-icons/mdi/heart-outline";
 import megaphoneIcon from "@iconify-icons/mdi/bullhorn-outline";
 import calendarIcon from "@iconify-icons/mdi/calendar-month-outline";
 import trophyIcon from "@iconify-icons/mdi/trophy-outline";
+import FloatingChat from '@/components/chat/FloatingChat.vue'
 
 const auth = useAuth();
 
@@ -52,5 +53,6 @@ const links = computed(() => {
     <main class="page-main">
       <RouterView />
     </main>
+      <FloatingChat />
   </div>
 </template>
