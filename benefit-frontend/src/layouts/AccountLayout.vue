@@ -15,16 +15,21 @@ import shieldIcon from '@iconify-icons/mdi/shield-account-outline'
 import clipboardListIcon from '@iconify-icons/mdi/clipboard-list-outline'
 import heartIcon from '@iconify-icons/mdi/heart-outline'
 import messageIcon from '@iconify-icons/mdi/message-text-outline'
+import calendarIcon from '@iconify-icons/mdi/calendar-month-outline'
+import trophyIcon from '@iconify-icons/mdi/trophy-outline'
 
 const auth = useAuth()
 const route = useRoute()
 const router = useRouter()
 
 // 共用前台導覽列連結
+
 const links = computed(() => {
   const items = [
     { to: '/map', label: '地圖查詢', icon: mapIcon },
     { to: '/benefits', label: '特典一覽', icon: giftIcon },
+    { to: '/calendar', label: '行事曆', icon: calendarIcon },
+    { to: '/ranking', label: '排行榜', icon: trophyIcon },
     { to: '/cinemas', label: '影城探索', icon: movieIcon },
     { to: '/movies', label: '電影探索', icon: clapperboardIcon },
   ]
@@ -78,6 +83,7 @@ function goToMenu(menu) {
       :links="links"
       switch-to="/admin"
       switch-label="後台管理"
+      switch-first
       :switch-icon="shieldIcon"
       :show-switch="auth.isAdmin.value"
     />
