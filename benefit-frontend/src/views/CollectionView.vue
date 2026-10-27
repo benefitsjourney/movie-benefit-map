@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { Icon } from "@iconify/vue";
 import heartIcon from "@iconify-icons/mdi/heart-outline";
 import giftIcon from "@iconify-icons/mdi/gift-outline";
@@ -8,19 +8,26 @@ import trashIcon from "@iconify-icons/mdi/trash-can-outline";
 import closeIcon from "@iconify-icons/mdi/close";
 import arrowIcon from "@iconify-icons/mdi/arrow-right";
 import calendarIcon from "@iconify-icons/mdi/calendar-blank-outline";
+import filmIcon from "@iconify-icons/mdi/filmstrip";
+import searchIcon from "@iconify-icons/mdi/magnify";
+import compassIcon from "@iconify-icons/mdi/compass-outline";
 
 import http from "@/plugins/axios";
 import { openAppAlert } from "@/components/ui/Alert.vue";
 import PageIntro from "@/components/layout/PageIntro.vue";
 import ResultBanner from "@/components/layout/ResultBanner.vue";
+import SearchFilter from "@/components/layout/SearchFilter.vue";
 import StatePanel from "@/components/layout/StatePanel.vue";
 import TicketCard from "@/components/ui/TicketCard.vue";
+import Pagination from "@/components/ui/Pagination.vue";
 import ImageViewer from "@/components/ui/ImageViewer.vue";
 
 // 跟後端 UseBenefitService 的限制一樣，先在前端擋，少打一次 API
 const MAX_PHOTOS = 5;
 const MAX_BYTES = 10 * 1024 * 1024;
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+// 一頁幾張，跟特典一覽一樣
+const PAGE_SIZE = 20;
 
 const BENEFIT_TYPES = {
   REGULAR: { label: "一般場次", color: "yellow" },
@@ -193,6 +200,57 @@ function openViewer(item, index = 0) {
 
 const count = computed(() => items.value.length);
 
+// ── 搜尋與分頁：後端一次回傳全部，在前端篩選和切頁 ──
+const filters = ref({ keyword: "" });
+const page = ref(1);
+const listTop = ref(null);
+
+// 搜尋條件改變時回到第1頁（寫法同特典一覽）
+const appliedFilters = computed({
+  get: () => filters.value,
+  set: (next) => {
+    filters.value = { keyword: next?.keyword ?? "" };
+    page.value = 1;
+  },
+});
+
+const filterFields = [
+  {
+    key: "keyword",
+    label: "關鍵字",
+    type: "search",
+    placeholder: "搜尋特典或電影名稱",
+    icon: searchIcon,
+  },
+];
+
+const keyword = computed(() => filters.value.keyword.trim().toLowerCase());
+
+// 特典名稱或電影名稱包含關鍵字就留下，英文不分大小寫
+const filteredItems = computed(() => {
+  if (!keyword.value) return items.value;
+  return items.value.filter((item) =>
+    [item.benefitName, item.movieName].some((text) => String(text ?? "").toLowerCase().includes(keyword.value)),
+  );
+});
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredItems.value.length / PAGE_SIZE)));
+const pagedItems = computed(() => filteredItems.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE));
+
+// 移除收藏後頁數變少，目前頁超過最後一頁就退回最後一頁
+watch(totalPages, (last) => {
+  if (page.value > last) page.value = last;
+});
+
+function goToPage(next) {
+  if (!Number.isInteger(next) || next < 1 || next > totalPages.value || next === page.value) return;
+  page.value = next;
+  listTop.value?.scrollIntoView({
+    behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    block: "start",
+  });
+}
+
 onMounted(loadCollection);
 </script>
 
@@ -213,11 +271,15 @@ onMounted(loadCollection);
         @retry="loadCollection" />
 
       <template v-else>
-        <ResultBanner :icon="heartIcon" title="我的收藏" :count="count" unit-text="款特典"
-          empty-text="還沒有收藏，到特典頁按「加入收藏」吧！" action-to="/benefits" :action-icon="giftIcon" action-label="去逛特典" />
+        <ResultBanner :icon="heartIcon" title="我的收藏庫" :count="keyword ? filteredItems.length : count"
+          :unit-text="keyword ? '款符合條件的特典' : '款特典'"
+          :empty-text="keyword ? '沒有找到符合條件的收藏，換個關鍵字試試吧！' : '還沒有收藏，到特典頁按「加入收藏」吧！'"
+          action-to="/benefits" :action-icon="giftIcon" action-label="去逛特典" />
 
-        <div v-if="items.length" class="ticket-grid">
-          <TicketCard v-for="item in items" :key="item.useBenefitId" :color="typeOf(item.benefitType).color"
+        <SearchFilter v-if="items.length" v-model="appliedFilters" title="找找我的收藏" :title-icon="compassIcon"
+          submit-label="搜尋收藏" :fields="filterFields">
+        <div v-if="pagedItems.length" ref="listTop" class="ticket-grid">
+          <TicketCard v-for="item in pagedItems" :key="item.useBenefitId" :color="typeOf(item.benefitType).color"
             :stamp="typeOf(item.benefitType).label" :title="item.benefitName">
             <template #poster>
               <img v-if="coverUrl(item)" :src="coverUrl(item)" :alt="`${item.benefitName} 圖片`" loading="lazy"
@@ -231,6 +293,11 @@ onMounted(loadCollection);
               <Icon :icon="calendarIcon" aria-hidden="true" />
               <span>收藏於 {{ dateText(item.createdAt) || "—" }}</span>
             </template>
+
+            <p class="movie-name">
+              <Icon :icon="filmIcon" aria-hidden="true" />
+              <span>{{ item.movieName || "電影未提供" }}</span>
+            </p>
 
             <span v-if="item.benefitStatus === 'EXPIRED'" class="ended-tag">特典已結束發放</span>
 
@@ -268,11 +335,13 @@ onMounted(loadCollection);
             </template>
           </TicketCard>
         </div>
+
+        <Pagination v-if="totalPages > 1" :page="page" :total-pages="totalPages" label="收藏庫分頁" @update:page="goToPage" />
+        </SearchFilter>
       </template>
     </template>
     <!-- 大圖 -->
-        <!-- 大圖 -->
-        <ImageViewer v-model="viewerOpen" v-model:index="viewerIndex" :images="viewerImages"
+    <ImageViewer v-model="viewerOpen" v-model:index="viewerIndex" :images="viewerImages"
           :title="viewerItem?.benefitName ?? ''" />
   </section>
 </template>
@@ -280,6 +349,7 @@ onMounted(loadCollection);
 <style scoped>
 .ticket-grid {
   gap: 1.125rem;
+  scroll-margin-top: 5.5rem;
 }
 
 @media (min-width: 640px) {
@@ -302,6 +372,23 @@ onMounted(loadCollection);
 
 .poster-fallback :deep(svg) {
   font-size: var(--text-page-title);
+}
+
+/* 電影名稱，樣式跟特典一覽一樣 */
+.movie-name {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.3rem 0 0;
+  color: #3e4450;
+  font-size: var(--text-control);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.movie-name :deep(svg) {
+  flex: none;
+  margin-top: 0.2em;
 }
 
 .login-hint {

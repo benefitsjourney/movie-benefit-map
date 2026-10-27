@@ -2,7 +2,9 @@ package com.collection.benefitsjourney.service;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
@@ -20,6 +22,7 @@ import com.collection.benefitsjourney.dto.UseBenefitPhotoResponse;
 import com.collection.benefitsjourney.dto.UseBenefitResponse;
 import com.collection.benefitsjourney.exception.ExceptionUtils;
 import com.collection.benefitsjourney.repository.BenefitRepository;
+import com.collection.benefitsjourney.repository.CinemaMovieBenefitRepository;
 import com.collection.benefitsjourney.repository.ExchangeListingRepository;
 import com.collection.benefitsjourney.repository.UseBenefitRepository;
 import com.collection.benefitsjourney.repository.UsersRepository;
@@ -50,6 +53,7 @@ public class UseBenefitService {
     private final UsersRepository usersRepository;
     private final ExchangeListingRepository exchangeListingRepository;
     private final CloudinaryClient cloudinaryClient;
+    private final CinemaMovieBenefitRepository cinemaMovieBenefitRepository;
 
     /**
      * 新增持有紀錄。
@@ -70,16 +74,35 @@ public class UseBenefitService {
         useBenefit.setUser(usersRepository.getReferenceById(usersId));
         useBenefit.setBenefit(benefit);
 
-        return UseBenefitResponse.from(useBenefitRepository.save(useBenefit));
+        UseBenefitBean saved = useBenefitRepository.save(useBenefit);
+        String movieName = movieNames(List.of(benefit.getBenefitId())).get(benefit.getBenefitId());
+        return UseBenefitResponse.from(saved, movieName);
     }
 
     /** 查登入者自己的持有清單（新到舊，不分特典上下架） */
     @Transactional(readOnly = true)
     public List<UseBenefitResponse> findMine(Integer usersId) {
-        return useBenefitRepository.findMyUseBenefits(usersId)
-                .stream()
-                .map(UseBenefitResponse::from)
+        List<UseBenefitBean> mine = useBenefitRepository.findMyUseBenefits(usersId);
+        Map<Integer, String> movies = movieNames(
+                mine.stream().map(u -> u.getBenefit().getBenefitId()).distinct().toList());
+        return mine.stream()
+                .map(u -> UseBenefitResponse.from(u, movies.get(u.getBenefit().getBenefitId())))
                 .toList();
+    }
+
+    /**
+     * 一次查出多個特典對應的電影名稱（特典ID→電影名稱），寫法跟特典一覽一樣。
+     * 一個特典對到多部電影時用第一部，清單是空的就不查，避免IN ()出錯。
+     */
+    private Map<Integer, String> movieNames(List<Integer> benefitIds) {
+        Map<Integer, String> movies = new HashMap<>();
+        if (benefitIds.isEmpty()) {
+            return movies;
+        }
+        for (Object[] row : cinemaMovieBenefitRepository.findMoviesByBenefitIds(benefitIds)) {
+            movies.putIfAbsent((Integer) row[0], (String) row[2]);
+        }
+        return movies;
     }
 
     /**
