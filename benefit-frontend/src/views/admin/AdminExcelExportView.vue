@@ -7,6 +7,7 @@ import movieIcon from "@iconify-icons/mdi/movie-open-outline";
 import filmIcon from "@iconify-icons/mdi/filmstrip";
 import historyIcon from "@iconify-icons/mdi/history";
 import reviewIcon from "@iconify-icons/mdi/clipboard-check-outline";
+import giftIcon from "@iconify-icons/mdi/gift-outline";
 
 import http from "@/plugins/axios";
 import { apiMessage, authText } from "@/utils/apiError";
@@ -51,6 +52,17 @@ const EXPORTS = [
     icon: reviewIcon,
     fileName: "cinema_movie_review.xlsx",
   },
+  {
+    type: "BENEFIT",
+    title: "特典資料",
+    description: "匯出特典、各影城庫存和全部回報單。",
+    stamp: "特典",
+    color: "pink",
+    icon: giftIcon,
+    fileName: "benefits.xlsx",
+    endpoint: "/export/benefits",
+    params: { onlyPending: false },
+  },
 ];
 
 const downloading = ref("");
@@ -88,8 +100,8 @@ async function downloadExcel(item) {
   if (downloading.value) return;
   downloading.value = item.type;
   try {
-    const response = await http.get("/cinema-movie/export", {
-      params: { type: item.type },
+    const response = await http.get(item.endpoint ?? "/cinema-movie/export", {
+      params: item.params ?? { type: item.type },
       responseType: "blob",
     });
     const blob = new Blob([response.data], {

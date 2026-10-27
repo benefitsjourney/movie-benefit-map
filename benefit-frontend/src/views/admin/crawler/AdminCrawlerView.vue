@@ -67,8 +67,10 @@ const crawlers = [
     logType: "BENEFIT",
     color: "pink",
     icon: webIcon,
-    resultTo: "/map",
-    resultLabel: "查看地圖",
+    resultTo: "/admin/benefit-reports",
+    resultLabel: "前往特典審核",
+    extraTo: "/map",
+    extraLabel: "查看地圖",
   },
   {
     key: "benefit-json",
@@ -355,10 +357,11 @@ async function syncCrawler(crawler, payload) {
             ? rematchSummaryRows(data, elapsedSeconds)
             : benefitSummaryRows(data, elapsedSeconds),
       confirmText: crawler.resultLabel,
-      extraText: crawler.reviewTo ? "前往爬蟲審核" : "",
+      extraText: crawler.extraLabel ?? (crawler.reviewTo ? "前往爬蟲審核" : ""),
       cancelText: "關閉",
     });
     if (done.isConfirmed) router.push(crawler.resultTo);
+    else if (done.isExtra && crawler.extraTo) router.push(crawler.extraTo);
     else if (done.isExtra && crawler.reviewTo)
       router.push({ name: crawler.reviewTo });
   } catch (error) {
