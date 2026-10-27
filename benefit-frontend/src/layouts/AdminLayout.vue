@@ -62,6 +62,11 @@ const links = [
         label: "會員列表",
         icon: accountGroupIcon,
       },
+      {
+        to: "/admin/login-logs",
+        label: "登入日誌",
+        icon: historyIcon,
+      },
     ],
   },
 ];
