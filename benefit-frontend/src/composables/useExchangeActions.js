@@ -20,6 +20,7 @@ export function useExchangeActions({
     token,
     isLoggedIn,
     goToLogin,
+    onAuthExpired,
     data,
 }) {
     const {
@@ -33,6 +34,22 @@ export function useExchangeActions({
         loadPublicListings,
         loadMemberData,
     } = data;
+
+    // ========== 統一處理登入失效 ==========
+    async function handleOperationError(error, title) {
+        if (error?.response?.status === 401) {
+            await onAuthExpired?.(error);
+            return true;
+        }
+
+        await Swal.fire(
+            title,
+            errorText(error),
+            "error",
+        );
+
+        return false;
+    }
 
     // ========== 編輯中的刊登 ID ==========
     const editingExchangeId = ref(null);
@@ -63,7 +80,6 @@ export function useExchangeActions({
     // ========== 重設交換表單 ==========
     function resetExchangeForm() {
         editingExchangeId.value = null;
-
         exchangeForm.title = "";
         exchangeForm.description = "";
         exchangeForm.useBenefitId = "";
@@ -81,9 +97,7 @@ export function useExchangeActions({
     // ========== 關閉交換刊登彈窗 ==========
     function closeExchangeModal() {
         // 儲存期間不允許手動關閉
-        if (isSavingExchange.value) {
-            return;
-        }
+        if (isSavingExchange.value) return;
 
         isExchangeModalOpen.value = false;
 
@@ -101,7 +115,6 @@ export function useExchangeActions({
     // ========== 重設票券表單 ==========
     function resetTicketForm() {
         editingTicketId.value = null;
-
         ticketForm.title = "";
         ticketForm.description = "";
         ticketForm.cinemaId = "";
@@ -111,9 +124,7 @@ export function useExchangeActions({
 
     // ========== 開啟修改交換刊登彈窗 ==========
     function beginEditExchange(item) {
-        editingExchangeId.value =
-            listingId(item, "exchange");
-
+        editingExchangeId.value = listingId(item, "exchange");
         exchangeForm.title = item?.title ?? "";
         exchangeForm.description = item?.description ?? "";
 
@@ -131,26 +142,16 @@ export function useExchangeActions({
 
     // ========== 開啟修改票券刊登彈窗 ==========
     function beginEditTicket(item) {
-        editingTicketId.value =
-            listingId(item, "ticket");
-
+        editingTicketId.value = listingId(item, "ticket");
         ticketForm.title = item?.title ?? "";
         ticketForm.description = item?.description ?? "";
 
         ticketForm.cinemaId = String(
-            firstValue(
-                item,
-                ["cinemaId", "cinema_id"],
-                "",
-            ),
+            firstValue(item, ["cinemaId", "cinema_id"], ""),
         );
 
         ticketForm.movieId = String(
-            firstValue(
-                item,
-                ["movieId", "movie_id"],
-                "",
-            ),
+            firstValue(item, ["movieId", "movie_id"], ""),
         );
 
         ticketForm.ticketShowtime = toDateInputValue(
@@ -166,9 +167,7 @@ export function useExchangeActions({
 
     // ========== 新增／修改交換刊登 ==========
     async function submitExchangeForm() {
-        if (isSavingExchange.value) {
-            return;
-        }
+        if (isSavingExchange.value) return;
 
         if (!token.value) {
             await Swal.fire(
@@ -207,12 +206,10 @@ export function useExchangeActions({
                     }
                 },
             });
-
             return;
         }
 
-        const isEditing =
-            editingExchangeId.value !== null;
+        const isEditing = editingExchangeId.value !== null;
 
         const payload = {
             title: exchangeForm.title.trim(),
@@ -230,10 +227,7 @@ export function useExchangeActions({
                     token.value,
                 );
             } else {
-                await createExchangeListing(
-                    payload,
-                    token.value,
-                );
+                await createExchangeListing(payload, token.value);
             }
 
             // 儲存成功：先關閉彈窗並清除表單
@@ -250,14 +244,12 @@ export function useExchangeActions({
 
             // 重新載入公開刊登及會員資料
             await loadPublicListings();
+            if (!token.value) return;
+
             await loadMemberData();
         } catch (error) {
             // 儲存失敗時不關閉彈窗，保留使用者輸入內容
-            await Swal.fire(
-                "操作失敗",
-                errorText(error),
-                "error",
-            );
+            await handleOperationError(error, "操作失敗");
         } finally {
             isSavingExchange.value = false;
         }
@@ -298,9 +290,7 @@ export function useExchangeActions({
             return;
         }
 
-        const isEditing =
-            editingTicketId.value !== null;
-
+        const isEditing = editingTicketId.value !== null;
         isSavingTicket.value = true;
 
         try {
@@ -321,10 +311,7 @@ export function useExchangeActions({
                     token.value,
                 );
             } else {
-                await createTicketListing(
-                    payload,
-                    token.value,
-                );
+                await createTicketListing(payload, token.value);
             }
 
             isTicketModalOpen.value = false;
@@ -339,13 +326,11 @@ export function useExchangeActions({
             );
 
             await loadPublicListings();
+            if (!token.value) return;
+
             await loadMemberData();
         } catch (error) {
-            await Swal.fire(
-                "操作失敗",
-                errorText(error),
-                "error",
-            );
+            await handleOperationError(error, "操作失敗");
         } finally {
             isSavingTicket.value = false;
         }
@@ -361,7 +346,10 @@ export function useExchangeActions({
 
     // ========== 修改刊登狀態 ==========
     async function changeStatus(item, kind, status) {
-        if (!token.value) return;
+        if (!token.value) {
+            await goToLogin();
+            return;
+        }
 
         const id = listingId(item, kind);
 
@@ -383,9 +371,7 @@ export function useExchangeActions({
             cancelButtonText: "取消",
         });
 
-        if (!confirmed.isConfirmed) {
-            return;
-        }
+        if (!confirmed.isConfirmed) return;
 
         try {
             if (kind === "exchange") {
@@ -403,7 +389,10 @@ export function useExchangeActions({
             }
 
             await loadPublicListings();
+            if (!token.value) return;
+
             await loadMemberData();
+            if (!token.value) return;
 
             await Swal.fire(
                 "完成",
@@ -411,11 +400,7 @@ export function useExchangeActions({
                 "success",
             );
         } catch (error) {
-            await Swal.fire(
-                "修改失敗",
-                errorText(error),
-                "error",
-            );
+            await handleOperationError(error, "修改失敗");
         }
     }
 
@@ -442,37 +427,21 @@ export function useExchangeActions({
         try {
             if (kind === "exchange") {
                 if (favorited) {
-                    await removeExchangeFavorite(
-                        id,
-                        token.value,
-                    );
+                    await removeExchangeFavorite(id, token.value);
                 } else {
-                    await addExchangeFavorite(
-                        id,
-                        token.value,
-                    );
+                    await addExchangeFavorite(id, token.value);
                 }
             } else {
                 if (favorited) {
-                    await removeTicketFavorite(
-                        id,
-                        token.value,
-                    );
+                    await removeTicketFavorite(id, token.value);
                 } else {
-                    await addTicketFavorite(
-                        id,
-                        token.value,
-                    );
+                    await addTicketFavorite(id, token.value);
                 }
             }
 
             await loadMemberData();
         } catch (error) {
-            await Swal.fire(
-                "收藏操作失敗",
-                errorText(error),
-                "error",
-            );
+            await handleOperationError(error, "收藏操作失敗");
         }
     }
 

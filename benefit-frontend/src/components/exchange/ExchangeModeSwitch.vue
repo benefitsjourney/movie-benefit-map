@@ -85,18 +85,21 @@ const emit = defineEmits([
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    flex: 1 1 auto;
+    flex: 1 1 0;
     gap: 0.35rem;
     min-width: 0;
     min-height: 2.5rem;
-    padding: 0.35rem 0.9rem;
+    padding: 0.45rem 0.65rem;
     border: 0;
     border-radius: 999px;
     background: transparent;
     color: #cfd6e4;
     font-size: 0.95rem;
     font-weight: 800;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-align: center;
+    line-height: 1.4;
     cursor: pointer;
     transition: background-color 0.2s ease, color 0.2s ease;
 }
@@ -221,14 +224,20 @@ const emit = defineEmits([
 
     .mode-btn {
         flex: 1 1 0;
-        gap: 0.25rem;
-        padding: 0.5rem 0.35rem;
-        font-size: 0.84rem;
+        min-width: 0;
+        gap: 0.2rem;
+        padding: 0.45rem 0.25rem;
+        font-size: 0.82rem;
+        line-height: 1.35;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        text-align: center;
     }
 
     .mode-icon {
-        width: 1rem;
-        height: 1rem;
+        width: 1.15rem;
+        height: 1.15rem;
+        flex-shrink: 0;
     }
 
     .page-heading-actions {

@@ -1,6 +1,7 @@
 // ========== src/composables/useExchangeData.js ==========
 // 管理資料狀態、API 資料載入、資料解析、影城／電影名稱及錯誤訊息。
 import { ref } from "vue";
+
 import {
     getExchangeListings,
     getMyExchangeListings,
@@ -13,7 +14,7 @@ import {
     getMyUseBenefits,
 } from "@/api/exchangeApi.js";
 
-export function useExchangeData({ token }) {
+export function useExchangeData({ token, onAuthExpired }) {
     // ========== 各類資料 ==========
     const exchangeListings = ref([]);
     const ticketListings = ref([]);
@@ -97,29 +98,24 @@ export function useExchangeData({ token }) {
         );
     }
 
-
     function useBenefitImage(item) {
-        // 1. 優先使用會員持有特典的第一張照片
+        // 1. 優先使用會員持有特典的第一張照片。
         const heldPhotoUrl = firstValue(item?.photos?.[0], [
             "photoUrl",
             "photo_url",
         ]);
 
-        if (heldPhotoUrl) {
-            return heldPhotoUrl;
-        }
+        if (heldPhotoUrl) return heldPhotoUrl;
 
-        // 2. 沒有會員持有照片時，使用官方特典圖片
+        // 2. 沒有會員持有照片時，使用官方特典圖片。
         const officialImageUrl = firstValue(item, [
             "officialImageUrl",
             "official_image_url",
         ]);
 
-        if (officialImageUrl) {
-            return officialImageUrl;
-        }
+        if (officialImageUrl) return officialImageUrl;
 
-        // 3. 保留原本的圖片欄位作為最後備援
+        // 3. 保留原本的圖片欄位作為最後備援。
         return firstValue(item, [
             "imageUrl",
             "image_url",
@@ -134,15 +130,10 @@ export function useExchangeData({ token }) {
             (item) => item.value === status,
         );
 
-        if (matchedStatus) {
-            return matchedStatus.label;
-        }
+        if (matchedStatus) return matchedStatus.label;
 
-        // 舊資料若仍回傳已移除的 HIDDEN，
-        // 依照目前的狀態設計，顯示為「已結束」。
-        if (status === "HIDDEN") {
-            return "已結束";
-        }
+        // 舊資料若仍回傳已移除的 HIDDEN，顯示為「已結束」。
+        if (status === "HIDDEN") return "已結束";
 
         return status || "未知";
     }
@@ -256,11 +247,7 @@ export function useExchangeData({ token }) {
         const directName = firstValue(
             item,
             ["cinemaName", "cinema_name"],
-            firstValue(
-                nested,
-                ["cinemaName", "name"],
-                "",
-            ),
+            firstValue(nested, ["cinemaName", "name"], ""),
         );
 
         if (directName) return directName;
@@ -293,11 +280,7 @@ export function useExchangeData({ token }) {
         const directName = firstValue(
             item,
             ["movieName", "movie_name"],
-            firstValue(
-                nested,
-                ["movieName", "name"],
-                "",
-            ),
+            firstValue(nested, ["movieName", "name"], ""),
         );
 
         if (directName) return directName;
@@ -350,10 +333,7 @@ export function useExchangeData({ token }) {
                 : myTicketFavorites.value;
 
         return favorites.some((favorite) => {
-            const listing = favoriteListing(
-                favorite,
-                kind,
-            );
+            const listing = favoriteListing(favorite, kind);
 
             return (
                 String(listingId(listing, kind)) ===
@@ -366,8 +346,12 @@ export function useExchangeData({ token }) {
     function errorText(error) {
         const status = error?.response?.status;
 
-        if (status === 401 || status === 403) {
-            return "登入驗證失敗或目前帳號沒有此操作的權限，請重新登入或確認帳號權限。";
+        if (status === 401) {
+            return "登入憑證未通過驗證或已過期，請確認登入狀態。";
+        }
+
+        if (status === 403) {
+            return "目前帳號沒有執行此操作的權限。";
         }
 
         if (status === 404) {
@@ -380,6 +364,11 @@ export function useExchangeData({ token }) {
             error?.message ||
             "發生未知錯誤。"
         );
+    }
+
+    // ========== 登入失效判斷 ==========
+    function isUnauthorized(error) {
+        return error?.response?.status === 401;
     }
 
     // ========== 載入公開刊登 ==========
@@ -402,16 +391,25 @@ export function useExchangeData({ token }) {
             ticketListings.value =
                 unwrapList(ticketResponse);
         } catch (error) {
+            if (isUnauthorized(error) && token.value) {
+                await onAuthExpired?.(error);
+                return false;
+            }
+
             errorMessage.value =
                 `公開刊登載入失敗：${errorText(error)}`;
+
+            return false;
         } finally {
             loading.value = false;
         }
+
+        return true;
     }
 
     // ========== 載入會員資料 ==========
     async function loadMemberData() {
-        if (!token.value) return;
+        if (!token.value) return false;
 
         loading.value = true;
         errorMessage.value = "";
@@ -424,6 +422,21 @@ export function useExchangeData({ token }) {
                 getMyTicketFavorites(token.value),
                 getMyUseBenefits(token.value),
             ]);
+
+            // 先統一檢查是否有 401。
+            // 避免同一批請求同時失敗時，產生多項重複錯誤。
+            const unauthorizedResult = results.find(
+                (result) =>
+                    result.status === "rejected" &&
+                    isUnauthorized(result.reason),
+            );
+
+            if (unauthorizedResult) {
+                await onAuthExpired?.(
+                    unauthorizedResult.reason,
+                );
+                return false;
+            }
 
             const setters = [
                 (response) => {
@@ -474,6 +487,8 @@ export function useExchangeData({ token }) {
                     failures.join("\n") +
                     "\n請確認失敗 API 的路徑、登入權限與回傳格式。";
             }
+
+            return failures.length === 0;
         } finally {
             loading.value = false;
         }
