@@ -13,6 +13,8 @@ public class LoginLogResponse {
 
     private Integer usersId;
 
+    private String userName;
+
     private LocalDateTime loginTime;
 
     private String loginStatus;
