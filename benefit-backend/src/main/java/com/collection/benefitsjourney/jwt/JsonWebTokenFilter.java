@@ -77,6 +77,10 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 || (uri.matches("/ticket-listings/\\d+")
                         && method.equals("GET"))
 
+                // 啟動連線檢查不需要登入
+                || (uri.equals("/health") && method.equals("GET"))
+                || (uri.equals("/api/health") && method.equals("GET"))
+
                 // Swagger 白名單
                 || uri.equals("/swagger-ui.html")
                 || uri.startsWith("/swagger-ui/")
