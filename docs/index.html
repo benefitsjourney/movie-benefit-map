@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/movie-benefit-map/favicon.ico" />
+    <script>
+      // 還原 404.html 帶來的 ?/路徑，交給 Vue Router
+      ;(function (location) {
+        if (location.search[1] === '/') {
+          var decoded = location.search
+            .slice(1)
+            .split('&')
+            .map(function (part) {
+              return part.replace(/~and~/g, '&')
+            })
+            .join('?')
+          window.history.replaceState(
+            null,
+            null,
+            location.pathname.slice(0, -1) + decoded + location.hash,
+          )
+        }
+      })(window.location)
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <title>電影特典地圖</title>
+    <script type="module" crossorigin src="/movie-benefit-map/assets/index-DgN5rHEK.js"></script>
+    <link rel="modulepreload" crossorigin href="/movie-benefit-map/assets/rolldown-runtime-hePW80VL.js">
+    <link rel="stylesheet" crossorigin href="/movie-benefit-map/assets/index-xkxsCAoF.css">
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>
