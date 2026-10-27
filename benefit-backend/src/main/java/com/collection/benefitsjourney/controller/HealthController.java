@@ -29,11 +29,16 @@ public class HealthController {
         this.dataSource = dataSource;
     }
 
-    static final String READY_MESSAGE = "後端與資料庫都可連線";
-    static final String UNAVAILABLE_MESSAGE = "資料庫暫時無法連線";
+    /** 給前端判斷用的狀態碼 */
+    static final String STATUS_UP = "UP";
+    static final String STATUS_DOWN = "DOWN";
+
+    /** 後端日誌顯示 */
+    private static final String READY_LOG = "後端與資料庫都可連線";
+    private static final String UNAVAILABLE_LOG = "資料庫暫時無法連線";
 
     /**
-     * 後端與資料庫都可連線才回傳成功訊息。資料庫失敗回傳 503，讓前端繼續重試。
+     * 後端與資料庫都可連線才回傳 UP。資料庫失敗回傳 503 與 DOWN，讓前端繼續重試。
      */
     @GetMapping
     public ResponseEntity<HealthResponse> health() {
@@ -41,11 +46,12 @@ public class HealthController {
                 Statement statement = connection.createStatement()) {
             statement.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
             statement.execute("SELECT 1");
-            return ResponseEntity.ok(new HealthResponse(READY_MESSAGE));
+            log.info(READY_LOG);
+            return ResponseEntity.ok(new HealthResponse(STATUS_UP));
         } catch (SQLException exception) {
-            log.warn("資料庫連線檢查失敗: {}", exception.getMessage());
+            log.warn("{}: {}", UNAVAILABLE_LOG, exception.getMessage());
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(new HealthResponse(UNAVAILABLE_MESSAGE));
+                    .body(new HealthResponse(STATUS_DOWN));
         }
     }
 }
