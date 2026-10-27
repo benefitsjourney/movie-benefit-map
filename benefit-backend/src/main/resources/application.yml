@@ -3,6 +3,9 @@ spring:
     name: benefit-backend
   config:
     import: optional:file:.env[.properties]
+  # DB_TYPE 未設定或為 mssql 時用下方 SQL Server；設為 h2 時改走 application-h2.yml
+  profiles:
+    active: ${DB_TYPE:mssql}
 
   # 上傳檔案大小上限（收藏照片、爬蟲JSON）
   # 照片的10MB上限會在UseBenefitService另外檢查，這裡抓比較大是給爬蟲JSON用
