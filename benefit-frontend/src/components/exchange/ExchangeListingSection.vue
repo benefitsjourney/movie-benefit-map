@@ -579,12 +579,12 @@ function isOwnListing(item) {
                                 }" :aria-pressed="isFavorited(listingId(item))" :aria-label="isFavorited(listingId(item))
                                     ? `取消收藏 ${item.title || '未命名刊登'}`
                                     : `收藏 ${item.title || '未命名刊登'}`" :title="isLoggedIn
-                    ? (
-                        isFavorited(listingId(item))
-                            ? '已收藏（點一下取消）'
-                            : '加入收藏'
-                    )
-                    : '登入後才能收藏'" @click.stop="toggleFavorite(item)" @keydown.stop>
+                                        ? (
+                                            isFavorited(listingId(item))
+                                                ? '已收藏（點一下取消）'
+                                                : '加入收藏'
+                                        )
+                                        : '登入後才能收藏'" @click.stop="toggleFavorite(item)" @keydown.stop>
                                     <Icon :icon="isFavorited(listingId(item))
                                         ? heartIcon
                                         : heartOutlineIcon" aria-hidden="true" />
