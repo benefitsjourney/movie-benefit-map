@@ -2,6 +2,7 @@
 package com.collection.benefitsjourney.config;
 
 import java.io.IOException;
+
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -21,8 +22,10 @@ import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StreamUtils;
+import org.springframework.core.annotation.Order;
 
 @Component
+@Order(1) // 先於AdminInitializer執行
 public class SqlDataInitializer implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(SqlDataInitializer.class);
@@ -37,9 +40,19 @@ public class SqlDataInitializer implements ApplicationRunner {
         this.resolver = resolver;
     }
     
-    /** 排序用的名稱：一般檔案用原檔名，cinema_movie_benefit排在movie之後 */
+    /** 這幾張表會用到會員和特典中介表，要排在cinema_movie_benefit之後 */
+    private static final java.util.Set<String> AFTER_BENEFIT = java.util.Set.of(
+            "benefit_report.sql", "inventory_report.sql", "reminder.sql", "use_benefit.sql", "user_contribution.sql");
+
+    /** 排序用的名稱：users最先，cinema_movie_benefit排在movie之後，會員互動資料排在最後 */
     private static String sortKey(String filename) {
-        return "cinema_movie_benefit.sql".equals(filename) ? "movie~.sql" : filename;
+        if ("users.sql".equals(filename)) {
+            return "0" + filename;
+        }
+        if ("cinema_movie_benefit.sql".equals(filename)) {
+            return "movie~.sql";
+        }
+        return AFTER_BENEFIT.contains(filename) ? "~" + filename : filename;
     }
 
     /** 啟動時自動掃描並匯入空表的 SQL 資料 */

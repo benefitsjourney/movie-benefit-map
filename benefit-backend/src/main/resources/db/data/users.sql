@@ -1,0 +1,7 @@
+-- 展示用會員，密碼都是Demo1234!
+-- 管理員由AdminInitializer照.env建立
+INSERT INTO dbo.[users] (account, password, name, email, role, status, created_at, updated_at) VALUES (N'popcorn', N'$2a$10$3obT.WApKRqSYUfA.z0AROIihY2CRtjoC0gPm0JaUsrjW2qxUtXGC', N'爆米花', N'popcorn@example.com', N'USER', N'ACTIVE', DATEADD(DAY, -14, SYSDATETIME()), DATEADD(DAY, -14, SYSDATETIME()));
+INSERT INTO dbo.[users] (account, password, name, email, role, status, created_at, updated_at) VALUES (N'cola', N'$2a$10$3obT.WApKRqSYUfA.z0AROIihY2CRtjoC0gPm0JaUsrjW2qxUtXGC', N'可樂', N'cola@example.com', N'USER', N'ACTIVE', DATEADD(DAY, -14, SYSDATETIME()), DATEADD(DAY, -14, SYSDATETIME()));
+INSERT INTO dbo.[users] (account, password, name, email, role, status, created_at, updated_at) VALUES (N'nacho', N'$2a$10$3obT.WApKRqSYUfA.z0AROIihY2CRtjoC0gPm0JaUsrjW2qxUtXGC', N'玉米片', N'nacho@example.com', N'USER', N'ACTIVE', DATEADD(DAY, -14, SYSDATETIME()), DATEADD(DAY, -14, SYSDATETIME()));
+INSERT INTO dbo.[users] (account, password, name, email, role, status, created_at, updated_at) VALUES (N'hotdog', N'$2a$10$3obT.WApKRqSYUfA.z0AROIihY2CRtjoC0gPm0JaUsrjW2qxUtXGC', N'熱狗堡', N'hotdog@example.com', N'USER', N'ACTIVE', DATEADD(DAY, -14, SYSDATETIME()), DATEADD(DAY, -14, SYSDATETIME()));
+INSERT INTO dbo.[users] (account, password, name, email, role, status, created_at, updated_at) VALUES (N'churro', N'$2a$10$3obT.WApKRqSYUfA.z0AROIihY2CRtjoC0gPm0JaUsrjW2qxUtXGC', N'吉拿棒', N'churro@example.com', N'USER', N'ACTIVE', DATEADD(DAY, -14, SYSDATETIME()), DATEADD(DAY, -14, SYSDATETIME()));
