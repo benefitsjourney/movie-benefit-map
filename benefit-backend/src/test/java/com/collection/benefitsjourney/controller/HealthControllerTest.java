@@ -48,10 +48,10 @@ class HealthControllerTest {
 
         mockMvc.perform(get("/health"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value(HealthController.READY_MESSAGE));
+                .andExpect(jsonPath("$.status").value(HealthController.STATUS_UP));
         mockMvc.perform(get("/api/health"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value(HealthController.READY_MESSAGE));
+                .andExpect(jsonPath("$.status").value(HealthController.STATUS_UP));
 
         verify(statement, times(2)).setQueryTimeout(3);
         verify(statement, times(2)).execute("SELECT 1");
@@ -64,7 +64,7 @@ class HealthControllerTest {
 
         mockMvc.perform(get("/health"))
                 .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.status").value(HealthController.UNAVAILABLE_MESSAGE));
+                .andExpect(jsonPath("$.status").value(HealthController.STATUS_DOWN));
     }
 
     @Test
@@ -78,6 +78,6 @@ class HealthControllerTest {
 
         mockMvc.perform(get("/api/health"))
                 .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.status").value(HealthController.UNAVAILABLE_MESSAGE));
+                .andExpect(jsonPath("$.status").value(HealthController.STATUS_DOWN));
     }
 }
