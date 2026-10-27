@@ -29,8 +29,11 @@ public class HealthController {
         this.dataSource = dataSource;
     }
 
+    static final String READY_MESSAGE = "後端與資料庫都可連線";
+    static final String UNAVAILABLE_MESSAGE = "資料庫暫時無法連線";
+
     /**
-     * 後端與資料庫都可連線才回傳 UP。資料庫失敗回傳 503，讓前端繼續重試。
+     * 後端與資料庫都可連線才回傳成功訊息。資料庫失敗回傳 503，讓前端繼續重試。
      */
     @GetMapping
     public ResponseEntity<HealthResponse> health() {
@@ -38,11 +41,11 @@ public class HealthController {
                 Statement statement = connection.createStatement()) {
             statement.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
             statement.execute("SELECT 1");
-            return ResponseEntity.ok(new HealthResponse("UP"));
+            return ResponseEntity.ok(new HealthResponse(READY_MESSAGE));
         } catch (SQLException exception) {
             log.warn("資料庫連線檢查失敗: {}", exception.getMessage());
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
-                    .body(new HealthResponse("DOWN"));
+                    .body(new HealthResponse(UNAVAILABLE_MESSAGE));
         }
     }
 }

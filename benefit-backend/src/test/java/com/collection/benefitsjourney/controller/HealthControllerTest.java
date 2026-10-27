@@ -38,7 +38,7 @@ class HealthControllerTest {
     private DataSource dataSource;
 
     @Test
-    @DisplayName("資料庫可執行查詢時應回傳 UP")
+    @DisplayName("資料庫可執行查詢時應回傳連線正常")
     void health_DatabaseUp_ShouldReturn200() throws Exception {
         Connection connection = mock(Connection.class);
         Statement statement = mock(Statement.class);
@@ -48,27 +48,27 @@ class HealthControllerTest {
 
         mockMvc.perform(get("/health"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("UP"));
+                .andExpect(jsonPath("$.status").value(HealthController.READY_MESSAGE));
         mockMvc.perform(get("/api/health"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("UP"));
+                .andExpect(jsonPath("$.status").value(HealthController.READY_MESSAGE));
 
         verify(statement, times(2)).setQueryTimeout(3);
         verify(statement, times(2)).execute("SELECT 1");
     }
 
     @Test
-    @DisplayName("無法取得資料庫連線時應回傳 DOWN")
+    @DisplayName("無法取得資料庫連線時應回傳暫時無法連線")
     void health_ConnectionFails_ShouldReturn503() throws Exception {
         when(dataSource.getConnection()).thenThrow(new SQLException("db down"));
 
         mockMvc.perform(get("/health"))
                 .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.status").value("DOWN"));
+                .andExpect(jsonPath("$.status").value(HealthController.UNAVAILABLE_MESSAGE));
     }
 
     @Test
-    @DisplayName("查詢失敗時應回傳 DOWN")
+    @DisplayName("查詢失敗時應回傳暫時無法連線")
     void health_QueryFails_ShouldReturn503() throws Exception {
         Connection connection = mock(Connection.class);
         Statement statement = mock(Statement.class);
@@ -78,6 +78,6 @@ class HealthControllerTest {
 
         mockMvc.perform(get("/api/health"))
                 .andExpect(status().isServiceUnavailable())
-                .andExpect(jsonPath("$.status").value("DOWN"));
+                .andExpect(jsonPath("$.status").value(HealthController.UNAVAILABLE_MESSAGE));
     }
 }
