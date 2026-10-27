@@ -14,6 +14,7 @@ import shapeIcon from "@iconify-icons/mdi/shape-outline";
 import compassIcon from "@iconify-icons/mdi/compass-outline";
 import heartIcon from "@iconify-icons/mdi/heart";
 import heartOutlineIcon from "@iconify-icons/mdi/heart-outline";
+import clipboardIcon from "@iconify-icons/mdi/clipboard-text-outline";
 
 import { useApiCollection } from "@/composables/useApiCollection";
 import { useFavoriteBenefits } from "@/composables/useFavoriteBenefits";
@@ -105,6 +106,9 @@ const {
   retry,
 } = useApiCollection("/benefits", requestParams, { page });
 
+// 查不到特典時，右邊按鈕改成「回報缺漏特典」
+const noResult = computed(() => totalElements.value === 0);
+
 // ── 愛心收藏：空心＝沒收藏，實心＝已收藏 ──
 const { loadFavorites, isFavorite, isBusy, toggleFavorite } = useFavoriteBenefits();
 onMounted(loadFavorites);
@@ -169,8 +173,8 @@ function goToPage(next) {
 
     <ResultBanner v-if="!(loading && !benefits.length) && !error" :icon="giftIcon" title="發放中的特典"
       :count="totalElements" :unit-text="hasFilters ? '款符合條件的特典' : '款特典等你收藏'"
-      :empty-text="hasFilters ? '沒有找到符合條件的特典，換個關鍵字試試吧！' : '目前沒有發放中的特典，晚點再來看看吧！'" action-to="/map"
-      :action-icon="cinemaIcon" action-label="找附近影城" />
+      :empty-text="hasFilters ? '沒有找到符合條件的特典，換個關鍵字試試吧！' : '目前沒有發放中的特典，晚點再來看看吧！'" :action-to="noResult ? '/report-benefit' : '/map'"
+      :action-icon="noResult ? clipboardIcon : cinemaIcon" :action-label="noResult ? '找不到？回報缺漏特典' : '找附近影城'" />
 
     <SearchFilter v-if="!(loading && !benefits.length) && !error" v-model="appliedFilters" title="尋找特典"
       :title-icon="compassIcon" submit-label="搜尋特典" :fields="filterFields">
