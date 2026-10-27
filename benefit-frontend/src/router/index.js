@@ -32,11 +32,13 @@ import ForgotPasswordView from '@/views/ForgotPasswordView.vue'
 import ResetPasswordView from '@/views/ResetPasswordView.vue'
 import AccountHomeView from '@/account/AccountHomeView.vue'
 import AccountProfileView from '@/account/AccountProfileView.vue'
+import AccountBenefitsView from '@/account/AccountBenefitsView.vue'
 import AdminUsersView from '@/views/admin/AdminUsersView.vue'
 import AdminLoginLogsView from '@/views/admin/AdminLoginLogsView.vue'
 import AccountLayout from '@/layouts/AccountLayout.vue'
 import MessageInboxView from '@/messages/MessageInboxView.vue'
 import MessageConversationView from '@/messages/MessageConversationView.vue'
+
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -76,6 +78,11 @@ const router = createRouter({
           path: 'profile',
           name: 'account-profile',
           component: AccountProfileView,
+        },
+        {
+          path: 'benefits',
+          name: 'account-benefits',
+          component: AccountBenefitsView,
         },
         {
           path: 'messages',
