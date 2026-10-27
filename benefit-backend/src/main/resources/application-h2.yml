@@ -1,0 +1,17 @@
+# DB_TYPE=h2 時啟用。表由 ddl-auto: update 建立，空表再由 SqlDataInitializer 匯入 db/data。
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: "jdbc:h2:file:./data/h2/BenefitsJourney;MODE=MSSQLServer;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;INIT=CREATE SCHEMA IF NOT EXISTS dbo\\;SET SCHEMA dbo"
+    username: sa
+    password: ""
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create
+    properties:
+      hibernate:
+        default_schema: dbo
+        # 種子 SQL 以 0/1 寫入布林欄位，對應 TINYINT 才吃得下
+        "[type.preferred_boolean_jdbc_type_code]": -6
+        "[use_nationalized_character_data]": false
