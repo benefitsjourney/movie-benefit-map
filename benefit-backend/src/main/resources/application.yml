@@ -68,3 +68,11 @@ springdoc:
 # Google OAuth Client ID
 google:
   client-id: 341264316511-s3ihs3fce68s9e47eimi4ad43m66uegi.apps.googleusercontent.com
+
+
+# 初始管理員設定：從環境變數讀取，不在程式碼中寫死帳密
+app:
+  admin-init:
+    account: ${ADMIN_INIT_ACCOUNT:}
+    password: ${ADMIN_INIT_PASSWORD:}
+    email: ${ADMIN_INIT_EMAIL:}
