@@ -900,3 +900,39 @@ FROM dbo.cinema c, dbo.movie m, dbo.benefit b
 WHERE c.cinema_name IN (N'in89駁二電影院')
   AND m.movie_name = N'青春電幻物語'
   AND b.benefit_name = N'台灣版A3海報' AND b.source_url = N'https://www.facebook.com/in89in89/posts/pfbid032FcFzZjMYWaq9JJR8wVG3ZXTPm2EhbbvswFbdEfhouZZb2uAjk6t6qQf5NUTPov9l' AND b.start_date = N'2026-10-22 00:00:00';
+INSERT INTO dbo.cinema_movie_benefit (cinema_id, movie_id, benefit_id, benefit_inventory_status, created_at, updated_at)
+SELECT c.cinema_id, m.movie_id, b.benefit_id, 0, SYSDATETIME(), SYSDATETIME()
+FROM dbo.cinema c, dbo.movie m, dbo.benefit b
+WHERE c.cinema_name IN (N'板橋大遠百威秀影城', N'新店裕隆城威秀影城', N'新竹巨城威秀影城', N'台中大遠百威秀影城', N'台南南紡威秀影城', N'高雄大遠百威秀影城', N'花蓮新天堂樂園威秀影城')
+  AND m.movie_name = N'哥吉拉-0.0'
+  AND b.benefit_name = N'特殊工藝IMAX日本原版A3海報' AND b.source_url = N'https://www.facebook.com/vieshow/posts/pfbid026DcAX5P5oMGJtjSiuTmW49epdZCyWuKQPvQL7ot5zNuFrptarF6BPwLVWQBvycYDl' AND b.start_date = N'2026-11-06 00:00:00';
+INSERT INTO dbo.cinema_movie_benefit (cinema_id, movie_id, benefit_id, benefit_inventory_status, created_at, updated_at)
+SELECT c.cinema_id, m.movie_id, b.benefit_id, 0, SYSDATETIME(), SYSDATETIME()
+FROM dbo.cinema c, dbo.movie m, dbo.benefit b
+WHERE c.cinema_name IN (N'台北信義威秀', N'MUVIE CINEMAS台北松仁威秀', N'台北南港LaLaport威秀影城', N'大巨蛋秀泰影城', N'台北京站威秀', N'台北西門威秀影城', N'欣欣秀泰影城', N'板橋大遠百威秀影城', N'林口三井OUTLET威秀影城', N'樹林秀泰影城', N'土城秀泰影城', N'中和環球威秀影城', N'新店裕隆城威秀影城', N'桃園統領威秀影城', N'桃園桃知道威秀影城', N'新竹大遠百威秀影城', N'新竹巨城威秀影城', N'台中老虎城威秀', N'台中大遠百威秀影城', N'台中iFG遠雄廣場威秀影城', N'台中站前秀泰影城', N'台中文心秀泰影城', N'台中麗寶秀泰', N'台南大遠百威秀影城', N'台南南紡威秀影城', N'台南FOCUS威秀影城', N'台南仁德秀泰影城', N'高雄大遠百威秀影城', N'高雄夢時代秀泰影城', N'高雄岡山秀泰', N'基隆秀泰影城', N'頭份尚順威秀影城', N'雲林北港秀泰', N'嘉義秀泰影城', N'花蓮秀泰影城', N'花蓮新天堂樂園威秀影城', N'台東秀泰影城')
+  AND m.movie_name = N'哥吉拉-0.0'
+  AND b.benefit_name = N'典藏票卡（款式一）' AND b.source_url = N'https://www.facebook.com/share/p/19yKWD43NE/' AND b.start_date = N'2026-11-06 00:00:00';
+INSERT INTO dbo.cinema_movie_benefit (cinema_id, movie_id, benefit_id, benefit_inventory_status, created_at, updated_at)
+SELECT c.cinema_id, m.movie_id, b.benefit_id, 0, SYSDATETIME(), SYSDATETIME()
+FROM dbo.cinema c, dbo.movie m, dbo.benefit b
+WHERE c.cinema_name IN (N'台北南港LaLaport威秀影城', N'台北京站威秀', N'台北西門威秀影城', N'板橋大遠百威秀影城', N'林口三井OUTLET威秀影城', N'中和環球威秀影城', N'新店裕隆城威秀影城', N'桃園統領威秀影城', N'新竹大遠百威秀影城', N'台中iFG遠雄廣場威秀影城', N'台南大遠百威秀影城', N'台南南紡威秀影城', N'高雄大遠百威秀影城')
+  AND m.movie_name = N'蜘蛛人：重生日'
+  AND b.benefit_name = N'特別場套組：【獨家】網力全開A3夜光海報（藍光版）、破曉前行A3海報、電影摺頁劇照' AND b.source_url = N'https://www.facebook.com/vieshow/posts/pfbid0oLyXCyCegNW4msAZozAsFcnjSq1sKdWgEURvnSFaSMG5uoK8gndoLk7gtTFhhZKvl' AND b.start_date = N'2026-11-01 00:00:00';
+INSERT INTO dbo.cinema_movie_benefit (cinema_id, movie_id, benefit_id, benefit_inventory_status, created_at, updated_at)
+SELECT c.cinema_id, m.movie_id, b.benefit_id, 0, SYSDATETIME(), SYSDATETIME()
+FROM dbo.cinema c, dbo.movie m, dbo.benefit b
+WHERE c.cinema_name IN (N'大巨蛋秀泰影城', N'台中站前秀泰影城')
+  AND m.movie_name = N'進擊的鼓手'
+  AND b.benefit_name = N'特別場套組：Dolby Vision+Atmos 海報、鼓棒版原文海報、【獨家】主視覺海報' AND b.source_url = N'https://www.facebook.com/showtimecinemas/posts/pfbid02XDorDY9TTamBGAmPVwhdY9DMJFZs3tEwHJfMYj7x3wAVA9Y5VpvUrciM9Q5jcYZZl' AND b.start_date = N'2026-10-30 00:00:00';
+INSERT INTO dbo.cinema_movie_benefit (cinema_id, movie_id, benefit_id, benefit_inventory_status, created_at, updated_at)
+SELECT c.cinema_id, m.movie_id, b.benefit_id, 0, SYSDATETIME(), SYSDATETIME()
+FROM dbo.cinema c, dbo.movie m, dbo.benefit b
+WHERE c.cinema_name IN (N'大巨蛋秀泰影城', N'欣欣秀泰影城', N'樹林秀泰影城', N'土城秀泰影城', N'台中站前秀泰影城', N'台中文心秀泰影城', N'台中麗寶秀泰', N'台南仁德秀泰影城', N'高雄夢時代秀泰影城', N'高雄岡山秀泰', N'基隆秀泰影城', N'雲林北港秀泰', N'嘉義秀泰影城', N'花蓮秀泰影城', N'台東秀泰影城')
+  AND m.movie_name = N'劇場版 吉伊卡哇 人魚島的秘密'
+  AND b.benefit_name = N'登島冒險透明貼紙' AND b.source_url = N'https://www.facebook.com/showtimecinemas/posts/pfbid0286vi9BWawS4Ge7cwdexV8eVUghR1y2QRyJDeiDvcC1kqvFxLj1ugnEdQcKEx5Nkpl' AND b.start_date = N'2026-10-31 00:00:00';
+INSERT INTO dbo.cinema_movie_benefit (cinema_id, movie_id, benefit_id, benefit_inventory_status, created_at, updated_at)
+SELECT c.cinema_id, m.movie_id, b.benefit_id, 0, SYSDATETIME(), SYSDATETIME()
+FROM dbo.cinema c, dbo.movie m, dbo.benefit b
+WHERE c.cinema_name IN (N'大巨蛋秀泰影城', N'欣欣秀泰影城', N'樹林秀泰影城', N'土城秀泰影城', N'台中站前秀泰影城', N'台中文心秀泰影城', N'台中麗寶秀泰', N'台南仁德秀泰影城', N'高雄夢時代秀泰影城', N'高雄岡山秀泰', N'基隆秀泰影城', N'雲林北港秀泰', N'嘉義秀泰影城', N'花蓮秀泰影城', N'台東秀泰影城')
+  AND m.movie_name = N'惡靈古堡：爆發夜'
+  AND b.benefit_name = N'運送單＆摺頁劇照' AND b.source_url = N'https://www.facebook.com/showtimecinemas/posts/pfbid02iNmZx9CM83WbiUwu9CpWmucjAxPWj668yZbBBBiwAJAApEeHrsWLpWzQXa6fiA1Ql' AND b.start_date = N'2026-10-30 00:00:00';
