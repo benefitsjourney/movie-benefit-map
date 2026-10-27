@@ -1,11 +1,13 @@
 
 package com.collection.benefitsjourney.config;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.Arrays;
+import java.util.Locale;
 
 import javax.sql.DataSource;
 
@@ -13,10 +15,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.ResourcePatternResolver;
 import org.springframework.jdbc.datasource.init.ResourceDatabasePopulator;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StreamUtils;
 
 @Component
 public class SqlDataInitializer implements ApplicationRunner {
@@ -64,6 +68,8 @@ public class SqlDataInitializer implements ApplicationRunner {
             }
 
             try (Connection connection = dataSource.getConnection()) {
+                boolean h2 = connection.getMetaData().getDatabaseProductName()
+                        .toLowerCase(Locale.ROOT).contains("h2");
 
                 String sql = "SELECT TOP (1) 1 FROM dbo.[" + table + "]";
 
@@ -77,8 +83,9 @@ public class SqlDataInitializer implements ApplicationRunner {
                     }
                 }
 
-                // 空表才執行 SQL
-                ResourceDatabasePopulator populator = new ResourceDatabasePopulator(file);
+                // 空表才執行 SQL。H2 沒有 SQL Server 的 SYSDATETIME()
+                Resource script = h2 ? h2CompatibleScript(file) : file;
+                ResourceDatabasePopulator populator = new ResourceDatabasePopulator(script);
 
                 populator.setSqlScriptEncoding(
                         StandardCharsets.UTF_8.name());
@@ -104,5 +111,11 @@ public class SqlDataInitializer implements ApplicationRunner {
                 }
             }
         }
+    }
+
+    private static Resource h2CompatibleScript(Resource file) throws IOException {
+        String sql = StreamUtils.copyToString(file.getInputStream(), StandardCharsets.UTF_8)
+                .replace("SYSDATETIME()", "CURRENT_TIMESTAMP");
+        return new ByteArrayResource(sql.getBytes(StandardCharsets.UTF_8));
     }
 }

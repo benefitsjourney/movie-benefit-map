@@ -74,7 +74,7 @@ public class MovieService {
                 pageRequest(page, size, orderBy, sort));
 
         List<Integer> movieIds = movies.getContent().stream()
-                .map(MovieBean::getMovieId)
+                .map((MovieBean movie) -> movie.getMovieId())
                 .toList();
         Map<Integer, Integer> counts = movieIds.isEmpty()
                 ? Map.of()

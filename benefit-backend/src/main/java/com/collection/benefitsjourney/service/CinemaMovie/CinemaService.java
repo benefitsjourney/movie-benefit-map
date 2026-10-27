@@ -82,7 +82,7 @@ public class CinemaService {
                 pageRequest(page, size, orderBy, sort));
 
         List<Integer> cinemaIds = cinemas.getContent().stream()
-                .map(CinemaBean::getCinemaId)
+                .map((CinemaBean cinema) -> cinema.getCinemaId())
                 .toList();
         Map<Integer, Integer> counts = cinemaIds.isEmpty()
                 ? Map.of()

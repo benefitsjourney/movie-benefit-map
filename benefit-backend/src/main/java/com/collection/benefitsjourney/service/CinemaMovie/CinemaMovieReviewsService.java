@@ -248,13 +248,13 @@ public class CinemaMovieReviewsService {
                 namesById(
                         idsOf(reviews, CinemaResourceType.CINEMA),
                         cinemaRepository::findAllById,
-                        CinemaBean::getCinemaId,
-                        CinemaBean::getCinemaName),
+                        (CinemaBean cinema) -> cinema.getCinemaId(),
+                        (CinemaBean cinema) -> cinema.getCinemaName()),
                 namesById(
                         idsOf(reviews, CinemaResourceType.MOVIE),
                         movieRepository::findAllById,
-                        MovieBean::getMovieId,
-                        MovieBean::getMovieName));
+                        (MovieBean movie) -> movie.getMovieId(),
+                        (MovieBean movie) -> movie.getMovieName()));
     }
 
     private record EntityNames(Map<Integer, String> cinemas, Map<Integer, String> movies) {
