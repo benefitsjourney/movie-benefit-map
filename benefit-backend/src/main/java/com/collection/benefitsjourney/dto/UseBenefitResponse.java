@@ -13,6 +13,7 @@ public record UseBenefitResponse(
         Integer useBenefitId,
         Integer benefitId,
         String benefitName,
+        String movieName,
         String benefitType,
         String benefitStatus,
         LocalDateTime startDate,
@@ -21,7 +22,8 @@ public record UseBenefitResponse(
         List<UseBenefitPhotoResponse> photos,
         LocalDateTime createdAt) {
 
-    public static UseBenefitResponse from(UseBenefitBean bean) {
+    /** 收藏庫搜尋電影名稱、卡片顯示電影用，查不到電影時是null */
+    public static UseBenefitResponse from(UseBenefitBean bean, String movieName) {
         BenefitBean benefit = bean.getBenefit();
         List<UseBenefitPhotoResponse> photos = bean.getPhotos() == null
                 ? List.of()
@@ -31,6 +33,7 @@ public record UseBenefitResponse(
                 bean.getUseBenefitId(),
                 benefit.getBenefitId(),
                 benefit.getBenefitName(),
+                movieName,
                 benefit.getBenefitType(),
                 benefit.getStatus(),
                 benefit.getStartDate(),

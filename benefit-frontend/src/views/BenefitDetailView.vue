@@ -296,7 +296,7 @@ const favoriteBusy = computed(() => Boolean(benefit.value) && isBusy(benefit.val
               </button>
               <BenefitFollowButton :benefit="benefit" />
               <RouterLink v-if="favored" to="/collection" class="collect-link">
-                到我的收藏上傳照片
+                到收藏庫上傳照片
                 <Icon :icon="arrowIcon" aria-hidden="true" />
               </RouterLink>
             </div>
