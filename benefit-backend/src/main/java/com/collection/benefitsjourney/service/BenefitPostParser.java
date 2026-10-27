@@ -83,7 +83,11 @@ public class BenefitPostParser {
 	/** 分版本的特典：「🟥 4DX版本 ➤「4DX特製 A3海報」１張」 */
 	private static final Pattern VERSION_GIFT = Pattern
 			.compile("(?m)^[^\\n]*?(4DX|IMAX)[^\\n「]*?[➤→>:][^\\n「]*「([^」]+)」");
-	private static final Pattern GIFT_AFTER_KEY = Pattern.compile("(?:專屬特典\\s*:|即可獲得|保證獲得)[^「\\n]{0,4}「([^」]+)」");
+	/** 「即可獲得首週相對應版本之入場特典乙份」：不同版本送不同特典，括號抓貼文對特典的稱呼 */
+	private static final Pattern CORRESPOND_VERSION = Pattern.compile("對應版本之?\\s*([^\\s，。,、「【0-9]{0,8}?特典)?");
+	/** 購買條件列出的版本：「2D、IMAX場次電影票」 */
+	private static final Pattern FORMAT_WORD = Pattern.compile("2D|IMAX|4DX", Pattern.CASE_INSENSITIVE);
+	private static final Pattern GIFT_AFTER_KEY =Pattern.compile("(?:專屬特典\\s*:|即可獲得|保證獲得)[^「\\n]{0,4}「([^」]+)」");
 	private static final Pattern LIMITED_LINE = Pattern.compile("本場限定\\s*[:｜|]\\s*([^\\n]+)");
 	private static final Pattern CINEMA_LABEL = Pattern.compile(
 			"(?:放映影城|首映影城|活動影城|直播影城|影城據點|預售影城|領取影城|限定場影城)(?:(?:\\s*[｜|]|[^\\n:：－—｜|]*?[:：－—-])\\s*(.*)|\\s*$)");
@@ -227,6 +231,13 @@ public class BenefitPostParser {
 					postDate, rules);
 			if (!byVersion.isEmpty()) {
 				return byVersion;
+			}
+		}
+		if (type == BenefitType.REGULAR) {
+			List<ParsedBenefitPost> perFormat = parseCorrespondingVersions(postId, postUrl, username, text, published,
+					movie, body, postDate, rules);
+			if (!perFormat.isEmpty()) {
+				return perFormat;
 			}
 		}
 		Draft d = switch (type) {
@@ -561,6 +572,75 @@ public class BenefitPostParser {
 			out.add(build(postId, postUrl, username, text, published, movie, g[1], BenefitType.SPECIAL_UNTIL_OUT,
 					startDate.atStartOfDay(), null, "爬蟲自動建立，請確認電影與日期；影城依4DX/IMAX廳別預設", Classification.BENEFIT, null,
 					rules.defaultCinemasByFormat(g[0])));
+		}
+		return out;
+	}
+
+	/**
+	 * 週特典寫「2D、IMAX場次電影票…即可獲得相對應版本之特典」：一個版本各一筆。
+	 * 2D綁全台影城，IMAX、4DX只綁有該廳的影城。
+	 * 名稱：貼文有寫特典名稱就用「名稱（版本）」，沒寫就用「週次＋貼文的稱呼（版本）」當暫用名稱並送審核，例如「首週入場特典（IMAX）」。
+	 * 每個版本的名稱一定要不同，不然匯入時同貼文同名稱會被當成重複略過。
+	 * 日期：2D照一般週特典，IMAX、4DX照版本限定（只寫「A起」又沒寫週次就是送完為止）。
+	 */
+	private List<ParsedBenefitPost> parseCorrespondingVersions(String postId, String postUrl, String username,
+			String text, LocalDateTime published, String movie, String body, LocalDate postDate, BenefitPostRules rules) {
+		String line = purchaseLine(body);
+		Matcher c = CORRESPOND_VERSION.matcher(line);
+		if (!c.find()) {
+			return List.of();
+		}
+		Set<String> formats = new LinkedHashSet<>();
+		Matcher f = FORMAT_WORD.matcher(line);
+		while (f.find()) {
+			formats.add(f.group().toUpperCase());
+		}
+		if (formats.size() < 2) {
+			return List.of(); // 只有一個版本不用拆，照原本的流程
+		}
+		if (!findCinemas(body, rules).isEmpty()) {
+			return List.of(); // 貼文自己列了影城，照原本的流程用列出來的影城
+		}
+		for (String format : formats) {
+			if (!"2D".equals(format) && rules.defaultCinemasByFormat(format).isEmpty()) {
+				return List.of(); // 這個品牌沒有特殊廳影城清單，照原本的流程
+			}
+		}
+		Draft d = parseRegular(body, postDate, rules); // 日期和特典名稱沿用週特典的抓法
+		if (d.start() == null) {
+			return List.of();
+		}
+		LocalDateTime start = d.start().atStartOfDay();
+		// 版本限定又沒寫週次時parseRegular會把結束日清掉，2D照一般週特典補回7天
+		LocalDate twoDEnd = d.end() != null ? d.end() : d.start().plusDays(REGULAR_DAYS - 1);
+
+		boolean hasName = d.gift() != null;
+		String baseName = d.gift();
+		if (!hasName) {
+			Matcher w = WEEK_MARK.matcher(line);
+			if (!w.find()) {
+				w = WEEK_MARK.matcher(body);
+			}
+			String week = w.find(0) ? w.group() : "";
+			String call = c.group(1) == null ? "特典" : c.group(1);
+			baseName = week + call;
+		}
+		String note = hasName ? "爬蟲自動建立，請確認電影與日期，依版本拆開，影城按照廳別預設"
+				: "貼文沒寫特典名稱（可能在圖片），先用暫用名稱，請改成正式名稱，依版本拆開，影城按照廳別預設";
+		Classification cls = hasName ? Classification.BENEFIT : Classification.INCOMPLETE;
+
+		List<ParsedBenefitPost> out = new ArrayList<>();
+		for (String format : formats) {
+			// 名稱已經有這個版本的字就不重複加
+			String name = baseName.toUpperCase().contains(format) ? baseName : baseName + "（" + format + "）";
+			boolean twoD = "2D".equals(format);
+			LocalDate endDate = twoD ? twoDEnd : d.end();
+			LocalDateTime end = endDate == null ? null : endDate.atTime(LocalTime.of(23, 59, 59));
+			BenefitType type = end == null ? BenefitType.SPECIAL_UNTIL_OUT : BenefitType.REGULAR;
+			String chain = twoD ? rules.chainCinemaKeyword() : null;
+			List<String> cinemas = twoD ? List.of() : rules.defaultCinemasByFormat(format);
+			out.add(build(postId, postUrl, username, text, published, movie, name, type, start, end, note, cls, chain,
+					cinemas));
 		}
 		return out;
 	}
