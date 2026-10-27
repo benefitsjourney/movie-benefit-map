@@ -4,6 +4,7 @@ import { Icon } from '@iconify/vue'
 import { computed } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import AppNavbar from '@/components/layout/AppNavbar.vue'
+import PageIntro from '@/components/layout/PageIntro.vue'
 
 import mapIcon from '@iconify-icons/mdi/map-outline'
 import giftIcon from '@iconify-icons/mdi/gift-outline'
@@ -82,14 +83,17 @@ function goToMenu(menu) {
     />
 
     <main class="page-main">
-      <div class="account-layout">
-        <h2 class="account-title">會員中心</h2>
-
-        <p class="account-description">
-          管理你的會員資料，整理屬於你的特典收藏旅程。
-        </p>
-
-        <RouterView v-if="!showSidebar" />
+          <div class="account-layout">
+            <PageIntro
+              kicker="✦ MEMBER CENTER"
+              lead="會員"
+              mark="中心"
+              description="管理你的會員資料，整理屬於你的特典收藏旅程。"
+              :icon-left="giftIcon"
+              :icon-right="accountIcon"
+              :icon-top="heartIcon"
+            />
+            <RouterView v-if="!showSidebar" />
 
         <div v-else class="account-content">
           <aside class="account-sidebar">
@@ -129,17 +133,6 @@ function goToMenu(menu) {
   width: min(1120px, calc(100% - 32px));
   margin: 0 auto;
   padding: 8px 0 40px;
-}
-
-.account-title {
-  margin: 0 0 8px;
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.account-description {
-  margin: 0 0 24px;
-  color: #667085;
 }
 
 .account-content {

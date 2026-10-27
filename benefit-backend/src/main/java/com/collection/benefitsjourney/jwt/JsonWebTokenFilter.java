@@ -77,6 +77,10 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
                 || (uri.matches("/ticket-listings/\\d+")
                         && method.equals("GET"))
 
+                // 啟動連線檢查不需要登入
+                || (uri.equals("/health") && method.equals("GET"))
+                || (uri.equals("/api/health") && method.equals("GET"))
+
                 // Swagger 白名單
                 || uri.equals("/swagger-ui.html")
                 || uri.startsWith("/swagger-ui/")
@@ -154,16 +158,26 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
             return;
         }
 
-        // 已停用會員只能呼叫自己的狀態 API，重新啟用帳號
+       
+        // 已停用會員可以查詢自己的資料，以及呼叫自己的狀態 API 重新啟用帳號
+        boolean isMyProfileApi = request.getMethod().equals("GET")
+                && request.getRequestURI().equals("/users/me");
+
         boolean isMyStatusApi = request.getMethod().equals("PATCH")
                 && request.getRequestURI().equals("/users/me/status");
 
         boolean isLogoutApi = request.getMethod().equals("POST")
                 && request.getRequestURI().equals("/auth/logout");
 
+        System.out.println("isMyProfileApi = " + isMyProfileApi);
         System.out.println("isMyStatusApi = " + isMyStatusApi);
         System.out.println("isLogoutApi = " + isLogoutApi);
-        if ("INACTIVE".equals(status) && !isMyStatusApi && !isLogoutApi) {
+
+        if ("INACTIVE".equals(status)
+                && !isMyProfileApi
+                && !isMyStatusApi
+                && !isLogoutApi) {
+
             response.sendError(
                     HttpServletResponse.SC_FORBIDDEN,
                     "此帳號已停用，請先重新啟用");

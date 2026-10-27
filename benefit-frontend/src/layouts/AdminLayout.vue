@@ -11,6 +11,7 @@ import arrowLeftIcon from "@iconify-icons/mdi/arrow-left";
 import giftIcon from "@iconify-icons/mdi/gift-outline";
 import megaphoneIcon from "@iconify-icons/mdi/bullhorn-outline";
 import excelIcon from "@iconify-icons/mdi/microsoft-excel";
+import accountGroupIcon from "@iconify-icons/mdi/account-group-outline";
 
 const links = [
   {
@@ -51,6 +52,17 @@ const links = [
     label: "資料匯出",
     icon: excelIcon,
     to: "/admin/excel",
+  },
+  {
+    label: "會員管理",
+    icon: accountGroupIcon,
+    children: [
+      {
+        to: "/admin/users",
+        label: "會員列表",
+        icon: accountGroupIcon,
+      },
+    ],
   },
 ];
 </script>
