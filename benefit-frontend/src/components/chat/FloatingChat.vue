@@ -3,6 +3,7 @@ import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import http from '@/plugins/axios'
 import { useAuth } from '@/composables/useAuth'
+import 'bootstrap-icons/font/bootstrap-icons.css'
 
 const auth = useAuth()
 const router = useRouter()
@@ -356,23 +357,12 @@ onUnmounted(() => {
           <!-- 收合 -->
           <button
             type="button"
-            class="header-icon minimize-icon"
+            class="header-icon close-icon"
             aria-label="收合聊天室"
             title="收合"
-            @click="minimizeChat"
-          >
-            <i class="bi bi-dash-lg"></i>
-          </button>
-
-          <!-- 關閉 -->
-          <button
-            type="button"
-            class="header-icon close-icon"
-            aria-label="關閉聊天室"
-            title="關閉"
             @click="closeChat"
           >
-            <i class="bi bi-x-lg"></i>
+            <i class="bi bi-dash-lg"></i>
           </button>
         </div>
       </header>

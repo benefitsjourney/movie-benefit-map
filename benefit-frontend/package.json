@@ -17,6 +17,7 @@
     "@iconify/vue": "^5.0.3",
     "axios": "^1.20.0",
     "bootstrap": "^5.3.8",
+    "bootstrap-icons": "^1.13.2",
     "leaflet": "^1.9.4",
     "leaflet.markercluster": "^1.5.3",
     "sweetalert2": "^11.26.25",
