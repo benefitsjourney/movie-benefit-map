@@ -1,9 +1,15 @@
+server:
+  # 未設 PORT 時用 8080
+  port: ${PORT:8080}
+  # 讀取 Render 的 X-Forwarded-Proto，讓 Swagger 產生 https 網址。
+  forward-headers-strategy: framework
+
 spring:
   application:
     name: benefit-backend
   config:
     import: optional:file:.env[.properties]
-  # DB_TYPE 未設定或為 mssql 時用下方 SQL Server；設為 h2 時改走 application-h2.yml
+  # DB_TYPE=h2 時改走 application-h2.yml
   profiles:
     active: ${DB_TYPE:mssql}
 
