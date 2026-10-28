@@ -10,11 +10,9 @@ import accountIcon from '@iconify-icons/mdi/account-circle-outline'
 import clipboardListIcon from '@iconify-icons/mdi/clipboard-list-outline'
 import heartIcon from '@iconify-icons/mdi/heart-outline'
 import messageIcon from '@iconify-icons/mdi/message-text-outline'
-import exchangeIcon from '@iconify-icons/mdi/swap-horizontal'
 
 const route = useRoute()
 const router = useRouter()
-
 
 // 會員中心側邊選單
 const accountMenus = [
@@ -23,12 +21,6 @@ const accountMenus = [
   { to: '/account/favorites', label: '我的收藏', icon: heartIcon },
   { to: '/account/benefits', label: '我的特典', icon: giftIcon },
   { to: '/account/messages', label: '訊息中心', icon: messageIcon },
-  {
-    label: '交換刊登', icon: exchangeIcon, children: [
-      { to: '/exchange', label: '特典交換' },
-      { to: '/ticket', label: '票券交換' },
-    ],
-  },
 ]
 
 // 關於我首頁保留原本版面，其他會員功能頁顯示側邊選單
@@ -52,7 +44,7 @@ function goToMenu(menu) {
 </script>
 
 <template>
-  <<<<<<< HEAD <FrontLayout>
+  <FrontLayout>
     <div class="account-layout">
       <PageIntro kicker="✦ MEMBER CENTER" lead="會員" mark="中心" description="管理你的會員資料，整理屬於你的特典收藏旅程。" :icon-left="giftIcon"
         :icon-right="accountIcon" :icon-top="heartIcon" />
@@ -61,46 +53,26 @@ function goToMenu(menu) {
       <div v-else class="account-content">
         <aside class="account-sidebar">
           <h3 class="sidebar-title">會員功能</h3>
-          =======
-          <div class="app-shell">
-            <AppNavbar nav-label="主要導覽" brand-to="/map" brand-name="特典地圖" :links="links" switch-to="/admin"
-              switch-label="後台管理" switch-first :switch-icon="shieldIcon" :show-switch="auth.isAdmin.value" />
 
-            <main class="page-main">
-              <div class="account-layout">
-                <PageIntro kicker="✦ MEMBER CENTER" lead="會員" mark="中心" description="管理你的會員資料，整理屬於你的特典收藏旅程。"
-                  :icon-left="giftIcon" :icon-right="accountIcon" :icon-top="heartIcon" />
-                <RouterView v-if="!showSidebar" />
-                >>>>>>> 45e3083 (﻿feat: 修改刊登前端頁面畫面顯示，未修完。)
+          <nav aria-label="會員中心選單" class="sidebar-menu">
+            <button v-for="menu in accountMenus" :key="menu.to" type="button" class="sidebar-item"
+              :class="{ active: isCurrentMenu(menu) }" :disabled="isCurrentMenu(menu)"
+              :aria-current="isCurrentMenu(menu) ? 'page' : undefined" @click="goToMenu(menu)">
+              <span class="sidebar-icon">
+                <Icon :icon="menu.icon" />
+              </span>
 
-                <nav aria-label="會員中心選單" class="sidebar-menu">
-                  <button v-for="menu in accountMenus" :key="menu.to" type="button" class="sidebar-item"
-                    :class="{ active: isCurrentMenu(menu) }" :disabled="isCurrentMenu(menu)"
-                    :aria-current="isCurrentMenu(menu) ? 'page' : undefined" @click="goToMenu(menu)">
-                    <span class="sidebar-icon">
-                      <Icon :icon="menu.icon" />
-                    </span>
-
-                    <<<<<<< HEAD <span>{{ menu.label }}</span>
-                  </button>
-                </nav>
+              <span>{{ menu.label }}</span>
+            </button>
+          </nav>
         </aside>
-        =======
-        <nav aria-label="會員中心選單" class="sidebar-menu">
-          <button v-for="menu in accountMenus" :key="menu.to" type="button" class="sidebar-item"
-            :class="{ active: isCurrentMenu(menu) }" :disabled="isCurrentMenu(menu)"
-            :aria-current="isCurrentMenu(menu) ? 'page' : undefined" @click="goToMenu(menu)">
-            <span class="sidebar-icon">
-              <Icon :icon="menu.icon" />
-            </span>
-            >>>>>>> 45e3083 (﻿feat: 修改刊登前端頁面畫面顯示，未修完。)
 
-            <div class="account-panel">
-              <RouterView />
-            </div>
+        <div class="account-panel">
+          <RouterView />
+        </div>
       </div>
     </div>
-    </FrontLayout>
+  </FrontLayout>
 </template>
 
 <style scoped>
