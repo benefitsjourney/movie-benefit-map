@@ -1,12 +1,17 @@
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { Client } from '@stomp/stompjs'
 import http from '@/plugins/axios'
 import { useAuth } from '@/composables/useAuth'
 import 'bootstrap-icons/font/bootstrap-icons.css'
 
 const auth = useAuth()
 const router = useRouter()
+
+// WebSocket / STOMP
+let stompClient = null
+let activeSubscription = null
 
 // 視窗狀態
 const isOpen = ref(false)
@@ -46,6 +51,145 @@ const currentUserId = computed(() => {
     null
   )
 })
+
+// 取得 WebSocket 連線網址
+function getWebSocketUrl() {
+  // 本機開發：透過 Vite 的 /ws 代理連到 Spring Boot
+  if (import.meta.env.DEV) {
+    const protocol =
+      window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+
+    return `${protocol}//${window.location.host}/ws`
+  }
+
+  // 正式環境：優先使用 API 設定中的主機
+  const apiBaseUrl = import.meta.env.VITE_API_URL
+  let apiUrl
+
+  try {
+    apiUrl = new URL(
+      apiBaseUrl || 'https://movie-benefit-map.onrender.com',
+      window.location.origin
+    )
+  } catch {
+    apiUrl = new URL('https://movie-benefit-map.onrender.com')
+  }
+
+  // 若 API 設定是相對路徑，避免錯連到 GitHub Pages
+  if (apiUrl.hostname.endsWith('github.io')) {
+    apiUrl = new URL('https://movie-benefit-map.onrender.com')
+  }
+
+  const protocol = apiUrl.protocol === 'https:' ? 'wss:' : 'ws:'
+
+  return `${protocol}//${apiUrl.host}/ws`
+}
+
+// 將訊息加入列表，避免 REST 與 WebSocket 重複顯示
+function addMessageIfMissing(message) {
+  if (!message) return
+
+  if (
+    message.messageId != null &&
+    messages.value.some(
+      item =>
+        String(item.messageId) === String(message.messageId)
+    )
+  ) {
+    return
+  }
+
+  messages.value.push(message)
+
+  messages.value.sort(
+    (a, b) => new Date(a.sentAt) - new Date(b.sentAt)
+  )
+}
+
+// 取消目前聊天室的訂閱
+function unsubscribeActiveConversation() {
+  if (activeSubscription) {
+    activeSubscription.unsubscribe()
+    activeSubscription = null
+  }
+}
+
+// 訂閱目前開啟的聊天室
+function subscribeToActiveConversation() {
+  if (!stompClient?.connected) return
+
+  const conversationId = activeConversation.value?.conversationId
+
+  if (!conversationId) return
+
+  // 避免同一聊天室重複訂閱
+  unsubscribeActiveConversation()
+
+  activeSubscription = stompClient.subscribe(
+    `/topic/conversations/${conversationId}`,
+    async frame => {
+      try {
+        const message = JSON.parse(frame.body)
+
+        // 只處理目前開啟的聊天室
+        if (
+          String(message.conversationId) !==
+          String(activeConversation.value?.conversationId)
+        ) {
+          return
+        }
+
+        addMessageIfMissing(message)
+        await scrollToBottom()
+      } catch (error) {
+        console.error('處理即時訊息失敗：', error)
+      }
+    }
+  )
+}
+
+// 建立 WebSocket 連線並訂閱聊天室
+function connectWebSocket() {
+  const token = localStorage.getItem('token')
+
+  if (!token) {
+    console.warn('找不到登入 Token，無法建立 WebSocket 連線。')
+    return
+  }
+
+  if (!stompClient) {
+    stompClient = new Client({
+      brokerURL: getWebSocketUrl(),
+
+      connectHeaders: {
+        Authorization: `Bearer ${token}`,
+      },
+
+      // 斷線後每 5 秒嘗試重新連線
+      reconnectDelay: 5000,
+
+      onConnect: () => {
+        console.log('WebSocket 已連線')
+        subscribeToActiveConversation()
+      },
+
+      onStompError: frame => {
+        console.error(
+          'STOMP 錯誤：',
+          frame.headers.message || frame.body
+        )
+      },
+
+      onWebSocketError: error => {
+        console.error('WebSocket 連線錯誤：', error)
+      },
+    })
+
+    stompClient.activate()
+  } else if (stompClient.connected) {
+    subscribeToActiveConversation()
+  }
+}
 
 // 載入聊天室列表
 async function loadConversations() {
@@ -89,6 +233,7 @@ function closeChat() {
   isOpen.value = false
   isMinimized.value = false
   isExpanded.value = false
+  unsubscribeActiveConversation()
   activeConversation.value = null
   messages.value = []
   messageContent.value = ''
@@ -98,6 +243,7 @@ function closeChat() {
 
 // 返回聊天室列表
 async function backToList() {
+  unsubscribeActiveConversation()
   activeConversation.value = null
   messages.value = []
   messageContent.value = ''
@@ -134,6 +280,9 @@ async function openConversation(conversation) {
     ).sort(
       (a, b) => new Date(a.sentAt) - new Date(b.sentAt)
     )
+
+    // 歷史訊息載入後，連線並訂閱目前聊天室
+    connectWebSocket()
 
     // 標記訊息已讀
     await http.patch(
@@ -186,7 +335,7 @@ async function sendMessage() {
       { content }
     )
 
-    messages.value.push(response.data)
+    addMessageIfMissing(response.data)
     messageContent.value = ''
 
     await scrollToBottom()
@@ -272,7 +421,15 @@ onUnmounted(() => {
     'open-floating-chat',
     handleOpenFloatingChat
   )
+
+  unsubscribeActiveConversation()
+
+  if (stompClient) {
+    stompClient.deactivate()
+    stompClient = null
+  }
 })
+
 </script>
 
 <template>

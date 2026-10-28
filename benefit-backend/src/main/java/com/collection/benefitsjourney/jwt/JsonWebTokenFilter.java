@@ -42,6 +42,11 @@ public class JsonWebTokenFilter extends OncePerRequestFilter {
 
         System.out.println("JWT Filter URI = " + uri);
 
+        // WebSocket 握手階段尚未透過 STOMP 傳送 Token，先放行 HTTP 握手
+        if (uri.equals("/ws") || uri.startsWith("/ws/")) {
+                return true;
+        }
+
         return uri.equals("/auth/register")
                 || uri.equals("/auth/login")
                 || uri.equals("/auth/google")

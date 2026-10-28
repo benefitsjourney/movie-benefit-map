@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.collection.benefitsjourney.domain.MessageBean;
 import com.collection.benefitsjourney.dto.MessageResponse;
 import com.collection.benefitsjourney.dto.SendMessageRequest;
+import com.collection.benefitsjourney.service.MessagePushService;
 import com.collection.benefitsjourney.service.MessageService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -27,9 +28,11 @@ import jakarta.validation.Valid;
 public class MessageController {
 
     private final MessageService messageService;
+    private final MessagePushService messagePushService;
 
-    public MessageController(MessageService messageService) {
+    public MessageController( MessageService messageService, MessagePushService messagePushService) {
         this.messageService = messageService;
+        this.messagePushService = messagePushService;
     }
 
     // 查詢聊天室訊息，預設每頁 20 筆
@@ -61,9 +64,13 @@ public class MessageController {
         Integer usersId = (Integer) request.getAttribute("usersId");
 
         MessageBean message = messageService.sendMessage(
-                usersId, conversationId, body.getContent());
+        usersId, conversationId, body.getContent());
 
-        return toResponse(message);
+        // 訊息成功儲存後，推送給聊天室訂閱者
+        MessageResponse response = toResponse(message);
+        messagePushService.pushMessage(message);
+
+        return response;
     }
 
     // 將對方傳來的未讀訊息標記為已讀
