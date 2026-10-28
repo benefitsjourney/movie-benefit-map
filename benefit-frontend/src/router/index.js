@@ -90,12 +90,12 @@ const router = createRouter({
         {
           path: 'listings',
           name: 'account-listings',
-          component: ExchangeMyFavoritesView,
+          component: ExchangeMyListingsView,
         },
         {
           path: 'favorites',
           name: 'account-favorites',
-          component: ExchangeMyListingsView,
+          component: ExchangeMyFavoritesView,
         },
         {
           path: 'messages',

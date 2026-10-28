@@ -950,7 +950,6 @@ function isOwnListing(item) {
 }
 
 /* 收藏按鈕 */
-
 .favorite-btn {
     position: absolute;
     top: 0.5rem;
@@ -1584,7 +1583,6 @@ function isOwnListing(item) {
 }
 
 /* 尊重使用者減少動畫的系統設定 */
-
 @media (prefers-reduced-motion: reduce) {
 
     .favorite-btn,
