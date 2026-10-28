@@ -46,7 +46,6 @@ spring:
 
   #JPA
   jpa:
-    database-platform: org.hibernate.dialect.SQLServerDialect
     hibernate:
       #ddl-auto: validate
       ddl-auto: update
