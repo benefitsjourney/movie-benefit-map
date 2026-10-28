@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,14 +22,17 @@ public class MessageService {
     private final MessageRepository messageRepository;
     private final ConversationRepository conversationRepository;
     private final UsersRepository usersRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public MessageService(
             MessageRepository messageRepository,
             ConversationRepository conversationRepository,
-            UsersRepository usersRepository) {
+            UsersRepository usersRepository,
+            SimpMessagingTemplate messagingTemplate) {
         this.messageRepository = messageRepository;
         this.conversationRepository = conversationRepository;
         this.usersRepository = usersRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     // 查詢聊天室訊息
@@ -73,7 +77,13 @@ public class MessageService {
 
         // 更新聊天室最後活動時間
         conversation.setUpdatedAt(LocalDateTime.now());
+        
         conversationRepository.save(conversation);
+        // 即時推送訊息給訂閱此聊天室的前端
+        messagingTemplate.convertAndSend(
+                "/topic/conversations/" + conversationId,
+                savedMessage
+        );
 
         return savedMessage;
     }

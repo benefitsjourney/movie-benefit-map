@@ -11,7 +11,7 @@ const router = useRouter()
 
 // WebSocket / STOMP
 let stompClient = null
-let activeSubscription = null
+const conversationSubscriptions = new Map()
 
 // 視窗狀態
 const isOpen = ref(false)
@@ -21,6 +21,13 @@ const isExpanded = ref(false)
 // 聊天室列表與目前對話
 const conversations = ref([])
 const activeConversation = ref(null)
+
+// 是否有未讀訊息
+const hasUnreadMessages = computed(() =>
+  conversations.value.some(
+    conversation => Number(conversation.unreadCount) > 0
+  )
+)
 
 // 訊息
 const messages = ref([])
@@ -106,89 +113,159 @@ function addMessageIfMissing(message) {
   )
 }
 
-// 取消目前聊天室的訂閱
-function unsubscribeActiveConversation() {
-  if (activeSubscription) {
-    activeSubscription.unsubscribe()
-    activeSubscription = null
-  }
+
+function unsubscribeAllConversations() {
+  conversationSubscriptions.forEach(subscription => {
+    subscription.unsubscribe()
+  })
+
+  conversationSubscriptions.clear()
 }
 
-// 訂閱目前開啟的聊天室
-function subscribeToActiveConversation() {
+// 訂閱所有已知聊天室，聊天視窗關閉時也持續接收訊息
+function subscribeToAllConversations() {
   if (!stompClient?.connected) return
 
-  const conversationId = activeConversation.value?.conversationId
+  conversations.value.forEach(conversation => {
+    const conversationId = conversation.conversationId
+    if (!conversationId) return
 
-  if (!conversationId) return
+    const key = String(conversationId)
 
-  // 避免同一聊天室重複訂閱
-  unsubscribeActiveConversation()
+    // 避免重複訂閱
+    if (conversationSubscriptions.has(key)) return
 
-  activeSubscription = stompClient.subscribe(
-    `/topic/conversations/${conversationId}`,
-    async frame => {
-      try {
-        const message = JSON.parse(frame.body)
+    const subscription = stompClient.subscribe(
+      `/topic/conversations/${conversationId}`,
+      async frame => {
+        try {
+          const message = JSON.parse(frame.body)
 
-        // 只處理目前開啟的聊天室
-        if (
-          String(message.conversationId) !==
-          String(activeConversation.value?.conversationId)
-        ) {
-          return
+          // 相容不同的訊息 JSON 結構
+          const receivedConversationId =
+            message.conversationId ??
+            message.conversation?.conversationId
+
+          if (
+            String(receivedConversationId) !== key
+          ) {
+            return
+          }
+
+          const senderId =
+            message.senderId ??
+            message.sender?.usersId ??
+            message.sender?.users_id
+
+          const isMine =
+            currentUserId.value != null &&
+            senderId != null &&
+            String(senderId) === String(currentUserId.value)
+
+          // 更新聊天室最後訊息
+          const item = conversations.value.find(
+            c => String(c.conversationId) === key
+          )
+
+          if (item) {
+            item.lastMessageContent = message.content
+            item.lastMessageAt = message.sentAt
+          }
+
+          // 如果目前正在看這個聊天室，而且視窗沒有收合，
+          // 收到對方訊息後直接標記已讀，不增加未讀數
+          const isViewingConversation =
+            isOpen.value &&
+            !isMinimized.value &&
+            activeConversation.value &&
+            String(activeConversation.value.conversationId) === key
+
+          if (!isMine && !isViewingConversation && item) {
+            item.unreadCount =
+              Number(item.unreadCount || 0) + 1
+          }
+
+          // 更新目前開啟的聊天室訊息
+          if (
+            isOpen.value &&
+            activeConversation.value &&
+            String(activeConversation.value.conversationId) === key
+          ) {
+            addMessageIfMissing(message)
+
+            if (!isMinimized.value) {
+              await scrollToBottom()
+            }
+          }
+
+          // 對方傳來訊息且目前正在閱讀該聊天室，立即標記已讀
+          if (!isMine && isViewingConversation) {
+            try {
+              await http.patch(
+                `/conversations/${conversationId}/messages/read`
+              )
+
+              if (item) {
+                item.unreadCount = 0
+              }
+            } catch (error) {
+              console.error('即時標記已讀失敗：', error)
+            }
+          }
+        } catch (error) {
+          console.error('處理即時訊息失敗：', error)
         }
-
-        addMessageIfMissing(message)
-        await scrollToBottom()
-      } catch (error) {
-        console.error('處理即時訊息失敗：', error)
       }
-    }
-  )
+    )
+
+    conversationSubscriptions.set(key, subscription)
+  })
 }
 
+
 // 建立 WebSocket 連線並訂閱聊天室
+
 function connectWebSocket() {
   const token = localStorage.getItem('token')
 
-  if (!token) {
-    console.warn('找不到登入 Token，無法建立 WebSocket 連線。')
+  if (!token || !isLoggedIn.value) {
     return
   }
 
-  if (!stompClient) {
-    stompClient = new Client({
-      brokerURL: getWebSocketUrl(),
-
-      connectHeaders: {
-        Authorization: `Bearer ${token}`,
-      },
-
-      // 斷線後每 5 秒嘗試重新連線
-      reconnectDelay: 5000,
-
-      onConnect: () => {
-        console.log('WebSocket 已連線')
-        subscribeToActiveConversation()
-      },
-
-      onStompError: frame => {
-        console.error(
-          'STOMP 錯誤：',
-          frame.headers.message || frame.body
-        )
-      },
-
-      onWebSocketError: error => {
-        console.error('WebSocket 連線錯誤：', error)
-      },
-    })
-
-    stompClient.activate()
-  } else if (stompClient.connected) {
-    subscribeToActiveConversation()
+  if (stompClient) {
+    if (stompClient.connected) {
+      subscribeToAllConversations()
+    }
+    return
   }
+
+  stompClient = new Client({
+    brokerURL: getWebSocketUrl(),
+
+    connectHeaders: {
+      Authorization: `Bearer ${token}`,
+    },
+
+    reconnectDelay: 5000,
+
+    onConnect: () => {
+      console.log('WebSocket 已連線')
+      subscribeToAllConversations()
+    },
+
+    onStompError: frame => {
+      console.error(
+        'STOMP 錯誤：',
+        frame.headers.message || frame.body
+      )
+    },
+
+    onWebSocketError: error => {
+      console.error('WebSocket 連線錯誤：', error)
+    },
+  })
+
+  stompClient.activate()
 }
 
 // 載入聊天室列表
@@ -204,6 +281,7 @@ async function loadConversations() {
     conversations.value = Array.isArray(response.data)
       ? response.data
       : []
+      subscribeToAllConversations()
   } catch (error) {
     errorMessage.value =
       error.response?.data?.message ||
@@ -233,7 +311,6 @@ function closeChat() {
   isOpen.value = false
   isMinimized.value = false
   isExpanded.value = false
-  unsubscribeActiveConversation()
   activeConversation.value = null
   messages.value = []
   messageContent.value = ''
@@ -243,7 +320,6 @@ function closeChat() {
 
 // 返回聊天室列表
 async function backToList() {
-  unsubscribeActiveConversation()
   activeConversation.value = null
   messages.value = []
   messageContent.value = ''
@@ -281,8 +357,9 @@ async function openConversation(conversation) {
       (a, b) => new Date(a.sentAt) - new Date(b.sentAt)
     )
 
-    // 歷史訊息載入後，連線並訂閱目前聊天室
+    // 確保 WebSocket 已連線，並訂閱所有聊天室
     connectWebSocket()
+    subscribeToAllConversations()
 
     // 標記訊息已讀
     await http.patch(
@@ -351,17 +428,18 @@ async function sendMessage() {
 
 // 判斷訊息是否由目前會員傳送
 function isMyMessage(message) {
-  if (
-    currentUserId.value == null ||
-    message.senderId == null
-  ) {
+  const senderId =
+    message.senderId ??
+    message.sender?.usersId ??
+    message.sender?.users_id ??
+    message.sender?.userId ??
+    message.sender?.id
+
+  if (currentUserId.value == null || senderId == null) {
     return false
   }
 
-  return (
-    String(message.senderId) ===
-    String(currentUserId.value)
-  )
+  return String(senderId) === String(currentUserId.value)
 }
 
 // 捲動至最新訊息
@@ -413,11 +491,36 @@ async function handleOpenFloatingChat(event) {
   }
 }
 
+
 onMounted(() => {
   window.addEventListener(
     'open-floating-chat',
     handleOpenFloatingChat
   )
+
+  if (isLoggedIn.value) {
+    connectWebSocket()
+    loadConversations()
+  }
+})
+
+// 登入後開始接收通知；登出後關閉連線
+watch(isLoggedIn, async loggedIn => {
+  if (loggedIn) {
+    await loadConversations()
+    connectWebSocket()
+  } else {
+    unsubscribeAllConversations()
+
+    if (stompClient) {
+      await stompClient.deactivate()
+      stompClient = null
+    }
+
+    conversations.value = []
+    activeConversation.value = null
+    messages.value = []
+  }
 })
 
 onUnmounted(() => {
@@ -426,7 +529,7 @@ onUnmounted(() => {
     handleOpenFloatingChat
   )
 
-  unsubscribeActiveConversation()
+  unsubscribeAllConversations()
 
   if (stompClient) {
     stompClient.deactivate()
@@ -448,6 +551,11 @@ onUnmounted(() => {
     >
       <i class="bi bi-chat-dots-fill"></i>
       <span>聊天</span>
+      <span
+        v-if="hasUnreadMessages"
+        class="chat-notification-dot"
+        aria-label="有未讀訊息"
+      ></span>
     </button>
 
     <!-- 聊天視窗 -->
@@ -659,10 +767,7 @@ onUnmounted(() => {
                 :class="{ mine: isMyMessage(message) }"
               >
                 <div class="message-bubble">
-                  <small v-if="!isMyMessage(message)">
-                    {{ message.senderName || '會員' }}
-                  </small>
-
+                  
                   <p>{{ message.content }}</p>
 
                   <time>{{ formatTime(message.sentAt) }}</time>
@@ -1111,5 +1216,20 @@ onUnmounted(() => {
     width: 32px;
     height: 32px;
   }
+}
+.chat-launcher {
+  position: relative;
+}
+
+.chat-notification-dot {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 13px;
+  height: 13px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow: 0 0 0 2px rgb(239 68 68 / 15%);
 }
 </style>
