@@ -456,6 +456,68 @@ watch(isExpanded, async () => {
   await scrollToBottom()
 })
 
+/**
+ * 將訊息中的 HTTP/HTTPS 網址拆成可點擊連結與一般文字
+ */
+
+function getMessageParts(content) {
+  const text = String(content ?? '')
+  const parts = []
+
+  // 擷取 HTTP / HTTPS 網址
+  const urlPattern = /https?:\/\/[^\s<>"']+/gi
+
+  let lastIndex = 0
+
+  for (const match of text.matchAll(urlPattern)) {
+    const startIndex = match.index
+    const rawUrl = match[0]
+
+    // 移除網址末尾的中英文標點符號
+    let url = rawUrl.replace(/[.,!?;:，。！？；：、）】》」』]+$/u, '')
+
+    if (!url) continue
+
+    // 確認網址格式正確，只允許 HTTP / HTTPS
+    try {
+      const parsedUrl = new URL(url)
+
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        continue
+      }
+    } catch {
+      continue
+    }
+
+    // 加入網址前面的普通文字
+    if (startIndex > lastIndex) {
+      parts.push({
+        text: text.slice(lastIndex, startIndex),
+        url: null,
+      })
+    }
+
+    // 加入可點擊的網址
+    parts.push({
+      text: url,
+      url: url,
+    })
+
+    // 更新位置，只跳過實際網址，不跳過後面的標點或文字
+    lastIndex = startIndex + url.length
+  }
+
+  // 加入剩下的普通文字，包括標點符號與網址後面的內容
+  if (lastIndex < text.length) {
+    parts.push({
+      text: text.slice(lastIndex),
+      url: null,
+    })
+  }
+
+  return parts.length ? parts : [{ text, url: null }]
+}
+
 // 格式化時間
 function formatTime(value) {
   if (!value) return ''
@@ -767,8 +829,17 @@ onUnmounted(() => {
                 :class="{ mine: isMyMessage(message) }"
               >
                 <div class="message-bubble">
-                  
-                  <p>{{ message.content }}</p>
+
+                  <p>
+                    <template v-for="(part, partIndex) in getMessageParts(message.content)" :key="partIndex" >
+                    <a
+                      v-if="part.url"
+                      :href="part.url"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >{{ part.text }}</a>
+                    <span v-else>{{ part.text }}</span>
+                  </template></p>
 
                   <time>{{ formatTime(message.sentAt) }}</time>
                 </div>
@@ -1231,5 +1302,18 @@ onUnmounted(() => {
   border-radius: 50%;
   background: #ef4444;
   box-shadow: 0 0 0 2px rgb(239 68 68 / 15%);
+}
+.message-bubble p a {
+  color: #1769aa;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+.message-row.mine .message-bubble p a {
+  color: #a8d5ff;
+}
+
+.message-bubble p a:hover {
+  text-decoration-thickness: 2px;
 }
 </style>

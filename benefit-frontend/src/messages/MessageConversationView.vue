@@ -320,6 +320,69 @@ async function scrollToBottom() {
   }
 }
 
+
+/**
+ * 將訊息中的 HTTP/HTTPS 網址拆成可點擊連結與一般文字
+ */
+
+function getMessageParts(content) {
+  const text = String(content ?? '')
+  const parts = []
+
+  // 擷取 HTTP / HTTPS 網址
+  const urlPattern = /https?:\/\/[^\s<>"']+/gi
+
+  let lastIndex = 0
+
+  for (const match of text.matchAll(urlPattern)) {
+    const startIndex = match.index
+    const rawUrl = match[0]
+
+    // 移除網址末尾的中英文標點符號
+    let url = rawUrl.replace(/[.,!?;:，。！？；：、）】》」』]+$/u, '')
+
+    if (!url) continue
+
+    // 確認網址格式正確，只允許 HTTP / HTTPS
+    try {
+      const parsedUrl = new URL(url)
+
+      if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+        continue
+      }
+    } catch {
+      continue
+    }
+
+    // 加入網址前面的普通文字
+    if (startIndex > lastIndex) {
+      parts.push({
+        text: text.slice(lastIndex, startIndex),
+        url: null,
+      })
+    }
+
+    // 加入可點擊的網址
+    parts.push({
+      text: url,
+      url: url,
+    })
+
+    // 更新位置，只跳過實際網址，不跳過後面的標點或文字
+    lastIndex = startIndex + url.length
+  }
+
+  // 加入剩下的普通文字，包括標點符號與網址後面的內容
+  if (lastIndex < text.length) {
+    parts.push({
+      text: text.slice(lastIndex),
+      url: null,
+    })
+  }
+
+  return parts.length ? parts : [{ text, url: null }]
+}
+
 // 返回訊息列表
 function backToInbox() {
   router.push({ name: 'account-messages' })
@@ -438,7 +501,17 @@ onUnmounted(() => {
                 class="message-bubble"
                 :class="{ 'my-message': isMyMessage(message) }"
               >
-                {{ message.content }}
+                <template
+                  v-for="(part, partIndex) in getMessageParts(message.content)"
+                  :key="partIndex" >
+                  <a
+                    v-if="part.url"
+                    :href="part.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >{{ part.text }}</a>
+                  <span v-else>{{ part.text }}</span>
+                </template>
               </div>
 
               <div class="message-time">
@@ -757,5 +830,18 @@ onUnmounted(() => {
   .chat-input-area {
     padding: 0.85rem;
   }
+}
+.message-bubble a {
+  color: #1769aa;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+.message-bubble.my-message a {
+  color: #1769aa;
+}
+
+.message-bubble a:hover {
+  text-decoration-thickness: 2px;
 }
 </style>
