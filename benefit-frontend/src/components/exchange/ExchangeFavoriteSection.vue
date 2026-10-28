@@ -636,7 +636,7 @@ watch(
                                 取消收藏
                             </button>
 
-                            <button type="button" class="detail-chat-button" :disabled="!isLoggedIn ||
+                            <!--<button type="button" class="detail-chat-button" :disabled="!isLoggedIn ||
                                 isOwnListing(selectedListing)
                                 " :title="!isLoggedIn
                                     ? '登入後才能聯絡刊登者'
@@ -646,7 +646,7 @@ watch(
                                     " @click="openChatFromDetail">
                                 <Icon :icon="chatIcon" aria-hidden="true" />
                                 聯絡刊登者
-                            </button>
+                            </button>-->
                         </footer>
                     </div>
                 </section>
