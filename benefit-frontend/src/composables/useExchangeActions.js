@@ -35,18 +35,54 @@ export function useExchangeActions({
         loadMemberData,
     } = data;
 
+    // ========== 票券專用提示視窗 ==========
+    // 將票券相關的 SweetAlert2 提示顯示在 Modal 上層。
+    function showTicketAlert(options) {
+        return Swal.fire({
+            ...options,
+            target: document.body,
+            heightAuto: false,
+            didOpen: () => {
+                const container = Swal.getContainer();
+
+                if (container) {
+                    container.style.setProperty(
+                        "z-index",
+                        "99999",
+                        "important",
+                    );
+                }
+
+                // 若原本有設定 didOpen，也保留原本行為。
+                options.didOpen?.();
+            },
+        });
+    }
+
     // ========== 統一處理登入失效 ==========
-    async function handleOperationError(error, title) {
+    async function handleOperationError(
+        error,
+        title,
+        { isTicket = false } = {},
+    ) {
         if (error?.response?.status === 401) {
             await onAuthExpired?.(error);
             return true;
         }
 
-        await Swal.fire(
-            title,
-            errorText(error),
-            "error",
-        );
+        if (isTicket) {
+            await showTicketAlert({
+                title,
+                text: errorText(error),
+                icon: "error",
+            });
+        } else {
+            await Swal.fire(
+                title,
+                errorText(error),
+                "error",
+            );
+        }
 
         return false;
     }
@@ -260,20 +296,20 @@ export function useExchangeActions({
         if (isSavingTicket.value) return;
 
         if (!token.value) {
-            await Swal.fire(
-                "請先登入",
-                "新增或修改票券刊登需要有效的登入 Token。",
-                "warning",
-            );
+            await showTicketAlert({
+                title: "請先登入",
+                text: "新增或修改票券刊登需要有效的登入 Token。",
+                icon: "warning",
+            });
             return;
         }
 
         if (!ticketForm.title.trim()) {
-            await Swal.fire(
-                "請輸入標題",
-                "票券刊登標題不可空白。",
-                "warning",
-            );
+            await showTicketAlert({
+                title: "請輸入標題",
+                text: "票券刊登標題不可空白。",
+                icon: "warning",
+            });
             return;
         }
 
@@ -282,11 +318,11 @@ export function useExchangeActions({
             !ticketForm.movieId ||
             !ticketForm.ticketShowtime
         ) {
-            await Swal.fire(
-                "資料尚未完整",
-                "請選擇影城、電影及放映日期。",
-                "warning",
-            );
+            await showTicketAlert({
+                title: "資料尚未完整",
+                text: "請選擇影城、電影及放映日期。",
+                icon: "warning",
+            });
             return;
         }
 
@@ -317,20 +353,24 @@ export function useExchangeActions({
             isTicketModalOpen.value = false;
             resetTicketForm();
 
-            await Swal.fire(
-                "完成",
-                isEditing
+            await showTicketAlert({
+                title: "完成",
+                text: isEditing
                     ? "票券刊登修改成功。"
                     : "票券刊登新增成功。",
-                "success",
-            );
+                icon: "success",
+            });
 
             await loadPublicListings();
             if (!token.value) return;
 
             await loadMemberData();
         } catch (error) {
-            await handleOperationError(error, "操作失敗");
+            await handleOperationError(
+                error,
+                "操作失敗",
+                { isTicket: true },
+            );
         } finally {
             isSavingTicket.value = false;
         }
@@ -404,6 +444,7 @@ export function useExchangeActions({
         }
     }
 
+
     // ========== 加入收藏／取消收藏 ==========
     async function toggleFavorite(item, kind) {
         if (!isLoggedIn.value || !token.value) {
@@ -414,11 +455,20 @@ export function useExchangeActions({
         const id = listingId(item, kind);
 
         if (!id) {
-            await Swal.fire(
-                "無法收藏",
-                "找不到刊登 ID，請確認後端回傳資料。",
-                "error",
-            );
+            if (kind === "ticket") {
+                await showTicketAlert({
+                    title: "無法收藏",
+                    text: "找不到刊登 ID，請確認後端回傳資料。",
+                    icon: "error",
+                });
+            } else {
+                await Swal.fire(
+                    "無法收藏",
+                    "找不到刊登 ID，請確認後端回傳資料。",
+                    "error",
+                );
+            }
+
             return;
         }
 
@@ -441,9 +491,14 @@ export function useExchangeActions({
 
             await loadMemberData();
         } catch (error) {
-            await handleOperationError(error, "收藏操作失敗");
+            await handleOperationError(
+                error,
+                "收藏操作失敗",
+                { isTicket: kind === "ticket" },
+            );
         }
     }
+
 
     return {
         editingExchangeId,

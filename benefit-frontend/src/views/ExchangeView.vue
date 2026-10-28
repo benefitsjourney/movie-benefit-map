@@ -389,22 +389,22 @@ onMounted(async () => {
     // 如果載入公開資料時已觸發登入失效處理，就不再載入會員資料。
     if (authExpiredHandled.value) return;
 
-    console.log(
-        "[除錯] ticketListings：",
-        ticketListings.value,
-    );
+    // console.log(
+    //     "[除錯] ticketListings：",
+    //     ticketListings.value,
+    // );
 
-    console.log(
-        "[除錯] ticketListings 筆數：",
-        ticketListings.value?.length,
-    );
+    // console.log(
+    //     "[除錯] ticketListings 筆數：",
+    //     ticketListings.value?.length,
+    // );
 
-    console.log("[除錯] 目前登入會員資料：", user.value);
+    // console.log("[除錯] 目前登入會員資料：", user.value);
 
-    console.log(
-        "[除錯] 登入會員欄位名稱：",
-        Object.keys(user.value || {}),
-    );
+    // console.log(
+    //     "[除錯] 登入會員欄位名稱：",
+    //     Object.keys(user.value || {}),
+    // );
 
     // 只有登入後才載入會員資料。
     if (isLoggedIn.value && token.value) {

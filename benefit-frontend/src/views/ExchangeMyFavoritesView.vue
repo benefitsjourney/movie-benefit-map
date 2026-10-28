@@ -2,6 +2,7 @@
 <!-- 會員收藏管理頁面 -->
 <script setup>
 import { onMounted, ref } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import Swal from "sweetalert2";
 import { useAuth } from "@/composables/useAuth";
 
@@ -17,7 +18,18 @@ import {
     getMovies,
 } from "@/api/exchangeApi.js";
 
-const { token, isLoggedIn, refreshAuth } = useAuth();
+const {
+    token,
+    isLoggedIn,
+    refreshAuth,
+    logout,
+} = useAuth();
+
+const route = useRoute();
+const router = useRouter();
+
+// 避免多個 API 同時回傳 401 時重複處理。
+const authExpiredHandled = ref(false);
 
 const activeTab = ref("exchange");
 const loading = ref(false);
@@ -86,11 +98,45 @@ function favoriteListing(favorite, kind) {
     );
 }
 
+async function handleAuthExpired(error) {
+    // 同一頁面只處理一次 Token 失效。
+    if (authExpiredHandled.value) return;
+
+    authExpiredHandled.value = true;
+
+    console.warn(
+        "我的收藏頁收到 HTTP 401，清除本機登入狀態。",
+        error?.response?.data?.message || "",
+    );
+
+    logout();
+
+    await Swal.fire({
+        icon: "warning",
+        title: "登入狀態已失效",
+        text: "登入憑證可能已過期或無效，請重新登入後再繼續操作。",
+        confirmButtonText: "前往登入",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+    });
+
+    await router.push({
+        name: "login",
+        query: {
+            redirect: route.fullPath,
+        },
+    });
+}
+
 function errorText(error) {
     const status = error?.response?.status;
 
-    if (status === 401 || status === 403) {
-        return "登入驗證失敗或目前帳號沒有此操作的權限，請重新登入。";
+    if (status === 401) {
+        return "登入憑證無效或已過期，請重新登入。";
+    }
+
+    if (status === 403) {
+        return "目前帳號沒有執行此操作的權限。";
     }
 
     if (status === 404) {
@@ -193,6 +239,19 @@ async function loadFavorites() {
         getMovies(),
     ]);
 
+    // 先統一處理 HTTP 401，避免產生重複錯誤訊息。
+    const unauthorizedResult = results.find(
+        (result) =>
+            result.status === "rejected" &&
+            result.reason?.response?.status === 401,
+    );
+
+    if (unauthorizedResult) {
+        await handleAuthExpired(unauthorizedResult.reason);
+        loading.value = false;
+        return;
+    }
+
     const failures = [];
 
     if (results[0].status === "fulfilled") {
@@ -266,6 +325,11 @@ async function removeFavorite(item, kind) {
 
         await Swal.fire("完成", "已取消收藏。", "success");
     } catch (error) {
+        if (error?.response?.status === 401) {
+            await handleAuthExpired(error);
+            return;
+        }
+
         await Swal.fire("操作失敗", errorText(error), "error");
     }
 }
@@ -300,9 +364,6 @@ onMounted(async () => {
         </div>
 
         <template v-else>
-            <div v-if="errorMessage" class="alert alert-warning" role="alert">
-                {{ errorMessage }}
-            </div>
 
             <nav class="favorite-tabs" aria-label="我的收藏分類">
                 <button type="button" :class="{ active: activeTab === 'exchange' }" @click="activeTab = 'exchange'">
@@ -351,6 +412,7 @@ onMounted(async () => {
     color: #687386;
 }
 
+
 .favorite-tabs {
     display: flex;
     flex-wrap: wrap;
@@ -359,10 +421,15 @@ onMounted(async () => {
 }
 
 .favorite-tabs button {
+    min-width: 0;
+    max-width: 100%;
     padding: 0.65rem 0.9rem;
     border: 1px solid #e8e5e1;
     border-radius: 0.65rem;
     background: #fff;
+    color: inherit;
+    font: inherit;
+    overflow-wrap: anywhere;
     cursor: pointer;
 }
 
@@ -370,6 +437,14 @@ onMounted(async () => {
     border-color: #ff7049;
     background: #fff0e9;
     color: #9a4632;
+}
+
+@media (max-width: 650px) {
+    .favorite-tabs {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0.6rem;
+    }
 }
 
 .empty-state {

@@ -40,6 +40,71 @@ const selectedListing = ref(null)
 // 詳細視窗目前顯示的圖片索引。
 const detailImageIndex = ref(0)
 
+// 各張收藏卡片目前顯示的圖片索引，與詳細視窗分開管理。
+const cardImageIndexes = ref({})
+
+// 取得收藏卡片的唯一識別鍵。
+function cardImageKey(favorite, index) {
+    return String(
+        favorite?.exchangeFavoriteId ??
+        favorite?.exchange_favorite_id ??
+        listingId(favorite) ??
+        index
+    )
+}
+
+// 取得收藏卡片目前顯示的圖片。
+function currentCardImage(favorite, index) {
+    const images = imageCandidates(favorite)
+    const key = cardImageKey(favorite, index)
+    const imageIndex = cardImageIndexes.value[key] ?? 0
+
+    return images[imageIndex] ?? ''
+}
+
+// 切換收藏卡片的圖片。
+function changeCardImage(favorite, index, direction) {
+    const images = imageCandidates(favorite)
+
+    if (images.length <= 1) return
+
+    const key = cardImageKey(favorite, index)
+    const currentIndex = cardImageIndexes.value[key] ?? 0
+
+    cardImageIndexes.value = {
+        ...cardImageIndexes.value,
+        [key]: (currentIndex + direction + images.length) % images.length
+    }
+}
+
+// 開始觸控滑動時，記錄起始位置。
+function handleCardTouchStart(event) {
+    event.currentTarget.dataset.touchStartX = String(
+        event.changedTouches[0].clientX
+    )
+}
+
+// 結束觸控滑動時，依方向切換圖片。
+function handleCardTouchEnd(event, favorite, index) {
+    const startX = Number(event.currentTarget.dataset.touchStartX)
+    const endX = event.changedTouches[0].clientX
+    const distance = endX - startX
+
+    // 滑動距離至少 30px 才切換，避免輕微觸碰造成誤判。
+    if (Math.abs(distance) < 30) return
+
+    changeCardImage(favorite, index, distance < 0 ? 1 : -1)
+}
+
+// 卡片圖片載入失敗時，嘗試顯示下一張圖片。
+function handleCardImageError(favorite, index) {
+    const images = imageCandidates(favorite)
+
+    if (images.length <= 1) return
+
+    changeCardImage(favorite, index, 1)
+}
+
 // 記錄詳細視窗中載入失敗的圖片。
 const failedDetailImages = ref([])
 
@@ -397,18 +462,38 @@ watch(
                 " class="favorite-card" role="button" tabindex="0" :aria-label="`查看${listingTitle(favorite)}的詳細內容`"
                 @click="openDetail(favorite)" @keydown.enter.prevent="openDetail(favorite)"
                 @keydown.space.prevent="openDetail(favorite)">
-                <div class="favorite-images">
+
+                <div class="favorite-images" @touchstart="handleCardTouchStart"
+                    @touchend="handleCardTouchEnd($event, favorite, index)">
                     <template v-if="imageCandidates(favorite).length > 0">
-                        <img v-for="(imageUrl, imageIndex) in imageCandidates(favorite)"
-                            :key="`${imageUrl}-${imageIndex}`" :src="imageUrl"
-                            :alt="`${listingTitle(favorite)} 的照片 ${imageIndex + 1}`" class="favorite-image"
-                            @error="$event.target.style.display = 'none'" />
+                        <img :key="currentCardImage(favorite, index)" :src="currentCardImage(favorite, index)"
+                            :alt="`${listingTitle(favorite)} 的照片 ${(cardImageIndexes[cardImageKey(favorite, index)] ?? 0) + 1}`"
+                            class="favorite-image" @error="handleCardImageError(favorite, index)" />
+
+                        <template v-if="imageCandidates(favorite).length > 1">
+                            <button type="button" class="card-image-arrow card-image-previous" aria-label="上一張特典圖片"
+                                title="上一張圖片" @click.stop="changeCardImage(favorite, index, -1)">
+                                ‹
+                            </button>
+
+                            <span class="card-image-count">
+                                {{ (cardImageIndexes[cardImageKey(favorite, index)] ?? 0) + 1 }}
+                                /
+                                {{ imageCandidates(favorite).length }}
+                            </span>
+
+                            <button type="button" class="card-image-arrow card-image-next" aria-label="下一張特典圖片"
+                                title="下一張圖片" @click.stop="changeCardImage(favorite, index, 1)">
+                                ›
+                            </button>
+                        </template>
                     </template>
 
                     <div v-else class="no-image" aria-label="沒有特典圖片">
                         <Icon :icon="giftIcon" class="gift-icon" />
                     </div>
                 </div>
+
 
                 <div class="favorite-content">
                     <h3 class="favorite-title" :title="listingTitle(favorite)">
@@ -601,7 +686,9 @@ watch(
     outline-offset: 3px;
 }
 
+
 .favorite-images {
+    position: relative;
     display: flex;
     flex-wrap: wrap;
     align-content: flex-start;
@@ -613,6 +700,7 @@ watch(
 }
 
 .favorite-image {
+    display: block;
     width: 100px;
     height: 100px;
     flex-shrink: 0;
@@ -620,6 +708,57 @@ watch(
     border-radius: 6px;
     background: #f3f4f6;
 }
+
+/* 收藏卡片圖片左右切換按鈕 */
+.card-image-arrow {
+    position: absolute;
+    top: 50%;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 30px;
+    padding: 0;
+    transform: translateY(-50%);
+    border: 1px solid rgb(255 255 255 / 80%);
+    border-radius: 6px;
+    background: rgb(15 23 42 / 65%);
+    color: #fff;
+    font-family: inherit;
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.card-image-arrow:hover {
+    background: rgb(15 23 42 / 85%);
+}
+
+.card-image-previous {
+    left: 2px;
+}
+
+.card-image-next {
+    right: 2px;
+}
+
+/* 顯示目前圖片編號 */
+.card-image-count {
+    position: absolute;
+    right: 0;
+    bottom: 2px;
+    left: 0;
+    width: fit-content;
+    margin: 0 auto;
+    padding: 2px 6px;
+    border-radius: 10px;
+    background: rgb(15 23 42 / 70%);
+    color: #fff;
+    font-size: 11px;
+    line-height: 1.3;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+}
+
 
 .no-image {
     display: flex;
@@ -693,11 +832,11 @@ watch(
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    align-self: flex-start;
+    align-self: flex-end;
     flex-shrink: 0;
     gap: 6px;
     margin-top: auto;
-    padding: 7px 12px;
+    padding: 0.35rem 0.7rem;
     border: 1px solid #dc2626;
     border-radius: 6px;
     background: #fff;
