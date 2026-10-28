@@ -42,6 +42,7 @@ public interface TicketListingRepository extends JpaRepository<TicketListingBean
         // 日期區間若有提供，則必須同時符合日期條件。
         // cutoff 保留原本公開查詢只顯示明天或之後票券的規則。
         // 使用 SQL Server 原生 SQL。
+        // 排序規則：建立時間由新到舊；建立時間相同時，刊登 ID 由大到小。
         @Query(value = """
                         SELECT listing.*
                         FROM ticket_listing listing
@@ -89,6 +90,7 @@ public interface TicketListingRepository extends JpaRepository<TicketListingBean
                                 :endDateExclusive IS NULL
                                 OR listing.ticket_showtime < :endDateExclusive
                         )
+                                ORDER BY listing.updated_at DESC, listing.ticket_listing_id DESC
                         """, nativeQuery = true)
         List<TicketListingBean> searchActiveListings(
                         @Param("status") String status,

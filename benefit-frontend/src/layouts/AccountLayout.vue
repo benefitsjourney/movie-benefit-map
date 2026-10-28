@@ -46,15 +46,8 @@ function goToMenu(menu) {
 <template>
   <FrontLayout>
     <div class="account-layout">
-      <PageIntro
-        kicker="✦ MEMBER CENTER"
-        lead="會員"
-        mark="中心"
-        description="管理你的會員資料，整理屬於你的特典收藏旅程。"
-        :icon-left="giftIcon"
-        :icon-right="accountIcon"
-        :icon-top="heartIcon"
-      />
+      <PageIntro kicker="✦ MEMBER CENTER" lead="會員" mark="中心" description="管理你的會員資料，整理屬於你的特典收藏旅程。" :icon-left="giftIcon"
+        :icon-right="accountIcon" :icon-top="heartIcon" />
       <RouterView v-if="!showSidebar" />
 
       <div v-else class="account-content">
@@ -62,16 +55,9 @@ function goToMenu(menu) {
           <h3 class="sidebar-title">會員功能</h3>
 
           <nav aria-label="會員中心選單" class="sidebar-menu">
-            <button
-              v-for="menu in accountMenus"
-              :key="menu.to"
-              type="button"
-              class="sidebar-item"
-              :class="{ active: isCurrentMenu(menu) }"
-              :disabled="isCurrentMenu(menu)"
-              :aria-current="isCurrentMenu(menu) ? 'page' : undefined"
-              @click="goToMenu(menu)"
-            >
+            <button v-for="menu in accountMenus" :key="menu.to" type="button" class="sidebar-item"
+              :class="{ active: isCurrentMenu(menu) }" :disabled="isCurrentMenu(menu)"
+              :aria-current="isCurrentMenu(menu) ? 'page' : undefined" @click="goToMenu(menu)">
               <span class="sidebar-icon">
                 <Icon :icon="menu.icon" />
               </span>

@@ -26,6 +26,7 @@ public class ExchangeListingResponse {
     private LocalDateTime updatedAt;
 
     // 刊登者會員名稱
+    private Integer usersId;
     private String usersName;
 
     // 持有特典的基本資料
@@ -61,6 +62,7 @@ public class ExchangeListingResponse {
             UsersBean usersBean = useBenefit.getUser();
 
             if (usersBean != null) {
+                response.setUsersId(usersBean.getUsersId());
                 response.setUsersName(usersBean.getName());
             }
 

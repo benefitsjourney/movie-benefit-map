@@ -38,6 +38,9 @@ import AdminLoginLogsView from '@/views/admin/AdminLoginLogsView.vue'
 import AccountLayout from '@/layouts/AccountLayout.vue'
 import MessageInboxView from '@/messages/MessageInboxView.vue'
 import MessageConversationView from '@/messages/MessageConversationView.vue'
+import ExchangeView from "@/views/ExchangeView.vue"
+import ExchangeMyFavoritesView from '@/views/ExchangeMyFavoritesView.vue'
+import ExchangeMyListingsView from '@/views/ExchangeMyListingsView.vue'
 
 
 const router = createRouter({
@@ -83,6 +86,16 @@ const router = createRouter({
           path: 'benefits',
           name: 'account-benefits',
           component: AccountBenefitsView,
+        },
+        {
+          path: 'listings',
+          name: 'account-listings',
+          component: ExchangeMyFavoritesView,
+        },
+        {
+          path: 'favorites',
+          name: 'account-favorites',
+          component: ExchangeMyListingsView,
         },
         {
           path: 'messages',
@@ -166,6 +179,16 @@ const router = createRouter({
           path: 'members/:id',
           name: 'member-public',
           component: () => import('@/views/MemberPublicView.vue'),
+        },
+        {
+          path: 'exchange',
+          name: 'exchange',
+          component: ExchangeView,
+        },
+        {
+          path: 'ticket',
+          name: 'ticket',
+          component: ExchangeView,
         },
       ],
     },

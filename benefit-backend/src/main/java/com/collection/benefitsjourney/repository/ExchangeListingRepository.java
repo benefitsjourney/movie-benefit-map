@@ -30,6 +30,7 @@ public interface ExchangeListingRepository extends JpaRepository<ExchangeListing
      // 公開查詢交換刊登：
      // 刊登標題、會員姓名、特典名稱、特典類型彼此 OR。
      // 四項條件都沒有輸入時，查詢該狀態的全部刊登。
+     // 排序規則：建立時間由新到舊；建立時間相同時，刊登 ID 由大到小。
      @Query(value = """
                SELECT listing.*
                FROM exchange_listing listing
@@ -68,6 +69,7 @@ public interface ExchangeListingRepository extends JpaRepository<ExchangeListing
                          LIKE LOWER(CONCAT('%', :benefitType, '%'))
                )
                )
+               ORDER BY listing.updated_at DESC, listing.exchange_listing_id DESC
                """, nativeQuery = true)
      List<ExchangeListingBean> searchActiveListings(
                @Param("status") String status,
