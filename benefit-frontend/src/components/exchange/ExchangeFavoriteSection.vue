@@ -420,7 +420,7 @@ watch(
                     </p>
 
                     <p class="favorite-benefit">
-                        特典：{{ listingBenefitName(favorite) }}
+                        特典名稱 ：{{ listingBenefitName(favorite) }}
                         <span v-if="listingBenefitType(favorite)">
                             （{{ listingBenefitType(favorite) }}）
                         </span>
@@ -436,6 +436,7 @@ watch(
 
                     <button type="button" class="remove-favorite-button" :disabled="!listingId(favorite)"
                         @click.stop="removeFavorite(favorite)" @keydown.stop>
+                        <Icon :icon="heartIcon" aria-hidden="true" />
                         取消收藏
                     </button>
                 </div>
@@ -475,7 +476,7 @@ watch(
 
                             <!-- 特典名稱 -->
                             <p class="detail-modal-info">
-                                <Icon :icon="giftIcon" aria-hidden="true" />
+                                <!-- <Icon :icon="giftIcon" aria-hidden="true" /> -->
                                 <strong>特典名稱</strong>
 
                                 <span>
@@ -500,7 +501,7 @@ watch(
 
                             <!-- 刊登日期 -->
                             <p class="detail-modal-info">
-                                <Icon :icon="calendarIcon" aria-hidden="true" />
+                                <!-- <Icon :icon="calendarIcon" aria-hidden="true" /> -->
                                 <strong>刊登日期</strong>
                                 <span>{{ listingCreatedDate(selectedListing) }}</span>
                             </p>
@@ -553,10 +554,10 @@ watch(
                             <button type="button" class="detail-chat-button" :disabled="!isLoggedIn ||
                                 isOwnListing(selectedListing)
                                 " :title="!isLoggedIn
-                                        ? '登入後才能聯絡刊登者'
-                                        : isOwnListing(selectedListing)
-                                            ? '這是你自己的刊登，無法聯絡自己'
-                                            : '聯絡刊登者'
+                                    ? '登入後才能聯絡刊登者'
+                                    : isOwnListing(selectedListing)
+                                        ? '這是你自己的刊登，無法聯絡自己'
+                                        : '聯絡刊登者'
                                     " @click="openChatFromDetail">
                                 <Icon :icon="chatIcon" aria-hidden="true" />
                                 聯絡刊登者
@@ -679,23 +680,38 @@ watch(
     margin: 0 0 6px;
     color: #4b5563;
     font-size: 14px;
-    line-height: 1.6;
+    line-height: 1.4;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
+    padding-left: 1em;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
 }
 
+/* 卡片內取消收藏按鈕：沿用 TicketFavoriteSection.vue 樣式 */
 .remove-favorite-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     align-self: flex-start;
     flex-shrink: 0;
+    gap: 6px;
     margin-top: auto;
-    padding: 8px 14px;
+    padding: 7px 12px;
     border: 1px solid #dc2626;
     border-radius: 6px;
     background: #fff;
     color: #dc2626;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    line-height: 1.4;
     cursor: pointer;
+}
+
+.remove-favorite-button :deep(svg) {
+    width: 16px;
+    height: 16px;
 }
 
 .remove-favorite-button:hover:not(:disabled) {
@@ -1047,6 +1063,12 @@ watch(
     .favorite-description,
     .favorite-date {
         font-size: 13px;
+    }
+
+    /* 手機版取消收藏按鈕：沿用 TicketFavoriteSection.vue 樣式 */
+    .remove-favorite-button {
+        padding: 6px 10px;
+        font-size: 0.8rem;
     }
 
     .detail-modal-overlay {

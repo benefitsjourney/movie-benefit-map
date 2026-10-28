@@ -3,6 +3,12 @@
 
 <script setup>
 import { computed, onMounted, reactive, ref } from "vue";
+import { Icon } from "@iconify/vue";
+import giftIcon from "@iconify-icons/mdi/gift-outline";
+import ticketIcon from "@iconify-icons/mdi/ticket";
+import cinemaIcon from "@iconify-icons/mdi/filmstrip";
+import filmIcon from "@iconify-icons/mdi/movie-open";
+import calendarIcon from "@iconify-icons/mdi/calendar";
 import Swal from "sweetalert2";
 import AppModal from "@/components/ui/AppModal.vue";
 import { useAuth } from "@/composables/useAuth";
@@ -133,6 +139,214 @@ function errorText(error) {
     );
 }
 
+// ========== 特典卡片資料處理 ==========
+
+// 取得刊登者 ID。
+function listingMemberId(item) {
+    return firstValue(
+        item,
+        [
+            "usersId",
+            "users_id",
+        ],
+        firstValue(
+            item?.user ?? item?.users ?? item?.usersBean,
+            [
+                "usersId",
+                "users_id",
+                "id",
+            ],
+            "",
+        ),
+    );
+}
+
+// 取得刊登者名稱。
+function listingMemberName(item) {
+    return firstValue(
+        item,
+        [
+            "usersName",
+            "userName",
+            "username",
+            "memberName",
+        ],
+        firstValue(
+            item?.user ?? item?.users ?? item?.usersBean,
+            [
+                "usersName",
+                "userName",
+                "username",
+                "name",
+            ],
+            "",
+        ),
+    );
+}
+
+// 取得特典名稱。
+// 兼容直接回傳特典欄位及巢狀物件的資料結構。
+function listingBenefitName(item) {
+    const useBenefit =
+        item?.useBenefitBean ??
+        item?.useBenefit ??
+        item?.use_benefit ??
+        {};
+
+    const benefit =
+        item?.benefitBean ??
+        item?.benefit ??
+        useBenefit?.benefitBean ??
+        useBenefit?.benefit ??
+        {};
+
+    return firstValue(
+        item,
+        [
+            "benefitName",
+            "benefit_name",
+        ],
+        firstValue(
+            benefit,
+            [
+                "benefitName",
+                "benefit_name",
+                "name",
+                "title",
+            ],
+            "未提供",
+        ),
+    );
+}
+
+// 取得特典類型。
+function listingBenefitType(item) {
+    const useBenefit =
+        item?.useBenefitBean ??
+        item?.useBenefit ??
+        item?.use_benefit ??
+        {};
+
+    const benefit =
+        item?.benefitBean ??
+        item?.benefit ??
+        useBenefit?.benefitBean ??
+        useBenefit?.benefit ??
+        {};
+
+    return firstValue(
+        item,
+        [
+            "benefitType",
+            "benefit_type",
+        ],
+        firstValue(
+            benefit,
+            [
+                "benefitType",
+                "benefit_type",
+                "type",
+            ],
+            "",
+        ),
+    );
+}
+
+// 取得刊登日期，只顯示 yyyy-mm-dd。
+function listingCreatedDate(item) {
+    const value = firstValue(
+        item,
+        [
+            "createdAt",
+            "created_at",
+            "listingCreatedAt",
+            "listing_created_at",
+        ],
+        "",
+    );
+
+    if (!value) return "未提供";
+
+    return String(value).trim().split(/[T ]/)[0] || "未提供";
+}
+
+// 取得會員持有特典照片。
+// 沿用收藏卡片使用的欄位名稱，最多顯示 5 張。
+function memberPhotoCandidates(item) {
+    const useBenefit =
+        item?.useBenefitBean ??
+        item?.useBenefit ??
+        item?.use_benefit ??
+        {};
+
+    const photos =
+        item?.useBenefitPhotoUrls ??
+        item?.use_benefit_photo_urls ??
+        useBenefit?.useBenefitPhotoUrls ??
+        useBenefit?.use_benefit_photo_urls ??
+        [];
+
+    if (!Array.isArray(photos)) return [];
+
+    return [
+        ...new Set(
+            photos
+                .filter(url => typeof url === "string")
+                .map(url => url.trim())
+                .filter(Boolean),
+        ),
+    ].slice(0, 5);
+}
+
+// 取得官方特典照片。
+function officialPhotoCandidate(item) {
+    const useBenefit =
+        item?.useBenefitBean ??
+        item?.useBenefit ??
+        item?.use_benefit ??
+        {};
+
+    const benefit =
+        item?.benefitBean ??
+        item?.benefit ??
+        useBenefit?.benefitBean ??
+        useBenefit?.benefit ??
+        {};
+
+    const url = firstValue(
+        item,
+        [
+            "officialImageUrl",
+            "official_image_url",
+        ],
+        firstValue(
+            benefit,
+            [
+                "officialImageUrl",
+                "official_image_url",
+                "imageUrl",
+                "image_url",
+            ],
+            "",
+        ),
+    );
+
+    return typeof url === "string" ? url.trim() : "";
+}
+
+// 有會員持有照片時優先使用；沒有才使用官方照片。
+function imageCandidates(item) {
+    const memberPhotos = memberPhotoCandidates(item);
+
+    if (memberPhotos.length > 0) {
+        return memberPhotos;
+    }
+
+    const officialPhoto = officialPhotoCandidate(item);
+
+    return officialPhoto ? [officialPhoto] : [];
+}
+
 // ========== 影城與電影資料 ==========
 
 function cinemaId(item) {
@@ -216,7 +430,6 @@ function displayTicketDate(value) {
 }
 
 // 開啟原生日期選擇器。
-// 優先使用 showPicker()；無法使用時，改由原生欄位取得焦點。
 function openDatePicker(event) {
     if (saving.value) return;
 
@@ -230,7 +443,6 @@ function openDatePicker(event) {
             return;
         } catch {
             // 部分瀏覽器可能不允許程式開啟日期選擇器。
-            // 保留原生日期欄位的操作方式。
         }
     }
 
@@ -604,59 +816,193 @@ onMounted(async () => {
                 }}刊登。
             </div>
 
-            <!-- 會員刊登清單 -->
-            <article v-for="item in currentListings" :key="listingId(item, activeTab)" class="listing-row">
-                <div class="listing-main">
-                    <h3>
-                        {{ item.title || "未命名刊登" }}
-                    </h3>
+            <!-- ========== 我的特典刊登：維持原本卡片版型 ========== -->
+            <template v-else-if="activeTab === 'exchange'">
+                <div class="my-exchange-list">
+                    <article v-for="(item, index) in exchangeListings" :key="listingId(item, 'exchange') ?? index"
+                        class="favorite-card">
+                        <!-- 特典照片 -->
+                        <div class="favorite-images">
+                            <template v-if="imageCandidates(item).length > 0">
+                                <img v-for="(imageUrl, imageIndex) in imageCandidates(item)"
+                                    :key="`${imageUrl}-${imageIndex}`" :src="imageUrl"
+                                    :alt="`${item.title || '特典刊登'} 的照片 ${imageIndex + 1}`" class="favorite-image"
+                                    @error="$event.target.style.display = 'none'" />
+                            </template>
 
-                    <p>
-                        {{ item.description || "沒有補充敘述" }}
-                    </p>
+                            <div v-else class="no-image" aria-label="沒有特典圖片">
+                                <Icon :icon="giftIcon" class="gift-icon" />
+                            </div>
+                        </div>
 
-                    <p v-if="activeTab === 'ticket'" class="listing-meta">
-                        {{ cinemaName(item) }}・{{ movieName(item) }}・
-                        {{
-                            dateOnly(
-                                item.ticketShowtime ||
-                                item.ticket_showtime
-                            ) || "未提供日期"
-                        }}
-                    </p>
+                        <!-- 特典刊登內容 -->
+                        <div class="favorite-content">
+                            <h3 class="favorite-title" :title="item.title || '未命名刊登'">
+                                {{ item.title || "未命名刊登" }}
+                            </h3>
 
-                    <span class="status-label">
-                        {{ statusLabel(item.status) }}
-                    </span>
+                            <p class="favorite-member">
+                                刊登者：{{ listingMemberName(item) || "未知會員" }}
+                            </p>
+
+                            <p class="favorite-benefit">
+                                特典名稱：{{ listingBenefitName(item) }}
+                                <span v-if="listingBenefitType(item)">
+                                    （{{ listingBenefitType(item) }}）
+                                </span>
+                            </p>
+
+                            <p class="favorite-description">
+                                {{ item.description || "刊登者尚未提供敘述。" }}
+                            </p>
+
+                            <p class="favorite-date">
+                                刊登日期：{{ listingCreatedDate(item) }}
+                            </p>
+
+                            <div class="exchange-card-bottom">
+                                <span class="status-label">
+                                    {{ statusLabel(item.status) }}
+                                </span>
+
+                                <!-- 保留原本的修改與狀態變更功能 -->
+                                <div class="exchange-card-actions">
+                                    <button class="btn btn-outline-primary" type="button"
+                                        :disabled="item.status === 'DELETED'" @click="beginEdit(item, 'exchange')">
+                                        修改
+                                    </button>
+
+                                    <select class="form-select status-select" :value="item.status"
+                                        :disabled="item.status === 'DELETED'" aria-label="變更特典刊登狀態" @change="
+                                            changeStatus(
+                                                item,
+                                                'exchange',
+                                                $event.target.value
+                                            )
+                                            ">
+                                        <option v-for="option in statusOptions" :key="option.value"
+                                            :value="option.value">
+                                            {{ option.label }}
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
                 </div>
+            </template>
 
-                <div class="listing-actions">
-                    <button class="btn btn-outline-primary" type="button" :disabled="item.status === 'DELETED'"
-                        @click="beginEdit(item, activeTab)">
-                        修改
-                    </button>
+            <!-- ========== 我的票券刊登：套用票券收藏卡片版型 ========== -->
+            <template v-else>
+                <div class="my-ticket-list">
+                    <article v-for="(item, index) in ticketListings" :key="listingId(item, 'ticket') ?? index"
+                        class="favorite-card ticket-listing-card">
+                        <!-- 票券圖示區 -->
+                        <div class="favorite-images">
+                            <div class="no-image" aria-label="票券圖示">
+                                <Icon :icon="ticketIcon" class="ticket-icon" aria-hidden="true" />
+                            </div>
+                        </div>
 
-                    <select class="form-select status-select" :value="item.status" :disabled="item.status === 'DELETED'"
-                        aria-label="變更刊登狀態" @change="
-                            changeStatus(
-                                item,
-                                activeTab,
-                                $event.target.value
-                            )
-                            ">
-                        <option v-for="option in statusOptions" :key="option.value" :value="option.value">
-                            {{ option.label }}
-                        </option>
-                    </select>
+                        <!-- 票券刊登內容 -->
+                        <div class="favorite-content">
+                            <h3 class="favorite-title" :title="item.title || '未命名刊登'">
+                                {{ item.title || "未命名刊登" }}
+                            </h3>
+
+                            <p class="favorite-member">
+                                刊登者：{{ listingMemberName(item) || "未提供" }}
+                            </p>
+
+                            <p class="favorite-description ticket-description">
+                                {{ item.description || "刊登者尚未提供敘述。" }}
+                            </p>
+
+                            <!-- 影城、電影及放映日期 -->
+                            <div class="favorite-ticket-details">
+                                <p class="favorite-detail-item">
+                                    <Icon :icon="cinemaIcon" aria-hidden="true" />
+
+                                    <span class="favorite-detail-label">
+                                        影城
+                                    </span>
+
+                                    <span class="favorite-detail-value" :title="cinemaName(item)">
+                                        {{ cinemaName(item) }}
+                                    </span>
+                                </p>
+
+                                <p class="favorite-detail-item">
+                                    <Icon :icon="filmIcon" aria-hidden="true" />
+
+                                    <span class="favorite-detail-label">
+                                        電影
+                                    </span>
+
+                                    <span class="favorite-detail-value" :title="movieName(item)">
+                                        {{ movieName(item) }}
+                                    </span>
+                                </p>
+
+                                <p class="favorite-detail-item">
+                                    <Icon :icon="calendarIcon" aria-hidden="true" />
+
+                                    <span class="favorite-detail-label">
+                                        放映日期
+                                    </span>
+
+                                    <span class="favorite-detail-value" :title="dateOnly(
+                                        item.ticketShowtime ||
+                                        item.ticket_showtime
+                                    ) || '未提供'
+                                        ">
+                                        {{
+                                            dateOnly(
+                                                item.ticketShowtime ||
+                                                item.ticket_showtime
+                                            ) || "未提供"
+                                        }}
+                                    </span>
+                                </p>
+                            </div>
+
+                            <!-- 卡片底部：保留原本的狀態與管理操作 -->
+                            <div class="exchange-card-bottom ticket-card-bottom">
+                                <span class="status-label">
+                                    {{ statusLabel(item.status) }}
+                                </span>
+
+                                <div class="exchange-card-actions">
+                                    <button class="btn btn-outline-primary" type="button"
+                                        :disabled="item.status === 'DELETED'" @click="beginEdit(item, 'ticket')">
+                                        修改
+                                    </button>
+
+                                    <select class="form-select status-select" :value="item.status"
+                                        :disabled="item.status === 'DELETED'" aria-label="變更票券刊登狀態" @change="
+                                            changeStatus(
+                                                item,
+                                                'ticket',
+                                                $event.target.value
+                                            )
+                                            ">
+                                        <option v-for="option in statusOptions" :key="option.value"
+                                            :value="option.value">
+                                            {{ option.label }}
+                                        </option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </article>
                 </div>
-            </article>
+            </template>
         </template>
 
-        <!-- 修改刊登彈窗 -->
+        <!-- 修改刊登彈窗：保留原本功能 -->
         <AppModal v-model="isModalOpen" :title="editingKind === 'exchange'
             ? '修改特典刊登'
-            : '修改票券刊登'
-            " :busy="saving" :close-on-backdrop="false" width="42rem">
+            : '修改票券刊登'" :busy="saving" :close-on-backdrop="false" width="42rem">
             <form id="my-listing-edit-form" class="my-listing-edit-form" @submit.prevent="saveEdit">
                 <!-- 標題及敘述 -->
                 <div class="edit-basic-fields">
@@ -721,8 +1067,7 @@ onMounted(async () => {
                                     'use_benefit_id',
                                     'id'
                                 ]
-                            )
-                                " :value="String(
+                            )" :value="String(
                                     firstValue(
                                         benefit,
                                         [
@@ -731,8 +1076,7 @@ onMounted(async () => {
                                             'id'
                                         ]
                                     )
-                                )
-                                    ">
+                                )">
                                 {{
                                     firstValue(
                                         benefit,
@@ -791,19 +1135,15 @@ onMounted(async () => {
 
                     <!-- 放映日期 -->
                     <div class="edit-field">
-                        <!-- 不使用 for，避免點擊標籤直接觸發日期選擇器 -->
                         <label class="form-label">
                             放映日期
                         </label>
 
                         <div class="my-ticket-date-picker">
-                            <!-- 顯示用欄位 -->
                             <input type="text" class="form-control my-ticket-date-display" :value="displayTicketDate(
                                 ticketForm.ticketShowtime
-                            )
-                                " placeholder="年/月/日" readonly tabindex="-1" aria-hidden="true" :disabled="saving" />
+                            )" placeholder="年/月/日" readonly tabindex="-1" aria-hidden="true" :disabled="saving" />
 
-                            <!-- 日曆圖示 -->
                             <svg class="my-ticket-date-calendar" xmlns="http://www.w3.org/2000/svg" width="20"
                                 height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
                                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -813,7 +1153,6 @@ onMounted(async () => {
                                 <path d="M3 11h18" />
                             </svg>
 
-                            <!-- 真正維護日期值的原生欄位 -->
                             <input id="my-listing-showtime" v-model="ticketForm.ticketShowtime"
                                 class="my-ticket-date-native" type="date" aria-label="選擇放映日期" required
                                 :disabled="saving" @click="openDatePicker" />
@@ -837,11 +1176,7 @@ onMounted(async () => {
                     </button>
 
                     <button class="btn btn-primary" type="submit" form="my-listing-edit-form" :disabled="saving">
-                        {{
-                            saving
-                                ? "儲存中……"
-                                : "儲存修改"
-                        }}
+                        {{ saving ? "儲存中……" : "儲存修改" }}
                     </button>
                 </div>
             </template>
@@ -927,43 +1262,233 @@ onMounted(async () => {
     color: #9a4632;
 }
 
-/* ========== 刊登清單 ========== */
+/* ========== 特典卡片：維持原本版型 ========== */
 
-.listing-row {
+.my-exchange-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ========== 票券卡片清單 ========== */
+
+.my-ticket-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* ========== 特典與票券共用卡片外觀 ========== */
+
+.favorite-card {
     display: flex;
     align-items: flex-start;
-    justify-content: space-between;
-    gap: 1rem;
-    min-width: 0;
-    margin-bottom: 0.85rem;
-    padding: 1rem;
-    border: 1px solid #e8e5e1;
-    border-radius: 0.85rem;
+    gap: 10px;
+    height: 240px;
+    max-height: 240px;
+    padding: 16px;
+    box-sizing: border-box;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
     background: #fff;
 }
 
-.listing-main {
+/* 票券卡片保留收藏卡片的滑鼠及鍵盤操作視覺慣例。
+   這個管理頁面沒有將整張卡片設為可點擊。 */
+.ticket-listing-card {
+    cursor: default;
+}
+
+.favorite-images {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    flex-shrink: 0;
+    gap: 8px;
+    width: 120px;
+    height: 100%;
+    overflow: hidden;
+}
+
+.favorite-image {
+    width: 100px;
+    height: 100px;
+    flex-shrink: 0;
+    object-fit: cover;
+    border-radius: 6px;
+    background: #f3f4f6;
+}
+
+.no-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100px;
+    height: 100px;
+    flex-shrink: 0;
+    border-radius: 6px;
+    background: #f3f4f6;
+    color: #9ca3af;
+}
+
+.gift-icon,
+.ticket-icon {
+    width: 42px;
+    height: 42px;
+}
+
+/* ========== 卡片文字區 ========== */
+
+.favorite-content {
+    display: flex;
     flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    height: 100%;
+    overflow: hidden;
+    gap: 2px;
+}
+
+.favorite-title {
+    display: -webkit-box;
+    overflow: hidden;
+    margin: 0 0 4px;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+}
+
+.favorite-member,
+.favorite-benefit,
+.favorite-date {
+    flex-shrink: 0;
+    overflow: hidden;
+    margin: 0 0 2px;
+    color: #4b5563;
+    font-size: 14px;
+    line-height: 1.4;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.favorite-description {
+    display: -webkit-box;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    margin: 0 0 6px;
+    padding-left: 1em;
+    color: #4b5563;
+    font-size: 14px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+/* 票券收藏卡片的敘述區。
+   保留參考元件的兩行高度，讓下方票券資訊保持整齊。 */
+.ticket-description {
+    display: -webkit-box;
+    flex: 0 0 auto;
+    min-height: calc(14px * 1.5 * 2);
+    overflow: hidden;
+    margin: 0 0 5px;
+    padding-left: 1em;
+    color: #475569;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+/* ========== 票券資訊列 ========== */
+
+.favorite-ticket-details {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.favorite-detail-item {
+    display: grid;
+    grid-template-columns: 16px auto minmax(0, 1fr);
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    margin: 0;
+    color: #475569;
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+.favorite-detail-item :deep(svg) {
+    width: 15px;
+    height: 15px;
+    flex-shrink: 0;
+}
+
+.favorite-detail-label {
+    flex-shrink: 0;
+    color: #64748b;
+    font-weight: 600;
+}
+
+.favorite-detail-value {
+    min-width: 0;
+    overflow: hidden;
+    color: #334155;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ========== 卡片底部：狀態及管理操作 ========== */
+
+.exchange-card-bottom {
+    display: flex;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: auto;
+}
+
+.exchange-card-bottom .status-label {
+    flex-shrink: 0;
+}
+
+.exchange-card-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
     min-width: 0;
 }
 
-.listing-main h3 {
-    margin: 0 0 0.45rem;
-    font-size: 1rem;
-    overflow-wrap: anywhere;
+.exchange-card-actions .btn {
+    min-height: 36px;
+    padding: 0.35rem 0.7rem;
 }
 
-.listing-main p {
-    margin: 0 0 0.5rem;
-    color: #687386;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-}
-
-.listing-meta {
+.exchange-card-actions .status-select {
+    width: auto;
+    min-width: 112px;
+    max-width: 100%;
+    min-height: 36px;
     font-size: 0.85rem;
 }
+
+/* ========== 狀態標籤 ========== */
 
 .status-label {
     display: inline-block;
@@ -974,27 +1499,6 @@ onMounted(async () => {
     color: #475569;
     font-size: 0.8rem;
     overflow-wrap: anywhere;
-}
-
-/* ========== 刊登操作區 ========== */
-
-.listing-actions {
-    display: flex;
-    flex-shrink: 0;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
-    min-width: 0;
-}
-
-.listing-actions .btn {
-    min-height: 40px;
-}
-
-.listing-actions .status-select {
-    width: auto;
-    min-width: 120px;
-    max-width: 100%;
 }
 
 /* ========== 空白狀態 ========== */
@@ -1073,7 +1577,6 @@ onMounted(async () => {
     border-radius: 0.65rem;
 }
 
-/* 顯示日期文字的唯讀欄位 */
 .my-ticket-date-display {
     display: block;
     width: 100%;
@@ -1104,7 +1607,6 @@ onMounted(async () => {
     cursor: not-allowed;
 }
 
-/* 日曆圖示不攔截點擊 */
 .my-ticket-date-calendar {
     position: absolute;
     top: 50%;
@@ -1117,7 +1619,6 @@ onMounted(async () => {
     transform: translateY(-50%);
 }
 
-/* 透明原生日期欄位覆蓋整個日期區域 */
 .my-ticket-date-native {
     position: absolute;
     inset: 0;
@@ -1139,7 +1640,6 @@ onMounted(async () => {
     cursor: not-allowed;
 }
 
-/* 日期欄位取得焦點時顯示可見焦點樣式 */
 .my-ticket-date-picker:focus-within .my-ticket-date-display {
     border-color: #a9c4f0;
     outline: none;
@@ -1160,10 +1660,8 @@ onMounted(async () => {
     min-height: 42px;
 }
 
-/*
- * 只調整包含本頁修改表單的 AppModal。
- * 不修改共用 AppModal.vue。
- */
+/* 只調整包含本頁修改表單的 AppModal，不修改共用元件。 */
+
 :global(.modal-dialog-box:has(#my-listing-edit-form)) {
     width: min(42rem, calc(100vw - 2rem)) !important;
     max-width: calc(100vw - 2rem);
@@ -1182,29 +1680,6 @@ onMounted(async () => {
 @media (min-width: 651px) and (max-width: 900px) {
     .page-heading {
         align-items: flex-start;
-    }
-
-    .listing-row {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 0.85rem;
-    }
-
-    .listing-actions {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        width: 100%;
-    }
-
-    .listing-actions .btn {
-        flex: 0 0 auto;
-    }
-
-    .listing-actions .status-select {
-        flex: 0 1 180px;
-        width: auto;
-        min-width: 120px;
     }
 
     .edit-field .form-control,
@@ -1261,29 +1736,68 @@ onMounted(async () => {
         text-align: center;
     }
 
-    .listing-row {
+    .favorite-card {
+        height: 240px;
+        gap: 10px;
+        padding: 12px;
+    }
+
+    .favorite-images {
+        width: 100px;
+        flex: 0 0 100px;
+    }
+
+    .favorite-image,
+    .no-image {
+        width: 100px;
+        height: 100px;
+    }
+
+    .favorite-title {
+        font-size: 16px;
+    }
+
+    .favorite-member,
+    .favorite-benefit,
+    .favorite-description,
+    .favorite-date {
+        font-size: 13px;
+    }
+
+    .ticket-description {
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+    .favorite-detail-item {
+        grid-template-columns: 14px auto minmax(0, 1fr);
+        gap: 4px;
+        font-size: 12px;
+    }
+
+    .favorite-detail-item :deep(svg) {
+        width: 13px;
+        height: 13px;
+    }
+
+    .exchange-card-bottom {
+        align-items: flex-start;
         flex-direction: column;
-        align-items: stretch;
-        gap: 0.9rem;
-        padding: 0.9rem;
+        gap: 6px;
     }
 
-    .listing-main {
+    .exchange-card-actions {
         width: 100%;
+        gap: 6px;
     }
 
-    .listing-actions {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        width: 100%;
-        gap: 0.6rem;
+    .exchange-card-actions .btn {
+        flex: 0 0 auto;
     }
 
-    .listing-actions .btn,
-    .listing-actions .status-select {
-        width: 100%;
+    .exchange-card-actions .status-select {
+        flex: 1;
         min-width: 0;
-        min-height: 44px;
     }
 
     .edit-basic-fields {
