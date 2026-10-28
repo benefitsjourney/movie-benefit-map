@@ -76,8 +76,10 @@ springdoc:
 
 # Google OAuth Client ID
 google:
+  #開發用
   client-id: 341264316511-s3ihs3fce68s9e47eimi4ad43m66uegi.apps.googleusercontent.com
-
+  #正式上線用
+  #client-id: 667134558874-j0ic603h375aff550icc79pfjjed8nfd.apps.googleusercontent.com
 
 # 初始管理員設定：從環境變數讀取，不在程式碼中寫死帳密
 app:
