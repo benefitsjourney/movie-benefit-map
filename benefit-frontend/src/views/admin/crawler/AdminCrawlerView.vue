@@ -84,8 +84,10 @@ const crawlers = [
     logType: "BENEFIT",
     color: "pink",
     icon: fileUploadIcon,
-    resultTo: "/map",
-    resultLabel: "查看地圖",
+    resultTo: "/admin/benefit-reports",
+    resultLabel: "前往特典審核",
+    extraTo: "/map",
+    extraLabel: "查看地圖",
   },
     {
     key: "benefit-rematch",
@@ -220,7 +222,14 @@ function rematchSummaryRows(summary, elapsedSeconds) {
 
 /** 宣告 Apify 彈窗輸入欄位，避免個別流程重複定義表單 */
 const APIFY_FIELDS = [
-  { key: "pageUrl", label: "貼文網址", type: "text", inputmode: "url", value: "https://www.facebook.com/vieshow" },
+    {
+    key: "pageUrl", label: "貼文網址", type: "text", inputmode: "url", value: "",
+    placeholder: "https://www.facebook.com/…", hint: "點一下輸入框可以選常用粉專",
+    options: [
+      { value: "https://www.facebook.com/vieshow", label: "威秀影城" },
+      { value: "https://www.facebook.com/showtimecinemas", label: "秀泰影城" },
+    ],
+  },
   { key: "limit", label: "抓取篇數", type: "text", inputmode: "numeric", value: "30" },
   { key: "sinceDays", label: "抓取最近天數(含今天)", type: "text", inputmode: "numeric", value: "0", hint: "0 代表不限時間" },
 ];

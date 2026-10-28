@@ -356,8 +356,11 @@ onUnmounted(() => {
               <label class="alert-label" :for="`alert-field-${field.key}`">{{ field.label }}</label>
               <input :id="`alert-field-${field.key}`" v-model="state.fieldValues[field.key]" class="alert-input"
                 :class="{ 'is-invalid': state.fieldErrors[field.key] }" :type="field.type || 'text'"
-                :inputmode="field.inputmode" :placeholder="field.placeholder" autocomplete="off"
+                :inputmode="field.inputmode" :placeholder="field.placeholder" :list="field.options ? `alert-list-${field.key}` : undefined" autocomplete="off"
                 :aria-invalid="Boolean(state.fieldErrors[field.key])" @input="state.fieldErrors[field.key] = ''" />
+              <datalist v-if="field.options" :id="`alert-list-${field.key}`">
+                <option v-for="option in field.options" :key="option.value" :value="option.value">{{ option.label }}</option>
+              </datalist>
               <p v-if="field.hint" class="alert-hint">{{ field.hint }}</p>
               <p v-if="state.fieldErrors[field.key]" class="alert-error">{{ state.fieldErrors[field.key] }}</p>
             </div>
