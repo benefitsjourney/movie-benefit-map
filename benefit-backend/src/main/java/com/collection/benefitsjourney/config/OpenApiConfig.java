@@ -18,20 +18,26 @@ import com.collection.benefitsjourney.controller.BenefitCrawlerController;
 import com.collection.benefitsjourney.controller.BenefitExportController;
 import com.collection.benefitsjourney.controller.BenefitReportAdminController;
 import com.collection.benefitsjourney.controller.BenefitReportController;
+import com.collection.benefitsjourney.controller.ConversationController;
 import com.collection.benefitsjourney.controller.CrawlerLogController;
 import com.collection.benefitsjourney.controller.CinemaMovie.CinemaController;
 import com.collection.benefitsjourney.controller.CinemaMovie.CinemaMovieCrawlerController;
-import com.collection.benefitsjourney.controller.CinemaMovie.CinemaMovieReviewsController;
 import com.collection.benefitsjourney.controller.CinemaMovie.CinemaMovieExcelController;
+import com.collection.benefitsjourney.controller.CinemaMovie.CinemaMovieReviewsController;
+import com.collection.benefitsjourney.controller.CinemaMovie.MovieController;
 import com.collection.benefitsjourney.controller.ExchangeFavoriteController;
 import com.collection.benefitsjourney.controller.ExchangeListingController;
+import com.collection.benefitsjourney.controller.HealthController;
 import com.collection.benefitsjourney.controller.InventoryReportAdminController;
 import com.collection.benefitsjourney.controller.InventoryReportController;
 import com.collection.benefitsjourney.controller.InventoryStatusController;
-import com.collection.benefitsjourney.controller.CinemaMovie.MovieController;
+import com.collection.benefitsjourney.controller.LoginLogController;
+import com.collection.benefitsjourney.controller.MessageController;
+import com.collection.benefitsjourney.controller.ReminderController;
 import com.collection.benefitsjourney.controller.TicketFavoriteController;
 import com.collection.benefitsjourney.controller.TicketListingController;
 import com.collection.benefitsjourney.controller.UseBenefitController;
+import com.collection.benefitsjourney.controller.UserContributionController;
 import com.collection.benefitsjourney.controller.UserController;
 
 import io.swagger.v3.oas.models.Components;
@@ -49,6 +55,7 @@ public class OpenApiConfig {
             AuthController.class,
             UserController.class,
             AdminController.class,
+            LoginLogController.class,
             CinemaController.class,
             MovieController.class,
             CinemaMovieCrawlerController.class,
@@ -64,11 +71,16 @@ public class OpenApiConfig {
             InventoryReportController.class,
             InventoryReportAdminController.class,
             UseBenefitController.class,
+            ReminderController.class,
+            UserContributionController.class,
             BenefitExportController.class,
             TicketListingController.class,
             TicketFavoriteController.class,
             ExchangeListingController.class,
-            ExchangeFavoriteController.class);
+            ExchangeFavoriteController.class,
+            ConversationController.class,
+            MessageController.class,
+            HealthController.class);
 
     private static final String SECURITY = "BearerAuth";
 
