@@ -23,19 +23,6 @@ const links = [
     ],
   },
   {
-    label: "電影 / 影城",
-    icon: libraryIcon,
-    children: [
-      { to: "/admin/cinemas", label: "影城資料", icon: movieIcon },
-      { to: "/admin/movies", label: "電影資料", icon: filmIcon },
-      {
-        to: "/admin/cinemas-movies/reviews",
-        label: "爬蟲審核",
-        icon: reviewIcon,
-      },
-    ],
-  },
-  {
     label: "特典",
     icon: giftIcon,
     children: [
@@ -45,6 +32,19 @@ const links = [
         to: "/admin/inventory-reports",
         label: "庫存回報管理",
         icon: megaphoneIcon,
+      },
+    ],
+  },
+  {
+    label: "電影 / 影城",
+    icon: libraryIcon,
+    children: [
+      { to: "/admin/cinemas", label: "影城資料", icon: movieIcon },
+      { to: "/admin/movies", label: "電影資料", icon: filmIcon },
+      {
+        to: "/admin/cinemas-movies/reviews",
+        label: "爬蟲審核",
+        icon: reviewIcon,
       },
     ],
   },
@@ -74,17 +74,8 @@ const links = [
 
 <template>
   <div class="app-shell theme-admin">
-    <AppNavbar
-      nav-label="後台導覽"
-      brand-to="/admin"
-      brand-name="後台管理"
-      :links="links"
-      switch-to="/map"
-      switch-label="返回前台"
-      switch-first
-      :switch-icon="arrowLeftIcon"
-      theme="purple"
-    />
+    <AppNavbar nav-label="後台導覽" brand-to="/admin" brand-name="後台管理" :links="links" switch-to="/map" switch-label="返回前台"
+      switch-first :switch-icon="arrowLeftIcon" theme="purple" />
     <main class="page-main">
       <RouterView />
     </main>

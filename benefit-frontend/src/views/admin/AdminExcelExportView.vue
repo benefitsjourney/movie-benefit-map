@@ -35,6 +35,17 @@ const EXPORTS = [
     fileName: "movie.xlsx",
   },
   {
+    type: "BENEFIT",
+    title: "特典資料",
+    description: "匯出特典、各影城庫存和全部回報單。",
+    stamp: "特典",
+    color: "purple",
+    icon: giftIcon,
+    fileName: "benefits.xlsx",
+    endpoint: "/export/benefits",
+    params: { onlyPending: false },
+  },
+  {
     type: "CRAWLER_LOG",
     title: "爬蟲紀錄",
     description: "匯出全部爬蟲執行紀錄。",
@@ -51,17 +62,6 @@ const EXPORTS = [
     color: "pink",
     icon: reviewIcon,
     fileName: "cinema_movie_review.xlsx",
-  },
-  {
-    type: "BENEFIT",
-    title: "特典資料",
-    description: "匯出特典、各影城庫存和全部回報單。",
-    stamp: "特典",
-    color: "pink",
-    icon: giftIcon,
-    fileName: "benefits.xlsx",
-    endpoint: "/export/benefits",
-    params: { onlyPending: false },
   },
 ];
 
@@ -131,16 +131,8 @@ async function downloadExcel(item) {
 
 <template>
   <section>
-    <PageIntro
-      kicker="✦ EXCEL"
-      lead="Excel"
-      mark="下載"
-      description="匯出資料紀錄，檔案會直接下載到本機"
-      :icon-left="movieIcon"
-      :icon-right="filmIcon"
-      :icon-top="excelIcon"
-      theme="purple"
-    />
+    <PageIntro kicker="✦ EXCEL" lead="Excel" mark="下載" description="匯出資料紀錄，檔案會直接下載到本機" :icon-left="movieIcon"
+      :icon-right="filmIcon" :icon-top="excelIcon" theme="purple" />
 
     <div class="export-panel">
       <h2 class="export-panel-title">
@@ -149,22 +141,11 @@ async function downloadExcel(item) {
       </h2>
 
       <div class="ticket-grid">
-        <TicketCard
-          v-for="item in EXPORTS"
-          :key="item.type"
-          :color="item.color"
-          :stamp="item.stamp"
-          :title="item.title"
-          :detail="item.description"
-        >
+        <TicketCard v-for="item in EXPORTS" :key="item.type" :color="item.color" :stamp="item.stamp" :title="item.title"
+          :detail="item.description">
           <p class="export-file">{{ item.fileName }}</p>
           <template #action>
-            <button
-              type="button"
-              class="ticket-link"
-              :disabled="Boolean(downloading)"
-              @click="downloadExcel(item)"
-            >
+            <button type="button" class="ticket-link" :disabled="Boolean(downloading)" @click="downloadExcel(item)">
               <Icon :icon="downloadIcon" aria-hidden="true" />
               {{ downloading === item.type ? "下載中…" : "下載 Excel" }}
             </button>
