@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, nextTick, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Client } from '@stomp/stompjs'
 import http from '@/plugins/axios'
@@ -289,14 +289,14 @@ async function openConversation(conversation) {
       `/conversations/${conversation.conversationId}/messages/read`
     )
 
-    await scrollToBottom()
     await loadConversations()
   } catch (error) {
     errorMessage.value =
-      error.response?.data?.message ||
-      '無法載入訊息，請稍後再試。'
+    error.response?.data?.message ||
+    '無法載入訊息，請稍後再試。'
   } finally {
     loadingMessages.value = false
+    await scrollToBottom()
   }
 }
 
@@ -373,6 +373,10 @@ async function scrollToBottom() {
       messageList.value.scrollHeight
   }
 }
+
+watch(isExpanded, async () => {
+  await scrollToBottom()
+})
 
 // 格式化時間
 function formatTime(value) {

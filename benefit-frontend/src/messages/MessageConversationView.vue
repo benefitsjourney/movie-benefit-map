@@ -1,12 +1,5 @@
 <script setup>
-import {
-  ref,
-  computed,
-  onMounted,
-  onUnmounted,
-  nextTick,
-  watch,
-} from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch, } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Client } from '@stomp/stompjs'
 import http from '@/plugins/axios'
@@ -110,13 +103,13 @@ async function loadConversation() {
     // 將對方傳來的未讀訊息標記為已讀
     await markMessagesRead()
 
-    await scrollToBottom()
   } catch (error) {
     errorMessage.value =
       error.response?.data?.message ||
       '無法載入聊天室，請稍後再試。'
   } finally {
     loading.value = false
+    await scrollToBottom()
   }
 }
 
