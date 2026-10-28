@@ -1,5 +1,5 @@
 <script setup>
-    import { ref } from 'vue'
+    import { ref, onMounted } from 'vue'
     import { useRouter } from 'vue-router'
     import { Icon } from '@iconify/vue'
     import { useAuth } from '@/composables/useAuth'
@@ -13,6 +13,11 @@
     const account = ref('')
     const password = ref('')
     const isLoading = ref(false)
+    // Google 登入按鈕的掛載位置
+    const googleButton = ref(null)
+
+    // Google 登入設定錯誤訊息
+    const googleConfigError = ref('')
 
     const handleLogin = async () => {
     if (!account.value.trim() || !password.value) {
@@ -63,6 +68,148 @@
         isLoading.value = false
     }
     }
+
+    
+/**
+ * 載入 Google Identity Services
+ */
+function loadGoogleScript() {
+    return new Promise((resolve, reject) => {
+        // 如果 Google SDK 已經載入，就直接使用
+        if (window.google?.accounts?.id) {
+            resolve()
+            return
+        }
+
+        // 避免重複插入 Google SDK
+        let script = document.querySelector(
+            'script[src="https://accounts.google.com/gsi/client"]'
+        )
+
+        if (!script) {
+            script = document.createElement('script')
+            script.src = 'https://accounts.google.com/gsi/client'
+            script.async = true
+            script.defer = true
+        }
+
+        script.addEventListener('load', resolve, { once: true })
+        script.addEventListener(
+            'error',
+            () => reject(new Error('Google 登入元件載入失敗')),
+            { once: true }
+        )
+
+        if (!script.isConnected) {
+            document.head.appendChild(script)
+        }
+    })
+}
+
+/**
+ * Google 登入成功後取得 credential，
+ * 傳給後端驗證並取得本站 JWT
+ */
+const handleGoogleLogin = async (response) => {
+    if (isLoading.value) return
+
+    if (!response?.credential) {
+        await Swal.fire({
+            icon: 'error',
+            title: 'Google 登入失敗',
+            text: '未能取得 Google 登入憑證，請再試一次',
+            confirmButtonText: '確定',
+        })
+        return
+    }
+
+    try {
+        isLoading.value = true
+
+        // 呼叫既有的 Spring Boot Google 登入 API
+        const result = await http.post('/auth/google', {
+            idToken: response.credential,
+        })
+
+        const data = result.data
+
+        if (!data?.token || !data?.user) {
+            throw new Error('後端回傳的登入資料不完整')
+        }
+
+        // 沿用原本的登入狀態與 Token 儲存機制
+        auth.login(data.token, data.user)
+
+        await Swal.fire({
+            icon: 'success',
+            title: '登入成功',
+            text: `歡迎回來，${data.user.name || data.user.account || '會員'}！`,
+            confirmButtonText: '開始使用',
+        })
+
+        // 沿用原本的登入後導向
+        await router.push('/map')
+    } catch (error) {
+        const message =
+            error.response?.data?.message ||
+            error.response?.data?.detail ||
+            error.message ||
+            'Google 登入失敗，請稍後再試'
+
+        await Swal.fire({
+            icon: 'error',
+            title: 'Google 登入失敗',
+            text: message,
+            confirmButtonText: '重新嘗試',
+        })
+    } finally {
+        isLoading.value = false
+    }
+}
+
+/**
+ * 初始化 Google 登入按鈕
+ */
+onMounted(async () => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+
+    if (!clientId) {
+        googleConfigError.value =
+            '尚未設定 Google OAuth Client ID，請先完成環境變數設定。'
+        return
+    }
+
+    try {
+        await loadGoogleScript()
+
+        if (!googleButton.value) return
+
+        window.google.accounts.id.initialize({
+            client_id: clientId,
+            callback: handleGoogleLogin,
+        })
+
+        window.google.accounts.id.renderButton(
+            googleButton.value,
+            {
+                type: 'standard',
+                theme: 'outline',
+                size: 'large',
+                text: 'continue_with',
+                shape: 'rectangular',
+                width: Math.min(
+                    360,
+                    Math.max(200, googleButton.value.clientWidth)
+                ),
+                locale: 'zh_TW',
+            }
+        )
+    } catch (error) {
+        googleConfigError.value =
+            error.message || 'Google 登入元件載入失敗，請重新整理頁面。'
+    }
+})
+
 </script>
 
 <template>
@@ -120,6 +267,28 @@
             {{ isLoading ? '登入中...' : '登入' }}
             </button>
         </form>
+
+        <!-- 一般登入與 Google 登入的分隔線 -->
+        <div class="login-divider">
+            <span>或使用以下方式登入</span>
+        </div>
+
+        <!-- Google 官方登入按鈕會顯示在這裡 -->
+        <div class="google-login-area">
+            <div
+                v-if="!googleConfigError"
+                ref="googleButton"
+                class="google-button-container"
+            ></div>
+
+            <p
+                v-if="googleConfigError"
+                class="google-error"
+                role="alert"
+            >
+                {{ googleConfigError }}
+            </p>
+        </div>
 
         <div class="login-footer">
             <span>還沒有帳號嗎？</span>
@@ -245,4 +414,43 @@
         padding: 1.5rem;
     }
     }
+
+    .login-divider {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: 1.5rem 0;
+    color: var(--c-muted);
+    font-size: var(--text-min);
+    }
+
+    .login-divider::before,
+    .login-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--c-border);
+    }
+
+    .google-login-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    }
+
+    .google-button-container {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    min-height: 40px;
+    }
+
+    .google-error {
+    margin: 0;
+    color: #b42318;
+    font-size: var(--text-min);
+    text-align: center;
+    }
+
 </style>
