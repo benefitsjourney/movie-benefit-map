@@ -10,6 +10,7 @@ import accountIcon from '@iconify-icons/mdi/account-circle-outline'
 import clipboardListIcon from '@iconify-icons/mdi/clipboard-list-outline'
 import heartIcon from '@iconify-icons/mdi/heart-outline'
 import messageIcon from '@iconify-icons/mdi/message-text-outline'
+import feedbackIcon from '@iconify-icons/mdi/comment-text-outline'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,6 +22,7 @@ const accountMenus = [
   { to: '/account/favorites', label: '我的收藏', icon: heartIcon },
   { to: '/account/benefits', label: '我的特典', icon: giftIcon },
   { to: '/account/messages', label: '訊息中心', icon: messageIcon },
+  { to: '/account/feedback', label: '意見回饋', icon: feedbackIcon },
 ]
 
 // 關於我首頁保留原本版面，其他會員功能頁顯示側邊選單

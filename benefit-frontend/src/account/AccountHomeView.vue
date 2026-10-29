@@ -40,6 +40,12 @@ const accountLinks = [
         icon: 'mdi:message-text-outline',
         to: '/account/messages',
     },
+    {
+        title: '意見回饋',
+        description: '提交問題或建議，查看處理進度與管理員回覆',
+        icon: 'mdi:comment-text-outline',
+        to: '/account/feedback',
+    },
 ]
 
 // 載入目前登入會員的資料

@@ -33,8 +33,10 @@ import ResetPasswordView from '@/views/ResetPasswordView.vue'
 import AccountHomeView from '@/account/AccountHomeView.vue'
 import AccountProfileView from '@/account/AccountProfileView.vue'
 import AccountBenefitsView from '@/account/AccountBenefitsView.vue'
+import AccountFeedbackView from '@/account/AccountFeedbackView.vue'
 import AdminUsersView from '@/views/admin/AdminUsersView.vue'
 import AdminLoginLogsView from '@/views/admin/AdminLoginLogsView.vue'
+import AdminFeedbackView from '@/views/admin/AdminFeedbackView.vue'
 import AccountLayout from '@/layouts/AccountLayout.vue'
 import MessageInboxView from '@/messages/MessageInboxView.vue'
 import MessageConversationView from '@/messages/MessageConversationView.vue'
@@ -96,6 +98,11 @@ const router = createRouter({
           path: 'favorites',
           name: 'account-favorites',
           component: ExchangeMyFavoritesView,
+        },
+        {
+          path: 'feedback',
+          name: 'account-feedback',
+          component: AccountFeedbackView,
         },
         {
           path: 'messages',
@@ -221,6 +228,11 @@ const router = createRouter({
           path: 'login-logs',
           name: 'admin-login-logs',
           component: AdminLoginLogsView,
+        },
+        {
+          path: 'feedback',
+          name: 'admin-feedback',
+          component: AdminFeedbackView,
         },
         {
           path: 'crawler',
