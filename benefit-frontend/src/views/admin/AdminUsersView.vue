@@ -51,7 +51,7 @@ function getToken() {
 async function apiRequest(url, options = {}) {
     const token = getToken()
 
-    const response = await fetch(`/api${url}`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}${url}`, {
         ...options,
         headers: {
             ...(options.body ? { 'Content-Type': 'application/json' } : {}),

@@ -45,7 +45,7 @@ function getToken() {
 async function apiRequest(url) {
     const token = getToken()
 
-    const response = await fetch(`/api${url}`, {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}${url}`, {
         headers: {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
