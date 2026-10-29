@@ -371,40 +371,88 @@ export function useExchangeData({ token, onAuthExpired }) {
         return error?.response?.status === 401;
     }
 
+    // 避免公開刊登請求重複執行。
+    let publicListingsRequest = null;
+
+    // 記錄首次公開刊登載入是否已完成。
+    let publicListingsInitialized = false;
+
     // ========== 載入公開刊登 ==========
     async function loadPublicListings() {
-        loading.value = true;
-        errorMessage.value = "";
-
-        try {
-            const [
-                exchangeResponse,
-                ticketResponse,
-            ] = await Promise.all([
-                getExchangeListings(),
-                getTicketListings(),
-            ]);
-
-            exchangeListings.value =
-                unwrapList(exchangeResponse);
-
-            ticketListings.value =
-                unwrapList(ticketResponse);
-        } catch (error) {
-            if (isUnauthorized(error) && token.value) {
-                await onAuthExpired?.(error);
-                return false;
-            }
-
-            errorMessage.value =
-                `公開刊登載入失敗：${errorText(error)}`;
-
-            return false;
-        } finally {
-            loading.value = false;
+        // 上一個請求尚未完成時，沿用同一個請求。
+        if (publicListingsRequest) {
+            return publicListingsRequest;
         }
 
-        return true;
+        // 只有首次載入才顯示共用 loading。
+        const isInitialLoad = !publicListingsInitialized;
+
+        if (isInitialLoad) {
+            loading.value = true;
+            errorMessage.value = "";
+        }
+
+        const request = (async () => {
+            try {
+                const [
+                    exchangeResponse,
+                    ticketResponse,
+                ] = await Promise.all([
+                    getExchangeListings(),
+                    getTicketListings(),
+                ]);
+
+
+                exchangeListings.value =
+                    unwrapList(exchangeResponse);
+
+                ticketListings.value =
+                    unwrapList(ticketResponse);
+
+                // 公開刊登更新成功時，只清除公開刊登本身的錯誤。
+                // 不清除會員資料或其他操作留下的錯誤訊息。
+                if (
+                    errorMessage.value.startsWith("公開刊登載入失敗：")
+                ) {
+                    errorMessage.value = "";
+                }
+
+                return true;
+
+            } catch (error) {
+                if (isUnauthorized(error) && token.value) {
+                    await onAuthExpired?.(error);
+                    return false;
+                }
+
+                // 背景更新時，不覆蓋其他功能已顯示的錯誤。
+                if (
+                    isInitialLoad ||
+                    !errorMessage.value ||
+                    errorMessage.value.startsWith("公開刊登載入失敗：")
+                ) {
+                    errorMessage.value =
+                        `公開刊登載入失敗：${errorText(error)}`;
+                }
+
+                return false;
+            } finally {
+                if (isInitialLoad) {
+                    publicListingsInitialized = true;
+                    loading.value = false;
+                }
+            }
+        })();
+
+        publicListingsRequest = request;
+
+        try {
+            return await request;
+        } finally {
+            if (publicListingsRequest === request) {
+                publicListingsRequest = null;
+            }
+        }
     }
 
     // ========== 載入會員資料 ==========

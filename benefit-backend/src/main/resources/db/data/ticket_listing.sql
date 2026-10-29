@@ -15,8 +15,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-12 14:30:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-06 09:15:00'),
-    CONVERT(DATETIME2, '2026-11-06 09:15:00')
+    CONVERT(DATETIME2, '2026-10-06 09:15:00'),
+    CONVERT(DATETIME2, '2026-10-06 09:15:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -34,8 +34,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-13 16:00:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-06 10:20:00'),
-    CONVERT(DATETIME2, '2026-11-06 10:20:00')
+    CONVERT(DATETIME2, '2026-10-06 10:20:00'),
+    CONVERT(DATETIME2, '2026-10-06 10:20:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -53,8 +53,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-14 19:30:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-06 11:35:00'),
-    CONVERT(DATETIME2, '2026-11-06 12:00:00')
+    CONVERT(DATETIME2, '2026-10-06 11:35:00'),
+    CONVERT(DATETIME2, '2026-10-06 12:00:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -72,8 +72,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-15 13:00:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-06 13:40:00'),
-    CONVERT(DATETIME2, '2026-11-06 13:40:00')
+    CONVERT(DATETIME2, '2026-10-06 13:40:00'),
+    CONVERT(DATETIME2, '2026-10-06 13:40:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -91,8 +91,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-16 18:45:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-06 14:25:00'),
-    CONVERT(DATETIME2, '2026-11-06 14:25:00')
+    CONVERT(DATETIME2, '2026-10-06 14:25:00'),
+    CONVERT(DATETIME2, '2026-10-06 14:25:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -110,8 +110,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-17 20:00:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-06 15:30:00'),
-    CONVERT(DATETIME2, '2026-11-06 16:10:00')
+    CONVERT(DATETIME2, '2026-10-06 15:30:00'),
+    CONVERT(DATETIME2, '2026-10-06 16:10:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -129,8 +129,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-18 15:15:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-06 16:45:00'),
-    CONVERT(DATETIME2, '2026-11-06 16:45:00')
+    CONVERT(DATETIME2, '2026-10-06 16:45:00'),
+    CONVERT(DATETIME2, '2026-10-06 16:45:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -148,8 +148,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-19 19:00:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-06 17:20:00'),
-    CONVERT(DATETIME2, '2026-11-06 17:20:00')
+    CONVERT(DATETIME2, '2026-10-06 17:20:00'),
+    CONVERT(DATETIME2, '2026-10-06 17:20:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -167,8 +167,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-20 14:00:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-07 09:10:00'),
-    CONVERT(DATETIME2, '2026-11-07 09:10:00')
+    CONVERT(DATETIME2, '2026-10-07 09:10:00'),
+    CONVERT(DATETIME2, '2026-10-07 09:10:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -186,8 +186,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-21 16:30:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-07 09:55:00'),
-    CONVERT(DATETIME2, '2026-11-07 10:30:00')
+    CONVERT(DATETIME2, '2026-10-07 09:55:00'),
+    CONVERT(DATETIME2, '2026-10-07 10:30:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -205,8 +205,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-22 20:15:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-07 10:40:00'),
-    CONVERT(DATETIME2, '2026-11-07 10:40:00')
+    CONVERT(DATETIME2, '2026-10-07 10:40:00'),
+    CONVERT(DATETIME2, '2026-10-07 10:40:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -224,8 +224,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-23 18:00:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-07 11:25:00'),
-    CONVERT(DATETIME2, '2026-11-07 11:25:00')
+    CONVERT(DATETIME2, '2026-10-07 11:25:00'),
+    CONVERT(DATETIME2, '2026-10-07 11:25:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -243,8 +243,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-24 13:30:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-07 12:15:00'),
-    CONVERT(DATETIME2, '2026-11-07 12:45:00')
+    CONVERT(DATETIME2, '2026-10-07 12:15:00'),
+    CONVERT(DATETIME2, '2026-10-07 12:45:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -262,8 +262,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-25 17:45:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-07 13:20:00'),
-    CONVERT(DATETIME2, '2026-11-07 13:20:00')
+    CONVERT(DATETIME2, '2026-10-07 13:20:00'),
+    CONVERT(DATETIME2, '2026-10-07 13:20:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -281,8 +281,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-26 19:15:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-07 14:05:00'),
-    CONVERT(DATETIME2, '2026-11-07 14:05:00')
+    CONVERT(DATETIME2, '2026-10-07 14:05:00'),
+    CONVERT(DATETIME2, '2026-10-07 14:05:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -300,8 +300,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-27 15:00:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-07 15:10:00'),
-    CONVERT(DATETIME2, '2026-11-07 15:40:00')
+    CONVERT(DATETIME2, '2026-10-07 15:10:00'),
+    CONVERT(DATETIME2, '2026-10-07 15:40:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -319,8 +319,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-28 20:30:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-07 16:25:00'),
-    CONVERT(DATETIME2, '2026-11-07 16:25:00')
+    CONVERT(DATETIME2, '2026-10-07 16:25:00'),
+    CONVERT(DATETIME2, '2026-10-07 16:25:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -338,8 +338,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-29 14:45:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-07 17:00:00'),
-    CONVERT(DATETIME2, '2026-11-07 17:00:00')
+    CONVERT(DATETIME2, '2026-10-07 17:00:00'),
+    CONVERT(DATETIME2, '2026-10-07 17:00:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -357,8 +357,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-11-30 18:30:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-08 09:05:00'),
-    CONVERT(DATETIME2, '2026-11-08 09:05:00')
+    CONVERT(DATETIME2, '2026-10-08 09:05:00'),
+    CONVERT(DATETIME2, '2026-10-08 09:05:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -376,8 +376,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-12-01 19:45:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-08 09:50:00'),
-    CONVERT(DATETIME2, '2026-11-08 10:15:00')
+    CONVERT(DATETIME2, '2026-10-08 09:50:00'),
+    CONVERT(DATETIME2, '2026-10-08 10:15:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -395,8 +395,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-12-02 13:15:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-08 10:35:00'),
-    CONVERT(DATETIME2, '2026-11-08 10:35:00')
+    CONVERT(DATETIME2, '2026-10-08 10:35:00'),
+    CONVERT(DATETIME2, '2026-10-08 10:35:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -414,8 +414,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-12-03 16:15:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-08 11:20:00'),
-    CONVERT(DATETIME2, '2026-11-08 11:20:00')
+    CONVERT(DATETIME2, '2026-10-08 11:20:00'),
+    CONVERT(DATETIME2, '2026-10-08 11:20:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -433,8 +433,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-12-04 20:00:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-08 12:10:00'),
-    CONVERT(DATETIME2, '2026-11-08 12:40:00')
+    CONVERT(DATETIME2, '2026-10-08 12:10:00'),
+    CONVERT(DATETIME2, '2026-10-08 12:40:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -452,8 +452,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-12-05 15:30:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-08 13:00:00'),
-    CONVERT(DATETIME2, '2026-11-08 13:00:00')
+    CONVERT(DATETIME2, '2026-10-08 13:00:00'),
+    CONVERT(DATETIME2, '2026-10-08 13:00:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m
@@ -471,8 +471,8 @@ SELECT
     u.[users_id], c.[cinema_id], m.[movie_id],
     CONVERT(DATETIME2, '2026-12-06 19:00:00'),
     N'ACTIVE',
-    CONVERT(DATETIME2, '2026-11-08 14:15:00'),
-    CONVERT(DATETIME2, '2026-11-08 14:15:00')
+    CONVERT(DATETIME2, '2026-10-08 14:15:00'),
+    CONVERT(DATETIME2, '2026-10-08 14:15:00')
 FROM dbo.[users] u
 CROSS JOIN dbo.[cinema] c
 CROSS JOIN dbo.[movie] m

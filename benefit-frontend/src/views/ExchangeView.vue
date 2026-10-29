@@ -1,7 +1,9 @@
 <!-- ========== views/ExchangeView.vue ========== -->
 <!-- 交易專區主頁：管理路由、頁面初始化及子元件資料傳遞。 -->
 <script setup>
-import { computed, onMounted, ref, watch } from "vue";
+import {
+    computed, onMounted, onUnmounted, ref, watch,
+} from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useAuth } from "@/composables/useAuth";
 import Swal from "sweetalert2";
@@ -375,10 +377,38 @@ function openAddTicket() {
     isTicketModalOpen.value = true;
 }
 
+/** ========== 公開刊登自動更新 ========== */
+
+// 每 5 秒重新查詢一次公開刊登。
+const PUBLIC_LISTINGS_REFRESH_INTERVAL = 30_000;
+
+let publicListingsRefreshTimer = null;
+
+// 使用者切回此瀏覽器分頁時，立即重新查詢公開刊登。
+function handleVisibilityChange() {
+    if (document.visibilityState === "visible") {
+        void loadPublicListings();
+    }
+}
+
 // ========== 頁面初始化 ==========
 onMounted(async () => {
     // 重新讀取共用登入狀態。
     refreshAuth();
+
+    // 定期更新公開刊登。
+    publicListingsRefreshTimer = window.setInterval(() => {
+        // 背景分頁不必定期發送請求。
+        if (document.visibilityState === "visible") {
+            void loadPublicListings();
+        }
+    }, PUBLIC_LISTINGS_REFRESH_INTERVAL);
+
+    // 切回瀏覽器分頁時立即更新。
+    document.addEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+    );
 
     // 公開刊登與表單選項不要求登入。
     await Promise.all([
@@ -386,31 +416,29 @@ onMounted(async () => {
         loadSelectionOptions(),
     ]);
 
-    // 如果載入公開資料時已觸發登入失效處理，就不再載入會員資料。
+    // 如果載入公開資料時已觸發登入失效處理，
+    // 就不再載入會員資料。
     if (authExpiredHandled.value) return;
-
-    // console.log(
-    //     "[除錯] ticketListings：",
-    //     ticketListings.value,
-    // );
-
-    // console.log(
-    //     "[除錯] ticketListings 筆數：",
-    //     ticketListings.value?.length,
-    // );
-
-    // console.log("[除錯] 目前登入會員資料：", user.value);
-
-    // console.log(
-    //     "[除錯] 登入會員欄位名稱：",
-    //     Object.keys(user.value || {}),
-    // );
 
     // 只有登入後才載入會員資料。
     if (isLoggedIn.value && token.value) {
         await loadMemberData();
     }
 });
+
+// ========== 清理公開刊登更新機制 ==========
+onUnmounted(() => {
+    if (publicListingsRefreshTimer !== null) {
+        window.clearInterval(publicListingsRefreshTimer);
+        publicListingsRefreshTimer = null;
+    }
+
+    document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+    );
+});
+
 </script>
 
 <template>

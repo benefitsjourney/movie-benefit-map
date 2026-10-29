@@ -332,25 +332,50 @@ watch(keyword, () => {
     currentPage.value = 1;
 });
 
-// 刊登資料更新時重設分頁及圖片狀態。
+
+/**
+ * 公開刊登資料更新時：
+ * 1. 不重設目前頁碼，避免背景更新讓使用者跳回第一頁。
+ * 2. 不清除圖片載入失敗紀錄，避免每次更新都重試失敗圖片。
+ * 3. 詳細視窗同步最新刊登資料；若刊登已不存在，則關閉視窗。
+ */
+
 watch(
     () => props.listings,
-    () => {
-        currentPage.value = 1;
-        failedCardImages.value = {};
+    (listings) => {
+        if (!selectedListing.value) {
+            return;
+        }
 
-        // 原本後續的 selectedListing 檢查……
-        if (selectedListing.value) {
-            const selectedId = listingId(selectedListing.value);
+        const selectedId = listingId(selectedListing.value);
 
-            const stillExists = props.listings.some(
-                (item) =>
-                    String(listingId(item)) === String(selectedId),
+        // 沒有有效的刊登 ID，就無法安全配對。
+        if (
+            selectedId === null ||
+            selectedId === undefined ||
+            String(selectedId).trim() === ""
+        ) {
+            closeDetail();
+            return;
+        }
+
+        const updatedListing = listings.find((item) => {
+            const id = listingId(item);
+
+            return (
+                id !== null &&
+                id !== undefined &&
+                String(id).trim() !== "" &&
+                String(id).trim() === String(selectedId).trim()
             );
+        });
 
-            if (!stillExists) {
-                closeDetail();
-            }
+        if (updatedListing) {
+            // 刊登仍存在：使用最新資料更新詳細視窗。
+            selectedListing.value = updatedListing;
+        } else {
+            // 刊登已不存在：關閉詳細視窗。
+            closeDetail();
         }
     },
 );

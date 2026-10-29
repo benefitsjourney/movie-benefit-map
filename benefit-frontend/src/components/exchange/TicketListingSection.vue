@@ -343,7 +343,6 @@ watch(
         keyword,
         searchStartDate,
         searchEndDate,
-        () => props.listings,
     ],
     () => {
         currentPage.value = 1;
@@ -410,6 +409,54 @@ function handleSearchFilterClick(event) {
 function openDetail(item) {
     selectedListing.value = item;
 }
+
+// 公開刊登更新時，同步已開啟的詳細視窗。
+watch(
+    () => props.listings,
+    (listings) => {
+        // 不在這裡重設頁碼，避免清單重新載入時跳回第一頁。
+
+        // 以下保留原本的詳細視窗同步功能。
+        if (!selectedListing.value) {
+            return;
+        }
+
+        const selectedId = listingId(
+            selectedListing.value,
+        );
+
+        // 沒有有效的刊登 ID 時，不進行資料配對。
+        if (
+            selectedId === null ||
+            selectedId === undefined ||
+            String(selectedId).trim() === ""
+        ) {
+            closeDetail();
+            return;
+        }
+
+        const updatedListing = listings.find(
+            (item) => {
+                const id = listingId(item);
+
+                return (
+                    id !== null &&
+                    id !== undefined &&
+                    String(id).trim() !== "" &&
+                    String(id).trim() === String(selectedId).trim()
+                );
+            },
+        );
+
+        if (updatedListing) {
+            // 刊登仍存在：改用最新資料。
+            selectedListing.value = updatedListing;
+        } else {
+            // 刊登已不存在：關閉詳細視窗。
+            closeDetail();
+        }
+    },
+);
 
 function handleCardClick(event, item) {
     // 收藏、刊登者與聯絡操作不開啟詳細視窗。
