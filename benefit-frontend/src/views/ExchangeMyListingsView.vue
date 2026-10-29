@@ -900,13 +900,11 @@ onMounted(async () => {
                 <div class="my-exchange-list">
                     <article v-for="(item, index) in exchangeListings" :key="listingId(item, 'exchange') ?? index"
                         class="favorite-card">
-                        <!-- 特典照片 -->
+                        <!-- 特典照片：每張卡片只顯示一張 -->
                         <div class="favorite-images">
                             <template v-if="imageCandidates(item).length > 0">
-                                <img v-for="(imageUrl, imageIndex) in imageCandidates(item)"
-                                    :key="`${imageUrl}-${imageIndex}`" :src="imageUrl"
-                                    :alt="`${item.title || '特典刊登'} 的照片 ${imageIndex + 1}`" class="favorite-image"
-                                    @error="$event.target.style.display = 'none'" />
+                                <img :src="imageCandidates(item)[0]" :alt="`${item.title || '特典刊登'} 的特典照片`"
+                                    class="favorite-image" @error="$event.target.style.display = 'none'" />
                             </template>
 
                             <div v-else class="no-image" aria-label="沒有特典圖片">
@@ -1382,15 +1380,11 @@ onMounted(async () => {
 
 .favorite-images {
     display: flex;
-    flex-wrap: nowrap;
-    align-content: flex-start;
+    align-items: flex-start;
     flex-shrink: 0;
-    gap: 8px;
     width: 120px;
     height: 100%;
-    /* 左右滑動 */
-    overflow-x: auto;
-    overflow-y: hidden;
+    overflow: hidden;
 }
 
 .favorite-image {

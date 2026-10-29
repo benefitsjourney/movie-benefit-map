@@ -85,8 +85,26 @@ const hasMultipleImages = computed(
 );
 
 // 取得會員上傳的持有特典照片，最多 5 張。
+
 function getMemberPhotoUrls(item) {
-    const photos = Array.isArray(item?.useBenefitPhotoUrls)
+    // 相容目前持有紀錄 API 回傳的 photos 物件陣列
+    const photos = Array.isArray(item?.photos)
+        ? item.photos
+        : [];
+
+    const photoUrls = photos
+        .map((photo) => {
+            if (typeof photo === "string") {
+                return photo;
+            }
+
+            return typeof photo?.photoUrl === "string"
+                ? photo.photoUrl
+                : "";
+        });
+
+    // 同時保留原有刊登資料格式的相容處理
+    const listingPhotoUrls = Array.isArray(item?.useBenefitPhotoUrls)
         ? item.useBenefitPhotoUrls
         : Array.isArray(item?.use_benefit_photo_urls)
             ? item.use_benefit_photo_urls
@@ -94,7 +112,7 @@ function getMemberPhotoUrls(item) {
 
     return [
         ...new Set(
-            photos
+            [...photoUrls, ...listingPhotoUrls]
                 .filter((url) => typeof url === "string")
                 .map((url) => url.trim())
                 .filter(Boolean),

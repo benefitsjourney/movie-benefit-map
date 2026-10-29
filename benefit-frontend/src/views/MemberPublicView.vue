@@ -443,7 +443,8 @@ function getMovieName(item) {
         ?? '尚無資料'
 }
 
-// 特典圖片候選清單：會員持有照片優先，官方圖片備援
+// 特典圖片候選清單：會員持有照片優先。
+// 只有沒有任何會員持有照片時，才使用官方圖片備援。
 function getExchangeImageCandidates(item) {
     const memberPhotos = Array.isArray(item?.useBenefitPhotoUrls)
         ? item.useBenefitPhotoUrls
@@ -464,12 +465,13 @@ function getExchangeImageCandidates(item) {
                 : ''
     ).trim()
 
-    return [
-        ...new Set([
-            ...memberPhotoUrls,
-            ...(officialImageUrl ? [officialImageUrl] : []),
-        ]),
-    ]
+    // 有會員持有照片時，只使用會員照片，不加入官方圖片。
+    if (memberPhotoUrls.length > 0) {
+        return [...new Set(memberPhotoUrls)]
+    }
+
+    // 只有會員照片完全沒有時，才使用官方圖片。
+    return officialImageUrl ? [officialImageUrl] : []
 }
 
 // 取得每張特典卡片目前應顯示的圖片
@@ -657,9 +659,21 @@ async function loadMemberPage() {
             `/exchange-listings/member/${memberId.value}`,
         )
 
-        exchangeListings.value = Array.isArray(exchangeResponse.data)
-            ? exchangeResponse.data
-            : exchangeResponse.data?.content || []
+        exchangeListings.value = (
+            Array.isArray(exchangeResponse.data)
+                ? exchangeResponse.data
+                : exchangeResponse.data?.content || []
+        ).sort((a, b) => {
+            const dateA = new Date(
+                a?.createdAt ?? a?.created_at ?? 0,
+            ).getTime()
+
+            const dateB = new Date(
+                b?.createdAt ?? b?.created_at ?? 0,
+            ).getTime()
+
+            return dateB - dateA
+        })
 
         const ticketResponse = await http.get(
             `/ticket-listings/member/${memberId.value}`,
@@ -1044,9 +1058,11 @@ onBeforeUnmount(() => {
                                     <h3>特典圖片</h3>
 
                                     <div v-if="currentDetailImage" class="detail-image-viewer">
-                                        <img :key="currentDetailImage" :src="currentDetailImage"
-                                            :alt="`特典圖片 ${detailImageIndex + 1}`" class="detail-modal-image"
-                                            @error="handleDetailImageError(currentDetailImage)" />
+                                        <div class="detail-image-stage">
+                                            <img :src="currentDetailImage" :alt="`特典圖片 ${detailImageIndex + 1}`"
+                                                class="detail-modal-image"
+                                                @error="handleDetailImageError(currentDetailImage)" />
+                                        </div>
 
                                         <div v-if="selectedExchangeImages.length > 1" class="detail-image-controls">
                                             <button type="button" class="detail-image-button" aria-label="上一張圖片"
@@ -1962,10 +1978,20 @@ onBeforeUnmount(() => {
     padding-left: 1em;
 }
 
+.detail-image-stage {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 45dvh;
+    min-height: 12rem;
+    overflow: hidden;
+}
+
 .detail-modal-image {
     display: block;
     max-width: 100%;
-    max-height: 45dvh;
+    max-height: 100%;
     object-fit: contain;
     border-radius: 0.5rem;
 }
@@ -2155,6 +2181,11 @@ onBeforeUnmount(() => {
     .detail-modal-content {
         max-height: 58dvh;
         padding-bottom: 0.5rem;
+    }
+
+    .detail-image-stage {
+        height: 38dvh;
+        min-height: 10rem;
     }
 
     .detail-ticket-heading {

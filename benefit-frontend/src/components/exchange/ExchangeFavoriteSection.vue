@@ -40,69 +40,42 @@ const selectedListing = ref(null)
 // 詳細視窗目前顯示的圖片索引。
 const detailImageIndex = ref(0)
 
-// 各張收藏卡片目前顯示的圖片索引，與詳細視窗分開管理。
-const cardImageIndexes = ref({})
+// 每張收藏卡片各自記錄載入失敗的圖片網址。
+const failedCardImages = ref({})
 
-// 取得收藏卡片的唯一識別鍵。
+// 取得卡片識別碼，避免不同卡片共用失敗紀錄。
 function cardImageKey(favorite, index) {
     return String(
+        listingId(favorite) ??
         favorite?.exchangeFavoriteId ??
         favorite?.exchange_favorite_id ??
-        listingId(favorite) ??
         index
     )
 }
 
-// 取得收藏卡片目前顯示的圖片。
+// 取得卡片目前第一張可用圖片。
 function currentCardImage(favorite, index) {
-    const images = imageCandidates(favorite)
     const key = cardImageKey(favorite, index)
-    const imageIndex = cardImageIndexes.value[key] ?? 0
+    const failedUrls = failedCardImages.value[key] ?? []
 
-    return images[imageIndex] ?? ''
+    return imageCandidates(favorite).find(
+        url => !failedUrls.includes(url)
+    ) ?? ''
 }
 
-// 切換收藏卡片的圖片。
-function changeCardImage(favorite, index, direction) {
-    const images = imageCandidates(favorite)
-
-    if (images.length <= 1) return
+// 記錄指定卡片的圖片載入失敗，讓它嘗試下一張候選圖片。
+function handleCardImageError(favorite, index, failedUrl) {
+    if (!failedUrl) return
 
     const key = cardImageKey(favorite, index)
-    const currentIndex = cardImageIndexes.value[key] ?? 0
+    const failedUrls = failedCardImages.value[key] ?? []
 
-    cardImageIndexes.value = {
-        ...cardImageIndexes.value,
-        [key]: (currentIndex + direction + images.length) % images.length
+    if (failedUrls.includes(failedUrl)) return
+
+    failedCardImages.value = {
+        ...failedCardImages.value,
+        [key]: [...failedUrls, failedUrl]
     }
-}
-
-// 開始觸控滑動時，記錄起始位置。
-function handleCardTouchStart(event) {
-    event.currentTarget.dataset.touchStartX = String(
-        event.changedTouches[0].clientX
-    )
-}
-
-// 結束觸控滑動時，依方向切換圖片。
-function handleCardTouchEnd(event, favorite, index) {
-    const startX = Number(event.currentTarget.dataset.touchStartX)
-    const endX = event.changedTouches[0].clientX
-    const distance = endX - startX
-
-    // 滑動距離至少 30px 才切換，避免輕微觸碰造成誤判。
-    if (Math.abs(distance) < 30) return
-
-    changeCardImage(favorite, index, distance < 0 ? 1 : -1)
-}
-
-// 卡片圖片載入失敗時，嘗試顯示下一張圖片。
-function handleCardImageError(favorite, index) {
-    const images = imageCandidates(favorite)
-
-    if (images.length <= 1) return
-
-    changeCardImage(favorite, index, 1)
 }
 
 // 記錄詳細視窗中載入失敗的圖片。
@@ -463,37 +436,22 @@ watch(
                 @click="openDetail(favorite)" @keydown.enter.prevent="openDetail(favorite)"
                 @keydown.space.prevent="openDetail(favorite)">
 
-                <div class="favorite-images" @touchstart="handleCardTouchStart"
-                    @touchend="handleCardTouchEnd($event, favorite, index)">
-                    <template v-if="imageCandidates(favorite).length > 0">
+                <div class="favorite-images">
+                    <template v-if="currentCardImage(favorite, index)">
                         <img :key="currentCardImage(favorite, index)" :src="currentCardImage(favorite, index)"
-                            :alt="`${listingTitle(favorite)} 的照片 ${(cardImageIndexes[cardImageKey(favorite, index)] ?? 0) + 1}`"
-                            class="favorite-image" @error="handleCardImageError(favorite, index)" />
-
-                        <template v-if="imageCandidates(favorite).length > 1">
-                            <button type="button" class="card-image-arrow card-image-previous" aria-label="上一張特典圖片"
-                                title="上一張圖片" @click.stop="changeCardImage(favorite, index, -1)">
-                                ‹
-                            </button>
-
-                            <span class="card-image-count">
-                                {{ (cardImageIndexes[cardImageKey(favorite, index)] ?? 0) + 1 }}
-                                /
-                                {{ imageCandidates(favorite).length }}
-                            </span>
-
-                            <button type="button" class="card-image-arrow card-image-next" aria-label="下一張特典圖片"
-                                title="下一張圖片" @click.stop="changeCardImage(favorite, index, 1)">
-                                ›
-                            </button>
-                        </template>
+                            :alt="`${listingTitle(favorite)} 的特典照片`" class="favorite-image" @error="
+                                handleCardImageError(
+                                    favorite,
+                                    index,
+                                    currentCardImage(favorite, index)
+                                )
+                                " />
                     </template>
 
                     <div v-else class="no-image" aria-label="沒有特典圖片">
                         <Icon :icon="giftIcon" class="gift-icon" />
                     </div>
                 </div>
-
 
                 <div class="favorite-content">
                     <h3 class="favorite-title" :title="listingTitle(favorite)">
@@ -690,10 +648,9 @@ watch(
 .favorite-images {
     position: relative;
     display: flex;
-    flex-wrap: wrap;
-    align-content: flex-start;
+    align-items: flex-start;
+    justify-content: flex-start;
     flex-shrink: 0;
-    gap: 8px;
     width: 120px;
     height: 100%;
     overflow: hidden;
@@ -708,57 +665,6 @@ watch(
     border-radius: 6px;
     background: #f3f4f6;
 }
-
-/* 收藏卡片圖片左右切換按鈕 */
-.card-image-arrow {
-    position: absolute;
-    top: 50%;
-    display: grid;
-    place-items: center;
-    width: 24px;
-    height: 30px;
-    padding: 0;
-    transform: translateY(-50%);
-    border: 1px solid rgb(255 255 255 / 80%);
-    border-radius: 6px;
-    background: rgb(15 23 42 / 65%);
-    color: #fff;
-    font-family: inherit;
-    font-size: 22px;
-    line-height: 1;
-    cursor: pointer;
-}
-
-.card-image-arrow:hover {
-    background: rgb(15 23 42 / 85%);
-}
-
-.card-image-previous {
-    left: 2px;
-}
-
-.card-image-next {
-    right: 2px;
-}
-
-/* 顯示目前圖片編號 */
-.card-image-count {
-    position: absolute;
-    right: 0;
-    bottom: 2px;
-    left: 0;
-    width: fit-content;
-    margin: 0 auto;
-    padding: 2px 6px;
-    border-radius: 10px;
-    background: rgb(15 23 42 / 70%);
-    color: #fff;
-    font-size: 11px;
-    line-height: 1.3;
-    font-variant-numeric: tabular-nums;
-    pointer-events: none;
-}
-
 
 .no-image {
     display: flex;
