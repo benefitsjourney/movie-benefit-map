@@ -1,0 +1,31 @@
+name: movie-benefit-map
+
+services:
+  backend:
+    build:
+      context: ./benefit-backend
+      dockerfile: Dockerfile
+    env_file:
+      - ./benefit-backend/.env
+    environment:
+      PORT: 8080
+      DB_TYPE: mssql
+      SPRING_DATASOURCE_URL: "jdbc:sqlserver://host.docker.internal:${SQLSERVER_PORT:-14330};database=${SQLSERVER_DATABASE:-BenefitsJourney};trustServerCertificate=true;"
+      SPRING_DATASOURCE_USERNAME: ${SQLSERVER_USERNAME:-sa}
+      SPRING_DATASOURCE_PASSWORD: ${SQLSERVER_PASSWORD:-BJourney@2026!}
+    expose:
+      - "8080"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./benefit-frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
+        VITE_BASE_PATH: /
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-9174}:80"
+    restart: unless-stopped
