@@ -19,6 +19,7 @@ import com.collection.benefitsjourney.domain.TicketListingBean;
 import com.collection.benefitsjourney.domain.UsersBean;
 import com.collection.benefitsjourney.repository.CinemaRepository;
 import com.collection.benefitsjourney.repository.MovieRepository;
+import com.collection.benefitsjourney.repository.TicketFavoriteRepository;
 import com.collection.benefitsjourney.repository.TicketListingRepository;
 import com.collection.benefitsjourney.repository.UsersRepository;
 
@@ -36,6 +37,7 @@ public class TicketListingService {
 	private static final ZoneId TAIPEI_ZONE = ZoneId.of("Asia/Taipei");
 
 	private final TicketListingRepository ticketListingRepository;
+	private final TicketFavoriteRepository ticketFavoriteRepository;
 	private final UsersRepository usersRepository;
 	private final CinemaRepository cinemaRepository;
 	private final MovieRepository movieRepository;
@@ -353,12 +355,19 @@ public class TicketListingService {
 					"放映日期已到或已過，不能修改票券刊登狀態");
 		}
 
-		// 5. 修改狀態，更新狀態
+		// 5. 只有狀態設為 DELETED 時，才刪除所有會員對此票券的收藏
+		if (STATUS_DELETED.equals(status)) {
+			ticketFavoriteRepository.deleteAllByTicketListingId(
+					ticketListingId);
+		}
+
+		// 6. 修改狀態
 		listing.setStatus(status);
 
-		// 6. 儲存
+		// 7. 儲存
 		TicketListingBean savedListing = ticketListingRepository.save(listing);
 
+		// 8. 初始化回傳資料
 		initializeListingUser(savedListing);
 
 		return savedListing;
@@ -383,8 +392,11 @@ public class TicketListingService {
 			return 0;
 		}
 
-		// 將符合條件的票券改成 DELETED
+		// 將符合條件的票券改成 DELETED，並刪除所有相關收藏
 		for (TicketListingBean listing : expiredListings) {
+			ticketFavoriteRepository.deleteAllByTicketListingId(
+					listing.getTicketListingId());
+
 			listing.setStatus(STATUS_DELETED);
 		}
 

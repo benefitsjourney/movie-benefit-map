@@ -1,7 +1,7 @@
 <!-- ========== src/views/ExchangeMyFavoritesView.vue ========== -->
 <!-- 會員收藏管理頁面 -->
 <script setup>
-import { onMounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import Swal from "sweetalert2";
 import { useAuth } from "@/composables/useAuth";
@@ -39,6 +39,8 @@ const exchangeFavorites = ref([]);
 const ticketFavorites = ref([]);
 const cinemas = ref([]);
 const movies = ref([]);
+// 每 5 秒自動重新載入收藏的定時器
+let favoritesRefreshTimer = null;
 
 function unwrapList(response) {
     const data = response?.data ?? response;
@@ -223,13 +225,31 @@ function movieName(item) {
     return id ? `電影編號 ${id}` : "電影資料未提供";
 }
 
+// 是否已完成第一次收藏載入
+const hasInitialized = ref(false);
+
+// 是否正在執行收藏 API，避免重複發送請求
+const isFetchingFavorites = ref(false);
+
 async function loadFavorites() {
     if (!token.value) {
         errorMessage.value = "請先登入，才能查看自己的收藏。";
         return;
     }
 
-    loading.value = true;
+    // 上一輪請求尚未完成時，不重複發送請求。
+    if (isFetchingFavorites.value) {
+        return;
+    }
+
+    isFetchingFavorites.value = true;
+
+    // 只有第一次載入時顯示整頁載入狀態。
+    // 後續自動更新不切換畫面。
+    if (!hasInitialized.value) {
+        loading.value = true;
+    }
+
     errorMessage.value = "";
 
     const results = await Promise.allSettled([
@@ -249,19 +269,27 @@ async function loadFavorites() {
     if (unauthorizedResult) {
         await handleAuthExpired(unauthorizedResult.reason);
         loading.value = false;
+        hasInitialized.value = true;
+        isFetchingFavorites.value = false;
         return;
     }
 
     const failures = [];
 
     if (results[0].status === "fulfilled") {
-        exchangeFavorites.value = unwrapList(results[0].value);
+        exchangeFavorites.value = unwrapList(results[0].value).filter(
+            (favorite) =>
+                String(favorite?.status ?? "").trim().toUpperCase() === "ACTIVE",
+        );
     } else {
         failures.push(`我的特典收藏：${errorText(results[0].reason)}`);
     }
 
     if (results[1].status === "fulfilled") {
-        ticketFavorites.value = unwrapList(results[1].value);
+        ticketFavorites.value = unwrapList(results[1].value).filter(
+            (favorite) =>
+                String(favorite?.status ?? "").trim().toUpperCase() === "ACTIVE",
+        );
     } else {
         failures.push(`我的票券收藏：${errorText(results[1].reason)}`);
     }
@@ -283,6 +311,8 @@ async function loadFavorites() {
     }
 
     loading.value = false;
+    hasInitialized.value = true;
+    isFetchingFavorites.value = false;
 }
 
 async function removeFavorite(item, kind) {
@@ -337,10 +367,33 @@ async function removeFavorite(item, kind) {
 onMounted(async () => {
     refreshAuth();
 
+    // 每 5 秒嘗試重新載入收藏。
+    // 未登入、沒有 Token 或目前正在載入時，不發出新的請求。
+    favoritesRefreshTimer = window.setInterval(() => {
+        if (
+            !isLoggedIn.value ||
+            !token.value ||
+            isFetchingFavorites.value
+        ) {
+            return;
+        }
+
+        loadFavorites();
+    }, 5000);
+
+    // 保留原本進入頁面時的初始化流程
     if (isLoggedIn.value && token.value) {
         await loadFavorites();
     } else {
         errorMessage.value = "請先登入，才能查看自己的收藏。";
+    }
+});
+
+// 離開頁面時停止定時重新載入
+onUnmounted(() => {
+    if (favoritesRefreshTimer !== null) {
+        window.clearInterval(favoritesRefreshTimer);
+        favoritesRefreshTimer = null;
     }
 });
 </script>
@@ -377,13 +430,11 @@ onMounted(async () => {
 
             <p v-if="loading">收藏載入中……</p>
 
-            <template v-else>
-                <ExchangeFavoriteSection v-if="activeTab === 'exchange'" :favorites="exchangeFavorites"
-                    @remove-favorite="removeFavorite($event, 'exchange')" />
+            <ExchangeFavoriteSection v-if="!loading && activeTab === 'exchange'" :favorites="exchangeFavorites"
+                @remove-favorite="removeFavorite($event, 'exchange')" />
 
-                <TicketFavoriteSection v-else :favorites="ticketFavorites" :cinema-name="cinemaName"
-                    :movie-name="movieName" @remove-favorite="removeFavorite($event, 'ticket')" />
-            </template>
+            <TicketFavoriteSection v-if="!loading && activeTab === 'ticket'" :favorites="ticketFavorites"
+                :cinema-name="cinemaName" :movie-name="movieName" @remove-favorite="removeFavorite($event, 'ticket')" />
         </template>
     </section>
 </template>

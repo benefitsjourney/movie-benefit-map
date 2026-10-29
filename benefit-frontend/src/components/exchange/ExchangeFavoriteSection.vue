@@ -424,7 +424,7 @@ watch(
 <template>
     <section class="exchange-favorites">
         <div v-if="favorites.length === 0" class="empty-state">
-            目前沒有收藏的交換刊登
+            目前沒有特典刊登收藏
         </div>
 
         <div v-else class="favorite-list">
@@ -769,9 +769,13 @@ watch(
     opacity: 0.5;
 }
 
+/* 目前沒有收藏的特典刊登 */
 .empty-state {
-    padding: 32px 16px;
-    color: #6b7280;
+    padding: 2rem 1rem;
+    border: 1px dashed #cbd5e1;
+    border-radius: 0.9rem;
+    background: #f8fafc;
+    color: #64748b;
     text-align: center;
 }
 

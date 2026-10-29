@@ -4,8 +4,10 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-
 import com.collection.benefitsjourney.domain.TicketFavoriteBean;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface TicketFavoriteRepository extends JpaRepository<TicketFavoriteBean, Integer> {
 
@@ -18,4 +20,13 @@ public interface TicketFavoriteRepository extends JpaRepository<TicketFavoriteBe
 
     // 查詢會員自己的所有票券收藏
     List<TicketFavoriteBean> findByUsersBean_UsersId(Integer usersId);
+
+    // 刪除指定票券刊登的所有會員收藏
+    @Modifying
+    @Query("""
+            DELETE FROM TicketFavoriteBean f
+            WHERE f.ticketListingBean.ticketListingId = :ticketListingId
+            """)
+    int deleteAllByTicketListingId(
+            @Param("ticketListingId") Integer ticketListingId);
 }

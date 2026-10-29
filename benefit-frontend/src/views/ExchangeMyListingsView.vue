@@ -774,7 +774,7 @@ async function saveEdit() {
 
 // ========== 刊登狀態修改 ==========
 
-async function changeStatus(item, kind, status) {
+async function changeStatus(item, kind, status, selectElement) {
     if (!token.value) return;
 
     const id = listingId(item, kind);
@@ -801,7 +801,14 @@ async function changeStatus(item, kind, status) {
         cancelButtonText: "取消",
     });
 
-    if (!confirmed.isConfirmed) return;
+    // 使用者取消時，恢復下拉選單原本的狀態。
+    // 不呼叫 API，也不修改後端資料。
+    if (!confirmed.isConfirmed) {
+        if (selectElement) {
+            selectElement.value = item.status;
+        }
+        return;
+    }
 
     try {
         if (kind === "exchange") {
@@ -954,7 +961,8 @@ onMounted(async () => {
                                             changeStatus(
                                                 item,
                                                 'exchange',
-                                                $event.target.value
+                                                $event.target.value,
+                                                $event.target
                                             )
                                             ">
                                         <option v-for="option in statusOptions" :key="option.value"
@@ -1060,7 +1068,8 @@ onMounted(async () => {
                                             changeStatus(
                                                 item,
                                                 'ticket',
-                                                $event.target.value
+                                                $event.target.value,
+                                                $event.target
                                             )
                                             ">
                                         <option v-for="option in statusOptions" :key="option.value"
