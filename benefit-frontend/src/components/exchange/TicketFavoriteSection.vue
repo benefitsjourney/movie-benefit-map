@@ -231,7 +231,7 @@ watch(
     <section class="ticket-favorites">
         <!-- 沒有收藏資料時顯示空狀態 -->
         <div v-if="!favorites.length" class="empty-state">
-            目前沒有票券收藏。
+            目前沒有票券收藏
         </div>
 
         <!-- 票券收藏卡片 -->

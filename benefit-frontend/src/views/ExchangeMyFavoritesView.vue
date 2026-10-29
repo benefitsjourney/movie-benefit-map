@@ -255,13 +255,19 @@ async function loadFavorites() {
     const failures = [];
 
     if (results[0].status === "fulfilled") {
-        exchangeFavorites.value = unwrapList(results[0].value);
+        exchangeFavorites.value = unwrapList(results[0].value).filter(
+            (favorite) =>
+                String(favorite?.status ?? "").trim().toUpperCase() === "ACTIVE",
+        );
     } else {
         failures.push(`我的特典收藏：${errorText(results[0].reason)}`);
     }
 
     if (results[1].status === "fulfilled") {
-        ticketFavorites.value = unwrapList(results[1].value);
+        ticketFavorites.value = unwrapList(results[1].value).filter(
+            (favorite) =>
+                String(favorite?.status ?? "").trim().toUpperCase() === "ACTIVE",
+        );
     } else {
         failures.push(`我的票券收藏：${errorText(results[1].reason)}`);
     }

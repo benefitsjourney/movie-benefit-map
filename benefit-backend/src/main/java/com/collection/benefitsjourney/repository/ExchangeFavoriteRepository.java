@@ -4,6 +4,9 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.collection.benefitsjourney.domain.ExchangeFavoriteBean;
 
@@ -19,4 +22,13 @@ public interface ExchangeFavoriteRepository extends JpaRepository<ExchangeFavori
 
         // 查詢會員自己的所有交換收藏
         List<ExchangeFavoriteBean> findByUsersBean_UsersId(Integer usersId);
+
+        // 刪除指定交換刊登的所有會員收藏
+        @Modifying
+        @Query("""
+                        DELETE FROM ExchangeFavoriteBean f
+                        WHERE f.exchangeListingBean.exchangeListingId = :exchangeListingId
+                        """)
+        int deleteAllByExchangeListingId(
+                        @Param("exchangeListingId") Integer exchangeListingId);
 }

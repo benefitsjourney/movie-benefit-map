@@ -449,11 +449,23 @@ export function useExchangeData({ token, onAuthExpired }) {
                 },
                 (response) => {
                     myExchangeFavorites.value =
-                        unwrapList(response);
+                        unwrapList(response).filter((favorite) => {
+                            return (
+                                String(favorite?.status ?? "")
+                                    .trim()
+                                    .toUpperCase() === "ACTIVE"
+                            );
+                        });
                 },
                 (response) => {
                     myTicketFavorites.value =
-                        unwrapList(response);
+                        unwrapList(response).filter((favorite) => {
+                            return (
+                                String(favorite?.status ?? "")
+                                    .trim()
+                                    .toUpperCase() === "ACTIVE"
+                            );
+                        });
                 },
                 (response) => {
                     useBenefits.value =

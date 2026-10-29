@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.collection.benefitsjourney.domain.ExchangeListingBean;
 import com.collection.benefitsjourney.domain.UseBenefitBean;
 import com.collection.benefitsjourney.domain.UsersBean;
+import com.collection.benefitsjourney.repository.ExchangeFavoriteRepository;
 import com.collection.benefitsjourney.repository.ExchangeListingRepository;
 import com.collection.benefitsjourney.repository.UseBenefitRepository;
 import com.collection.benefitsjourney.repository.UsersRepository;
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class ExchangeListingService {
 
 	private final ExchangeListingRepository exchangeListingRepository;
+	private final ExchangeFavoriteRepository exchangeFavoriteRepository;
 	private final UseBenefitRepository useBenefitRepository;
 	private final UsersRepository usersRepository;
 
@@ -229,16 +231,23 @@ public class ExchangeListingService {
 					"已刪除的刊登不能重新開啟");
 		}
 
-		// 5. 修改狀態
+		// 5. 只有狀態設為 DELETED 時，才刪除所有會員對此刊登的收藏
+		if ("DELETED".equals(status)) {
+			exchangeFavoriteRepository.deleteAllByExchangeListingId(
+					exchangeListingId);
+		}
+
+		// 6. 修改狀態
 		listing.setStatus(status);
 
-		// 6. 儲存
+		// 7. 儲存
 		ExchangeListingBean savedListing = exchangeListingRepository.save(listing);
 
-		// 7. 預先載入回傳所需的特典及照片資料
+		// 8. 預先載入回傳所需的特典及照片資料
 		initializeListingDetails(savedListing);
 
 		return savedListing;
+
 	}
 
 	// 預先載入交換刊登回傳所需的特典與照片資料
