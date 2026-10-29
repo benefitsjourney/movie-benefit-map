@@ -694,7 +694,7 @@ onBeforeUnmount(() => {
                     </div>
 
                     <Pagination v-if="totalPages > 1" :page="currentPage" :total-pages="totalPages" label="票券刊登分頁"
-                        color="purple" @update:page="changePage" />
+                        color="coral" @update:page="changePage" />
                 </template>
             </SearchFilter>
         </div>

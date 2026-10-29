@@ -186,13 +186,16 @@ function imageCandidates(item) {
 }
 
 // 取得卡片實際要顯示的圖片。
-// 載入失敗的圖片會先隱藏，避免持續顯示破圖。
+// 卡片只顯示一張照片。
+// 若第一張照片載入失敗，則依序顯示下一張可用照片。
 function cardImages(item, index) {
     const key = imageStateKey(item, index);
     const candidates = imageCandidates(item);
     const failedUrls = failedCardImages.value[key] ?? [];
 
-    return candidates.filter((url) => !failedUrls.includes(url));
+    return candidates
+        .filter((url) => !failedUrls.includes(url))
+        .slice(0, 1);
 }
 
 // 卡片圖片載入失敗時，記錄該網址。
