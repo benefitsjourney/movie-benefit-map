@@ -58,11 +58,14 @@ const selectedUseBenefit = computed(() =>
     ),
 );
 
-// 目前預覽區顯示的圖片網址清單。
+// 可供預覽的圖片網址清單。
 // 會員持有照片最多 5 張；沒有持有照片時才使用官方特典圖片。
 const previewImageUrls = ref([]);
 
-// 目前點擊放大預覽的圖片網址。放大功能仍然一次顯示一張圖片。
+// 目前顯示的圖片索引。
+const currentImageIndex = ref(0);
+
+// 目前放大預覽的圖片網址。
 const previewImageUrl = ref("");
 
 // 是否開啟圖片放大預覽視窗。
@@ -70,6 +73,16 @@ const isImagePreviewOpen = ref(false);
 
 // 記錄無法載入的圖片，避免持續顯示破圖。
 const failedImageUrls = ref([]);
+
+// 目前表單預覽的圖片網址。
+const currentPreviewImageUrl = computed(
+    () => previewImageUrls.value[currentImageIndex.value] || "",
+);
+
+// 是否有多張可用圖片。
+const hasMultipleImages = computed(
+    () => previewImageUrls.value.length > 1,
+);
 
 // 取得會員上傳的持有特典照片，最多 5 張。
 function getMemberPhotoUrls(item) {
@@ -101,12 +114,29 @@ function getOfficialImageUrl(item) {
     return url.trim();
 }
 
-// 切換持有特典時，重新取得圖片清單，並關閉上一張特典的放大預覽。
+// 更新目前圖片索引，確保索引始終在有效範圍內。
+function normalizeImageIndex() {
+    if (previewImageUrls.value.length === 0) {
+        currentImageIndex.value = 0;
+        previewImageUrl.value = "";
+        return;
+    }
+
+    currentImageIndex.value =
+        ((currentImageIndex.value % previewImageUrls.value.length) +
+            previewImageUrls.value.length) %
+        previewImageUrls.value.length;
+
+    previewImageUrl.value = currentPreviewImageUrl.value;
+}
+
+// 切換持有特典時，重新取得圖片清單並關閉上一張特典的預覽。
 watch(
     selectedUseBenefit,
     (item) => {
         isImagePreviewOpen.value = false;
         previewImageUrl.value = "";
+        currentImageIndex.value = 0;
         failedImageUrls.value = [];
 
         if (!item) {
@@ -114,38 +144,80 @@ watch(
             return;
         }
 
-        const memberPhotos = getMemberPhotoUrls(item).filter(
-            (url) => !failedImageUrls.value.includes(url),
-        );
+        const memberPhotos = getMemberPhotoUrls(item);
 
         if (memberPhotos.length > 0) {
             previewImageUrls.value = memberPhotos;
-
-            // 預設點擊第一張圖片時，放大第一張。
-            previewImageUrl.value = memberPhotos[0];
+            normalizeImageIndex();
             return;
         }
 
         // 沒有會員持有照片時，才使用官方特典圖片。
         const officialImageUrl = getOfficialImageUrl(item);
-        const canUseOfficialImage =
-            officialImageUrl &&
-            !failedImageUrls.value.includes(officialImageUrl);
 
-        previewImageUrls.value = canUseOfficialImage
+        previewImageUrls.value = officialImageUrl
             ? [officialImageUrl]
             : [];
 
-        previewImageUrl.value = canUseOfficialImage
-            ? officialImageUrl
-            : "";
+        normalizeImageIndex();
     },
     { immediate: true },
 );
 
+// 切換表單預覽的上一張圖片。
+function previousImage() {
+    if (!hasMultipleImages.value) return;
+
+    currentImageIndex.value =
+        (currentImageIndex.value - 1 + previewImageUrls.value.length) %
+        previewImageUrls.value.length;
+
+    previewImageUrl.value = currentPreviewImageUrl.value;
+}
+
+// 切換表單預覽的下一張圖片。
+function nextImage() {
+    if (!hasMultipleImages.value) return;
+
+    currentImageIndex.value =
+        (currentImageIndex.value + 1) % previewImageUrls.value.length;
+
+    previewImageUrl.value = currentPreviewImageUrl.value;
+}
+
+// 開啟指定圖片的放大預覽。
+function openImagePreview() {
+    if (!currentPreviewImageUrl.value) return;
+
+    previewImageUrl.value = currentPreviewImageUrl.value;
+    isImagePreviewOpen.value = true;
+}
+
+// 放大視窗切換上一張圖片。
+function previousPreviewImage() {
+    if (!hasMultipleImages.value) return;
+
+    previousImage();
+    previewImageUrl.value = currentPreviewImageUrl.value;
+}
+
+// 放大視窗切換下一張圖片。
+function nextPreviewImage() {
+    if (!hasMultipleImages.value) return;
+
+    nextImage();
+    previewImageUrl.value = currentPreviewImageUrl.value;
+}
+
+// 關閉圖片放大預覽。
+function closeImagePreview() {
+    isImagePreviewOpen.value = false;
+}
+
 // 圖片載入失敗時，移除該張圖片。
-// 若目前放大的圖片失敗，關閉放大視窗。
 function handleBenefitImageError(url) {
+    if (!url) return;
+
     if (!failedImageUrls.value.includes(url)) {
         failedImageUrls.value = [
             ...failedImageUrls.value,
@@ -153,27 +225,38 @@ function handleBenefitImageError(url) {
         ];
     }
 
+    const failedIndex = previewImageUrls.value.indexOf(url);
+
+    if (failedIndex === -1) return;
+
+    const wasCurrentImage = failedIndex === currentImageIndex.value;
+    const wasPreviewImage = previewImageUrl.value === url;
+
     previewImageUrls.value = previewImageUrls.value.filter(
         (imageUrl) => imageUrl !== url,
     );
 
-    if (previewImageUrl.value === url) {
-        isImagePreviewOpen.value = false;
+    if (previewImageUrls.value.length === 0) {
+        currentImageIndex.value = 0;
         previewImageUrl.value = "";
+        isImagePreviewOpen.value = false;
+        return;
     }
-}
 
-// 開啟指定圖片的放大預覽。。沒有可用圖片時不開啟視窗。
-function openImagePreview(url) {
-    if (!url) return;
+    if (failedIndex < currentImageIndex.value) {
+        currentImageIndex.value -= 1;
+    } else if (
+        wasCurrentImage &&
+        currentImageIndex.value >= previewImageUrls.value.length
+    ) {
+        currentImageIndex.value = 0;
+    }
 
-    previewImageUrl.value = url;
-    isImagePreviewOpen.value = true;
-}
+    previewImageUrl.value = currentPreviewImageUrl.value;
 
-// 關閉圖片放大預覽。
-function closeImagePreview() {
-    isImagePreviewOpen.value = false;
+    if (wasPreviewImage && !currentPreviewImageUrl.value) {
+        isImagePreviewOpen.value = false;
+    }
 }
 
 // 按下 Esc 時關閉圖片放大預覽。
@@ -188,25 +271,16 @@ watch(isImagePreviewOpen, (isOpen) => {
     if (typeof window === "undefined") return;
 
     if (isOpen) {
-        window.addEventListener(
-            "keydown",
-            handlePreviewKeydown,
-        );
+        window.addEventListener("keydown", handlePreviewKeydown);
     } else {
-        window.removeEventListener(
-            "keydown",
-            handlePreviewKeydown,
-        );
+        window.removeEventListener("keydown", handlePreviewKeydown);
     }
 });
 
 // 元件卸載時移除事件監聽，避免殘留。
 onBeforeUnmount(() => {
     if (typeof window !== "undefined") {
-        window.removeEventListener(
-            "keydown",
-            handlePreviewKeydown,
-        );
+        window.removeEventListener("keydown", handlePreviewKeydown);
     }
 });
 
@@ -217,7 +291,7 @@ function closeModal() {
     emit("close");
 }
 
-// 票券右上角的 X 按鈕沿用原本的關閉方式：透過 v-model 通知父元件關閉。
+// 票券右上角的 X 按鈕沿用原本的關閉方式。
 function requestClose() {
     if (props.isSaving) return;
 
@@ -290,18 +364,34 @@ function requestClose() {
 
                         <!-- 持有特典圖片預覽 -->
                         <div v-if="selectedUseBenefit" class="benefit-preview">
-                            <!-- 有圖片時，顯示可點擊的小圖 -->
-                            <!-- 有圖片時，顯示全部可用圖片；點擊任一張即可放大。 -->
-                            <div v-if="previewImageUrls.length > 0" class="benefit-preview-image-list">
-                                <button v-for="(url, index) in previewImageUrls" :key="url" type="button"
-                                    class="benefit-preview-image-button" :aria-label="`放大查看特典圖片 ${index + 1}`"
-                                    title="點擊放大圖片" @click="openImagePreview(url)">
-                                    <img :src="url" :alt="`持有特典圖片 ${index + 1}`"
-                                        @error="handleBenefitImageError(url)" />
+                            <!-- 一次顯示一張圖片，可左右切換 -->
+                            <div v-if="currentPreviewImageUrl" class="benefit-preview-image-viewer">
+                                <button v-if="hasMultipleImages" type="button"
+                                    class="benefit-image-nav benefit-image-nav-prev" aria-label="查看上一張特典圖片" title="上一張"
+                                    @click="previousImage">
+                                    <Icon icon="mdi:chevron-left" aria-hidden="true" />
                                 </button>
+
+                                <button type="button" class="benefit-preview-image-button"
+                                    :aria-label="`放大查看特典圖片 ${currentImageIndex + 1}`" title="點擊放大圖片"
+                                    @click="openImagePreview">
+                                    <img :key="currentPreviewImageUrl" :src="currentPreviewImageUrl"
+                                        :alt="`持有特典圖片 ${currentImageIndex + 1}`"
+                                        @error="handleBenefitImageError(currentPreviewImageUrl)" />
+                                </button>
+
+                                <button v-if="hasMultipleImages" type="button"
+                                    class="benefit-image-nav benefit-image-nav-next" aria-label="查看下一張特典圖片" title="下一張"
+                                    @click="nextImage">
+                                    <Icon icon="mdi:chevron-right" aria-hidden="true" />
+                                </button>
+
+                                <span v-if="hasMultipleImages" class="benefit-image-count">
+                                    {{ currentImageIndex + 1 }} /
+                                    {{ previewImageUrls.length }}
+                                </span>
                             </div>
 
-                            <!-- 沒有可用圖片時，顯示禮物圖示 -->
                             <!-- 沒有可用圖片時，顯示網站原本的禮物圖示 -->
                             <div v-else class="image-placeholder">
                                 <span class="image-placeholder-icon">
@@ -317,11 +407,8 @@ function requestClose() {
                                 <strong>
                                     {{ useBenefitTitle(selectedUseBenefit) }}
                                 </strong>
-                                <!-- <p>
-                                    持有特典編號：
-                                    {{ getUseBenefitId(selectedUseBenefit) }}
-                                </p> -->
-                                <p v-if="previewImageUrl" class="image-preview-hint">
+
+                                <p v-if="currentPreviewImageUrl" class="image-preview-hint">
                                     點擊圖片可放大查看
                                 </p>
                             </div>
@@ -361,12 +448,27 @@ function requestClose() {
             </button>
 
             <div class="image-preview-content">
-                <img :src="previewImageUrl"
+                <button v-if="hasMultipleImages" type="button" class="image-preview-nav image-preview-nav-prev"
+                    aria-label="查看上一張圖片" title="上一張" @click="previousPreviewImage">
+                    <Icon icon="mdi:chevron-left" aria-hidden="true" />
+                </button>
+
+                <img :key="previewImageUrl" :src="previewImageUrl"
                     :alt="`${selectedUseBenefit ? useBenefitTitle(selectedUseBenefit) : '持有特典'}－放大預覽`"
                     class="image-preview-large" @error="handleBenefitImageError(previewImageUrl)" />
 
+                <button v-if="hasMultipleImages" type="button" class="image-preview-nav image-preview-nav-next"
+                    aria-label="查看下一張圖片" title="下一張" @click="nextPreviewImage">
+                    <Icon icon="mdi:chevron-right" aria-hidden="true" />
+                </button>
+
                 <p v-if="selectedUseBenefit" class="image-preview-caption">
                     {{ useBenefitTitle(selectedUseBenefit) }}
+                </p>
+
+                <p v-if="hasMultipleImages" class="image-preview-count">
+                    {{ currentImageIndex + 1 }} /
+                    {{ previewImageUrls.length }}
                 </p>
             </div>
         </div>
@@ -527,30 +629,17 @@ textarea.form-control {
     background: #fff8f4;
 }
 
-/* 多張持有特典照片的預覽排列。 */
-.benefit-preview-image-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.35rem;
+/* 表單內的單張圖片瀏覽區。 */
+.benefit-preview-image-viewer {
+    position: relative;
+    display: flex;
     flex-shrink: 0;
-    width: 200px;
-    min-width: 0;
+    align-items: center;
+    justify-content: center;
+    width: 140px;
+    padding-bottom: 0;
 }
 
-/* 每張縮圖仍可點擊放大。 */
-.benefit-preview-image-list .benefit-preview-image-button {
-    width: 100%;
-    height: 96px;
-    min-width: 0;
-}
-
-/* 單張照片時，保留原本的縮圖尺寸。 */
-.benefit-preview-image-list:has(.benefit-preview-image-button:only-child) {
-    display: block;
-    width: 96px;
-}
-
-/* 小圖外層按鈕及圖片佔位區塊。 */
 .benefit-preview-image-button,
 .image-placeholder {
     display: grid;
@@ -585,6 +674,55 @@ textarea.form-control {
 .benefit-preview-image-button:focus-visible {
     outline: 3px solid #f2a58d;
     outline-offset: 3px;
+}
+
+/* 表單圖片左右切換按鈕。 */
+.benefit-image-nav {
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    padding: 0;
+    transform: translateY(-50%);
+    border: 1px solid #e8c9bc;
+    border-radius: 50%;
+    background: rgb(255 255 255 / 95%);
+    color: #8c5544;
+    cursor: pointer;
+    transition:
+        background-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.benefit-image-nav :deep(svg) {
+    width: 1.25rem;
+    height: 1.25rem;
+}
+
+.benefit-image-nav:hover {
+    background: #f8dfd4;
+}
+
+.benefit-image-nav-prev {
+    left: 0;
+}
+
+.benefit-image-nav-next {
+    right: 0;
+}
+
+.benefit-image-count {
+    position: absolute;
+    bottom: -1.2rem;
+    left: 50%;
+    color: #8c5544;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    white-space: nowrap;
+    transform: translateX(-50%);
 }
 
 /* 沒有可用圖片時的禮物佔位圖。 */
@@ -647,7 +785,7 @@ textarea.form-control {
     font-size: 0.76rem;
 }
 
-/* 圖片放大預覽視窗。Teleport 將預覽層放到 body，避免被表單或 AppModal 的 overflow、transform 等樣式裁切。 */
+/* 圖片放大預覽視窗。 */
 .image-preview-overlay {
     position: fixed;
     inset: 0;
@@ -661,6 +799,7 @@ textarea.form-control {
 }
 
 .image-preview-content {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -669,6 +808,7 @@ textarea.form-control {
     max-width: 1100px;
     max-height: 100%;
     min-width: 0;
+    padding: 0 3.25rem;
 }
 
 .image-preview-large {
@@ -682,7 +822,8 @@ textarea.form-control {
     box-shadow: 0 8px 32px rgb(0 0 0 / 30%);
 }
 
-.image-preview-caption {
+.image-preview-caption,
+.image-preview-count {
     max-width: 100%;
     margin: 0;
     color: #fff;
@@ -692,10 +833,54 @@ textarea.form-control {
     overflow-wrap: anywhere;
 }
 
+.image-preview-count {
+    font-size: 0.8rem;
+    opacity: 0.85;
+}
+
+/* 放大視窗左右切換按鈕。 */
+.image-preview-nav {
+    position: absolute;
+    top: 50%;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    transform: translateY(-50%);
+    border: 1px solid rgb(255 255 255 / 60%);
+    border-radius: 50%;
+    background: rgb(255 255 255 / 14%);
+    color: #fff;
+    cursor: pointer;
+    transition:
+        background-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.image-preview-nav :deep(svg) {
+    width: 2rem;
+    height: 2rem;
+}
+
+.image-preview-nav:hover {
+    background: rgb(255 255 255 / 28%);
+}
+
+.image-preview-nav-prev {
+    left: 0;
+}
+
+.image-preview-nav-next {
+    right: 0;
+}
+
 .image-preview-close {
     position: absolute;
     top: 1rem;
     right: 1rem;
+    z-index: 3;
     display: grid;
     place-items: center;
     width: 2.75rem;
@@ -720,7 +905,8 @@ textarea.form-control {
     transform: scale(1.05);
 }
 
-.image-preview-close:focus-visible {
+.image-preview-close:focus-visible,
+.image-preview-nav:focus-visible {
     outline: 2px solid #fff;
     outline-offset: 3px;
 }
@@ -807,7 +993,7 @@ textarea.form-control {
     display: none;
 }
 
-/* 防止固定在畫面中央的票券因滑鼠移入而位移。只影響本表單，不影響其他 TicketCard。 */
+/* 防止固定在畫面中央的票券因滑鼠移入而位移。 */
 .exchange-form-modal :deep(.ticket-frame),
 .exchange-form-modal :deep(.ticket-frame:hover) {
     filter: drop-shadow(0 8px 12px color-mix(in srgb, var(--c-ink) 20%, transparent));
@@ -849,9 +1035,13 @@ textarea.form-control {
     }
 
     .benefit-preview {
-        align-items: flex-start;
-        gap: 0.75rem;
+        align-items: center;
+        gap: 0.65rem;
         padding: 0.75rem;
+    }
+
+    .benefit-preview-image-viewer {
+        width: 112px;
     }
 
     .benefit-preview-image-button,
@@ -860,10 +1050,14 @@ textarea.form-control {
         height: 76px;
     }
 
-    /* 多張圖片時，讓每張縮圖填滿自己的格子。 */
-    .benefit-preview-image-list .benefit-preview-image-button {
-        width: 100%;
-        height: 76px;
+    .benefit-image-nav {
+        width: 1.6rem;
+        height: 1.6rem;
+    }
+
+    .benefit-image-nav :deep(svg) {
+        width: 1.1rem;
+        height: 1.1rem;
     }
 
     .image-placeholder-icon {
@@ -905,7 +1099,11 @@ textarea.form-control {
     }
 
     .image-preview-overlay {
-        padding: 3.5rem 0.75rem 1rem;
+        padding: 3.5rem 0.5rem 1rem;
+    }
+
+    .image-preview-content {
+        padding: 0 2.2rem;
     }
 
     .image-preview-large {
@@ -920,12 +1118,14 @@ textarea.form-control {
         height: 2.5rem;
     }
 
-    .benefit-preview-image-list {
-        width: 160px;
+    .image-preview-nav {
+        width: 2rem;
+        height: 2rem;
     }
 
-    .benefit-preview-image-list .benefit-preview-image-button {
-        height: 76px;
+    .image-preview-nav :deep(svg) {
+        width: 1.5rem;
+        height: 1.5rem;
     }
 }
 
@@ -936,7 +1136,9 @@ textarea.form-control {
     }
 
     .benefit-preview-image-button img,
-    .image-preview-close {
+    .image-preview-close,
+    .image-preview-nav,
+    .benefit-image-nav {
         transition: none;
     }
 }

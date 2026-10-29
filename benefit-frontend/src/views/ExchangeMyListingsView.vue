@@ -2,7 +2,8 @@
 <!-- 會員刊登管理頁面 -->
 
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, } from "vue";
+import { useRoute, useRouter } from "vue-router";
 import { Icon } from "@iconify/vue";
 import giftIcon from "@iconify-icons/mdi/gift-outline";
 import ticketIcon from "@iconify-icons/mdi/ticket";
@@ -25,7 +26,13 @@ import {
     getMyUseBenefits,
 } from "@/api/exchangeApi.js";
 
-const { token, isLoggedIn, refreshAuth } = useAuth();
+const { token, isLoggedIn, refreshAuth, logout, } = useAuth();
+
+const route = useRoute();
+const router = useRouter();
+
+// 避免多個 API 同時回傳 401 時重複處理。
+const authExpiredHandled = ref(false);
 
 const activeTab = ref("exchange");
 const loading = ref(false);
@@ -120,11 +127,44 @@ function statusLabel(status) {
     return status || "未知";
 }
 
+async function handleAuthExpired(error) {
+    if (authExpiredHandled.value) return;
+
+    authExpiredHandled.value = true;
+
+    console.warn(
+        "我的刊登頁收到 HTTP 401，清除本機登入狀態。",
+        error?.response?.data?.message || "",
+    );
+
+    logout();
+
+    await Swal.fire({
+        icon: "warning",
+        title: "登入狀態已失效",
+        text: "登入憑證可能已過期或無效，請重新登入後再繼續操作。",
+        confirmButtonText: "前往登入",
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+    });
+
+    await router.push({
+        name: "login",
+        query: {
+            redirect: route.fullPath,
+        },
+    });
+}
+
 function errorText(error) {
     const status = error?.response?.status;
 
-    if (status === 401 || status === 403) {
-        return "登入驗證失敗或目前帳號沒有此操作的權限，請重新登入。";
+    if (status === 401) {
+        return "登入憑證無效或已過期，請重新登入。";
+    }
+
+    if (status === 403) {
+        return "目前帳號沒有執行此操作的權限。";
     }
 
     if (status === 404) {
@@ -466,12 +506,25 @@ async function loadListings() {
             getMyTicketListings(token.value),
         ]);
 
+        // 先統一處理 HTTP 401，避免刊登錯誤重複顯示。
+        const unauthorizedResult = results.find(
+            (result) =>
+                result.status === "rejected" &&
+                result.reason?.response?.status === 401,
+        );
+
+        if (unauthorizedResult) {
+            await handleAuthExpired(unauthorizedResult.reason);
+            return;
+        }
+
         const failures = [];
+
 
         if (results[0].status === "fulfilled") {
             exchangeListings.value = unwrapList(
                 results[0].value,
-            );
+            ).filter(item => item?.status !== "DELETED");
         } else {
             failures.push(
                 `我的 特典刊登：${errorText(results[0].reason)}`,
@@ -481,7 +534,7 @@ async function loadListings() {
         if (results[1].status === "fulfilled") {
             ticketListings.value = unwrapList(
                 results[1].value,
-            );
+            ).filter(item => item?.status !== "DELETED");
         } else {
             failures.push(
                 `我的票券刊登：${errorText(results[1].reason)}`,
@@ -504,6 +557,17 @@ async function loadFormOptions() {
             ? getMyUseBenefits(token.value)
             : Promise.resolve([]),
     ]);
+
+    const unauthorizedResult = results.find(
+        (result) =>
+            result.status === "rejected" &&
+            result.reason?.response?.status === 401,
+    );
+
+    if (unauthorizedResult) {
+        await handleAuthExpired(unauthorizedResult.reason);
+        return;
+    }
 
     if (results[0].status === "fulfilled") {
         cinemas.value = unwrapList(results[0].value);
@@ -683,15 +747,29 @@ async function saveEdit() {
             "刊登修改成功。",
             "success",
         );
+
     } catch (error) {
+        if (error?.response?.status === 401) {
+            isModalOpen.value = false;
+            await handleAuthExpired(error);
+            return;
+        }
+
+        // 先隱藏修改刊登視窗，避免 SweetAlert2 被遮住。
+        isModalOpen.value = false;
+
         await Swal.fire(
             "修改失敗",
             errorText(error),
             "error",
         );
+
+        // 一般修改失敗時，保留原本表單資料並重新開啟視窗。
+        isModalOpen.value = true;
     } finally {
         saving.value = false;
     }
+
 }
 
 // ========== 刊登狀態修改 ==========
@@ -748,6 +826,11 @@ async function changeStatus(item, kind, status) {
             "success",
         );
     } catch (error) {
+        if (error?.response?.status === 401) {
+            await handleAuthExpired(error);
+            return;
+        }
+
         await Swal.fire(
             "修改失敗",
             errorText(error),
@@ -788,10 +871,6 @@ onMounted(async () => {
         </div>
 
         <template v-else>
-            <!-- 錯誤訊息 -->
-            <div v-if="errorMessage" class="alert alert-warning listing-error" role="alert">
-                {{ errorMessage }}
-            </div>
 
             <!-- 分類切換 -->
             <nav class="listing-tabs" aria-label="我的刊登分類">
@@ -861,9 +940,9 @@ onMounted(async () => {
                             </p>
 
                             <div class="exchange-card-bottom">
-                                <span class="status-label">
+                                <!-- <span class="status-label">
                                     {{ statusLabel(item.status) }}
-                                </span>
+                                </span> -->
 
                                 <!-- 保留原本的修改與狀態變更功能 -->
                                 <div class="exchange-card-actions">
@@ -968,9 +1047,9 @@ onMounted(async () => {
 
                             <!-- 卡片底部：保留原本的狀態與管理操作 -->
                             <div class="exchange-card-bottom ticket-card-bottom">
-                                <span class="status-label">
+                                <!-- <span class="status-label">
                                     {{ statusLabel(item.status) }}
-                                </span>
+                                </span> -->
 
                                 <div class="exchange-card-actions">
                                     <button class="btn btn-outline-primary" type="button"
@@ -1068,15 +1147,15 @@ onMounted(async () => {
                                     'id'
                                 ]
                             )" :value="String(
-                                    firstValue(
-                                        benefit,
-                                        [
-                                            'useBenefitId',
-                                            'use_benefit_id',
-                                            'id'
-                                        ]
-                                    )
-                                )">
+                                firstValue(
+                                    benefit,
+                                    [
+                                        'useBenefitId',
+                                        'use_benefit_id',
+                                        'id'
+                                    ]
+                                )
+                            )">
                                 {{
                                     firstValue(
                                         benefit,
@@ -1105,7 +1184,8 @@ onMounted(async () => {
                         </label>
 
                         <select id="my-listing-cinema" v-model="ticketForm.cinemaId" class="form-select" required
-                            :disabled="saving">
+                            disabled>
+
                             <option value="" disabled>
                                 請選擇影城
                             </option>
@@ -1122,7 +1202,8 @@ onMounted(async () => {
                         </label>
 
                         <select id="my-listing-movie" v-model="ticketForm.movieId" class="form-select" required
-                            :disabled="saving">
+                            disabled>
+
                             <option value="" disabled>
                                 請選擇電影
                             </option>
@@ -1154,12 +1235,11 @@ onMounted(async () => {
                             </svg>
 
                             <input id="my-listing-showtime" v-model="ticketForm.ticketShowtime"
-                                class="my-ticket-date-native" type="date" aria-label="選擇放映日期" required
-                                :disabled="saving" @click="openDatePicker" />
+                                class="my-ticket-date-native" type="date" aria-label="放映日期（不可修改）" required disabled />
                         </div>
 
                         <p class="form-text">
-                            請選擇票券的放映日期。
+                            修改刊登時，影城、電影及放映日期皆不可更換。
                         </p>
                     </div>
                 </template>
@@ -1302,13 +1382,15 @@ onMounted(async () => {
 
 .favorite-images {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-content: flex-start;
     flex-shrink: 0;
     gap: 8px;
     width: 120px;
     height: 100%;
-    overflow: hidden;
+    /* 左右滑動 */
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 .favorite-image {
@@ -1452,13 +1534,12 @@ onMounted(async () => {
 }
 
 /* ========== 卡片底部：狀態及管理操作 ========== */
-
 .exchange-card-bottom {
     display: flex;
     flex-shrink: 0;
     flex-wrap: wrap;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     gap: 8px;
     margin-top: auto;
 }
@@ -1601,9 +1682,11 @@ onMounted(async () => {
     opacity: 1;
 }
 
-.my-ticket-date-display:disabled {
-    background: #f5f2ef;
-    color: #7c818b;
+/* 修改票券刊登時，放映日期不可修改，顯示灰色背景 */
+.my-ticket-date-picker:has(.my-ticket-date-native:disabled) .my-ticket-date-display {
+    background: #e9ecef;
+    color: #292b35;
+    border-color: #ced4da;
     cursor: not-allowed;
 }
 
@@ -1781,14 +1864,19 @@ onMounted(async () => {
     }
 
     .exchange-card-bottom {
-        align-items: flex-start;
-        flex-direction: column;
-        gap: 6px;
+        align-items: center;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px;
     }
 
     .exchange-card-actions {
-        width: 100%;
-        gap: 6px;
+        width: auto;
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
     }
 
     .exchange-card-actions .btn {
@@ -1796,8 +1884,9 @@ onMounted(async () => {
     }
 
     .exchange-card-actions .status-select {
-        flex: 1;
-        min-width: 0;
+        flex: 0 0 auto;
+        width: auto;
+        min-width: 112px;
     }
 
     .edit-basic-fields {

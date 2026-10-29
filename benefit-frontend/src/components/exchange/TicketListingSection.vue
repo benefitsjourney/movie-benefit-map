@@ -110,6 +110,33 @@ function getTomorrowDate() {
 }
 
 const tomorrowDate = getTomorrowDate();
+
+// 日期顯示格式：將 YYYY-MM-DD 顯示為 YYYY/MM/DD。
+function displaySearchDate(value) {
+    return value ? value.replaceAll("-", "/") : "";
+}
+
+// ========== 點擊日期欄位時開啟日期選擇器 ==========
+function openDatePicker(event) {
+    const input = event.currentTarget;
+
+    if (!input) return;
+
+    // 優先使用瀏覽器提供的原生日期選擇器。
+    if (typeof input.showPicker === "function") {
+        try {
+            input.showPicker();
+            return;
+        } catch {
+            // 如果瀏覽器不允許程式開啟，
+            // 就保留原生日期欄位的操作方式。
+        }
+    }
+
+    // 不支援 showPicker() 時，仍讓日期欄位取得焦點。
+    input.focus();
+}
+
 const searchFilters = computed({
     get: () => ({
         keyword: keyword.value,
@@ -409,6 +436,17 @@ function openChat(item) {
     emit("open-chat", item);
 }
 
+function openChatFromDetail() {
+    if (!selectedListing.value || !props.isLoggedIn) {
+        return;
+    }
+
+    const item = selectedListing.value;
+
+    closeDetail();
+    openChat(item);
+}
+
 function handleKeydown(event) {
     if (event.key === "Escape" && selectedListing.value) {
         closeDetail();
@@ -438,29 +476,52 @@ onBeforeUnmount(() => {
                 <!-- 修改處：日期區間改為同一行排列 -->
                 <div class="ticket-filter-row">
                     <div class="ticket-date-range">
+                        <!-- 起始日期 -->
                         <div class="ticket-date-field">
                             <label for="ticket-start-date" class="form-label">
                                 起始日期
                             </label>
 
-                            <input id="ticket-start-date" v-model="startDate" type="date" class="form-control"
-                                :min="tomorrowDate" />
+                            <div class="ticket-date-picker">
+                                <!-- 可見欄位：只顯示日期，不直接接收文字選取 -->
+                                <input type="text" class="form-control ticket-date-display"
+                                    :value="displaySearchDate(startDate)" placeholder="年/月/日" readonly tabindex="-1"
+                                    aria-hidden="true" />
+
+                                <!-- 日曆圖示 -->
+                                <Icon :icon="calendarIcon" class="ticket-date-calendar-icon" aria-hidden="true" />
+
+                                <!-- 透明的原生日期欄位：覆蓋整個可見欄位 -->
+                                <input id="ticket-start-date" v-model="startDate" class="ticket-date-native" type="date"
+                                    aria-label="選擇起始日期" :min="tomorrowDate" @click="openDatePicker" />
+                            </div>
 
                             <small class="ticket-date-hint">
-                                僅查詢明天起的放映日期，不包含今天。
+                                可查詢的放映日期須為明天或之後。
                             </small>
                         </div>
 
                         <span class="ticket-date-separator" aria-hidden="true">～</span>
 
+                        <!-- 結束日期 -->
                         <div class="ticket-date-field">
-
                             <label for="ticket-end-date" class="form-label">
                                 結束日期
                             </label>
-                            <input id="ticket-end-date" v-model="endDate" type="date" class="form-control"
-                                :min="tomorrowDate" />
 
+                            <div class="ticket-date-picker">
+                                <!-- 可見欄位 -->
+                                <input type="text" class="form-control ticket-date-display"
+                                    :value="displaySearchDate(endDate)" placeholder="年/月/日" readonly tabindex="-1"
+                                    aria-hidden="true" />
+
+                                <!-- 日曆圖示 -->
+                                <Icon :icon="calendarIcon" class="ticket-date-calendar-icon" aria-hidden="true" />
+
+                                <!-- 透明的原生日期欄位 -->
+                                <input id="ticket-end-date" v-model="endDate" class="ticket-date-native" type="date"
+                                    aria-label="選擇結束日期" :min="tomorrowDate" @click="openDatePicker" />
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -766,7 +827,7 @@ onBeforeUnmount(() => {
                                             : isOwnListing(selectedListing)
                                                 ? '這是你自己的刊登，無法聯絡自己'
                                                 : '聯絡刊登者'
-                                            " @click.stop="openChat(selectedListing)">
+                                            " @click.stop="openChatFromDetail">
                                         <Icon :icon="chatIcon" aria-hidden="true" />
                                         <span>聯絡刊登者</span>
                                     </button>
@@ -781,34 +842,85 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* 隱藏提供 SearchFilter 判斷日期條件的內部 checkbox。
-   此元件的 checkbox 只作為清除按鈕顯示判斷，不提供使用者操作。 */
+/* 隱藏提供 SearchFilter 判斷日期條件的內部 checkbox */
 .ticket-listing-section :deep(.search-filter-grid > .field.is-check) {
     display: none;
 }
 
-/* 修改處：日期區間固定同一行，兩個日期框左右排列 */
-.ticket-filter-row {
-    display: flex;
-    align-items: flex-end;
-    flex-wrap: wrap;
-    gap: 0.85rem;
-    margin-bottom: 1.25rem;
+/* 搜尋區：桌面版將關鍵字、日期與搜尋按鈕排列在同一行 */
+.ticket-listing-section :deep(.search-filter) {
+    display: grid;
+    grid-template-columns:
+        minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: end;
+    column-gap: 0.8rem;
+    row-gap: 1rem;
 }
 
-.ticket-date-range {
-    display: flex;
-    flex: 1 1 400px;
-    align-items: flex-start;
-    gap: 0.75rem;
+/* 標題獨佔一行 */
+.ticket-listing-section :deep(.search-filter-head) {
+    grid-column: 1 / -1;
+}
+
+/* 讓表單內的關鍵字與按鈕參與外層 Grid 排列 */
+.ticket-listing-section :deep(.search-filter-grid) {
+    display: contents;
+}
+
+/* 關鍵字放在第一欄 */
+.ticket-listing-section :deep(.search-filter-grid > .field:not(.is-check)) {
+    grid-column: 1;
+    grid-row: 2;
     min-width: 0;
 }
 
+/* 搜尋按鈕放在最後一欄 */
+.ticket-listing-section :deep(.search-filter-actions) {
+    grid-column: 4;
+    grid-row: 2;
+    align-self: end;
+}
+
+/* 讓日期欄位參與同一個 Grid 排列 */
+.ticket-listing-section :deep(.search-filter-results) {
+    display: contents;
+}
+
+/* 日期外層不再另外占用一整行 */
+.ticket-filter-row {
+    display: contents;
+}
+
+.ticket-date-range {
+    display: contents;
+}
+
+/* 起始日期放在第二欄 */
+.ticket-listing-section :deep(.ticket-filter-row .ticket-date-field:first-child) {
+    grid-column: 2;
+    grid-row: 2;
+}
+
+/* 結束日期放在第三欄 */
+.ticket-listing-section :deep(.ticket-filter-row .ticket-date-field:last-child) {
+    grid-column: 3;
+    grid-row: 2;
+}
+
+/* 日期區間分隔符不另外占用欄位 */
+.ticket-date-separator {
+    display: none;
+}
+
+/* 搜尋結果與票券列表仍然占滿整行 */
+.ticket-listing-section :deep(.search-filter-results > :not(.ticket-filter-row)) {
+    grid-column: 1 / -1;
+}
+
+/* 日期欄位標籤 */
 .ticket-date-field {
     display: flex;
-    flex: 1 1 0;
     flex-direction: column;
-    align-self: flex-start;
     min-width: 0;
 }
 
@@ -818,10 +930,105 @@ onBeforeUnmount(() => {
     margin-bottom: 0.5rem;
 }
 
-.ticket-date-field .form-control {
+
+
+/* 電腦版：讓關鍵字、結束日期與搜尋按鈕
+   對齊起始日期的輸入欄位 */
+@media (min-width: 992px) {
+
+    /* 只調整關鍵字欄位 */
+    .ticket-listing-section :deep(.search-filter-grid > .field:not(.is-check)) {
+        align-self: start;
+        padding-top: 2px;
+        padding-bottom: 0;
+    }
+
+    /* 結束日期維持原本設定，不跟著關鍵字調整 */
+    .ticket-listing-section :deep(.ticket-filter-row .ticket-date-field:last-child) {
+        align-self: start;
+        padding-top: 0;
+        padding-bottom: 0;
+    }
+
+    /* 搜尋按鈕 */
+    .ticket-listing-section :deep(.search-filter-actions) {
+        align-self: start;
+        margin-top: 2.1rem;
+        padding-bottom: 0;
+    }
+
+    /* 搜尋按鈕下移至與日期輸入欄位相同的高度 */
+    .ticket-listing-section :deep(.search-filter-actions) {
+        align-self: start;
+        margin-top: 2.1rem;
+        padding-bottom: 0;
+    }
+}
+
+
+/* 日期欄位容器 */
+.ticket-date-picker {
+    position: relative;
     width: 100%;
     min-width: 0;
-    min-height: 42px;
+    min-height: 44px;
+    border-radius: 14px;
+}
+
+/* 可見日期欄位 */
+.ticket-date-display {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding-right: 2.8rem;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    caret-color: transparent;
+}
+
+.ticket-date-display::selection {
+    background: transparent;
+}
+
+/* 日曆圖示 */
+.ticket-date-calendar-icon {
+    position: absolute;
+    top: 50%;
+    right: 0.85rem;
+    z-index: 1;
+    width: 1.2rem;
+    height: 1.2rem;
+    color: #64748b;
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+
+/* 原生日期欄位覆蓋可見欄位 */
+.ticket-date-native {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 14px;
+    opacity: 0;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
+.ticket-date-picker:focus-within .ticket-date-display {
+    border-color: var(--filter-accent, #ff7049);
+    box-shadow: 0 0 0 3px var(--filter-focus, rgb(255 112 73 / 20%));
+}
+
+.ticket-date-native:disabled {
+    cursor: not-allowed;
 }
 
 .ticket-date-hint {
@@ -832,12 +1039,81 @@ onBeforeUnmount(() => {
     line-height: 1.5;
 }
 
-.ticket-date-separator {
-    flex-shrink: 0;
-    align-self: flex-start;
-    margin-top: 2.8rem;
-    color: #64748b;
-    font-weight: 700;
+/* 平板：避免四個項目擠在同一行 */
+@media (min-width: 768px) and (max-width: 991px) {
+    .ticket-listing-section :deep(.search-filter) {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    /* 平板：只調整關鍵字欄位本身的寬度 */
+    .ticket-listing-section :deep(.search-filter-grid > .field:not(.is-check)) {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    /* 關鍵字欄位 */
+    .ticket-listing-section :deep(.search-filter-actions) {
+        grid-column: 2;
+        grid-row: 2;
+        justify-self: end;
+        justify-content: flex-end;
+        transform: none;
+    }
+
+    /* 起始日期 */
+    .ticket-listing-section :deep(.ticket-filter-row .ticket-date-field:first-child) {
+        grid-column: 1;
+        grid-row: 3;
+    }
+
+    /* 結束日期 */
+    .ticket-listing-section :deep(.ticket-filter-row .ticket-date-field:last-child) {
+        grid-column: 2;
+        grid-row: 3;
+        transform: translateY(-1.55rem);
+    }
+}
+
+/* 手機：依序顯示關鍵字、起始日期、結束日期、搜尋按鈕 */
+@media (max-width: 767px) {
+    .ticket-listing-section :deep(.search-filter) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .ticket-listing-section :deep(.search-filter-grid > .field:not(.is-check)) {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    .ticket-listing-section :deep(.ticket-filter-row .ticket-date-field:first-child) {
+        grid-column: 1;
+        grid-row: 3;
+    }
+
+    .ticket-listing-section :deep(.ticket-filter-row .ticket-date-field:last-child) {
+        grid-column: 1;
+        grid-row: 4;
+    }
+
+    .ticket-listing-section :deep(.search-filter-actions) {
+        grid-column: 1;
+        grid-row: 5;
+        justify-self: start;
+    }
+
+    .ticket-date-field .form-label {
+        min-height: 0;
+        margin-bottom: 0.4rem;
+    }
+
+    .ticket-date-picker,
+    .ticket-date-display {
+        min-height: 46px;
+    }
+
+    .ticket-date-hint {
+        font-size: 0.8rem;
+    }
 }
 
 .ticket-grid {

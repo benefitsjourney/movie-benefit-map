@@ -4,6 +4,7 @@
 <script setup>
 import { ref, watch, onMounted, onBeforeUnmount } from "vue";
 import { Icon } from "@iconify/vue";
+import { useRouter } from "vue-router";
 
 import ticketIcon from "@iconify-icons/mdi/ticket";
 import accountIcon from "@iconify-icons/mdi/account";
@@ -29,6 +30,9 @@ const props = defineProps({
 });
 
 const emit = defineEmits(["remove-favorite"]);
+
+// 使用 Vue Router，前往刊登者的公開會員頁。
+const router = useRouter();
 
 // 目前選取的票券刊登，用於顯示詳細資訊視窗。
 const selectedListing = ref(null);
@@ -60,17 +64,62 @@ function listingTitle(item) {
     return item?.title || "未命名刊登";
 }
 
+// 取得刊登者 ID。
+// 參考 ExchangeFavoriteSection.vue 的 listingMemberId()。
+function listingMemberId(item) {
+    return (
+        item?.usersId ??
+        item?.users_id ??
+        item?.user?.usersId ??
+        item?.user?.users_id ??
+        item?.users?.usersId ??
+        item?.users?.users_id ??
+        item?.usersBean?.usersId ??
+        item?.usersBean?.users_id ??
+        null
+    );
+}
+
 // 取得刊登者名稱，沿用 TicketListingSection.vue 已提供的欄位。
 function listingUserName(item) {
     const name =
         item?.usersName ??
         item?.userName ??
         item?.username ??
-        item?.memberName;
+        item?.memberName ??
+        item?.user?.usersName ??
+        item?.users?.usersName ??
+        item?.usersBean?.usersName;
 
     return name !== null && name !== undefined && String(name).trim()
         ? String(name).trim()
         : "未提供";
+}
+
+// 前往刊登者的公開會員頁。
+// 參考 ExchangeFavoriteSection.vue 的 goToMember()。
+function goToMember(item) {
+    const memberId = listingMemberId(item);
+
+    if (
+        memberId === null ||
+        memberId === undefined ||
+        String(memberId).trim() === ""
+    ) {
+        console.warn(
+            "無法開啟會員頁：這筆票券刊登沒有可用的會員 ID。"
+        );
+        return;
+    }
+
+    closeDetail();
+
+    router.push({
+        name: "member-public",
+        params: {
+            id: String(memberId),
+        },
+    });
 }
 
 // 取得票券刊登敘述。
@@ -270,7 +319,7 @@ watch(
                         </header>
 
                         <div class="detail-modal-content">
-                            <!-- 刊登者 -->
+                            <!-- 刊登者：比照 ExchangeFavoriteSection.vue -->
                             <div class="detail-modal-publisher">
                                 <Icon :icon="accountIcon" aria-hidden="true" />
 
@@ -278,8 +327,13 @@ watch(
                                     刊登者
                                 </span>
 
-                                <span class="detail-modal-value">
+                                <button v-if="listingUserName(selectedListing) !== '未提供'" type="button"
+                                    class="member-name-link" @click="goToMember(selectedListing)">
                                     {{ listingUserName(selectedListing) }}
+                                </button>
+
+                                <span v-else class="detail-modal-value">
+                                    未提供
                                 </span>
                             </div>
 
@@ -502,7 +556,7 @@ watch(
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    align-self: flex-start;
+    align-self: flex-end;
     flex-shrink: 0;
     gap: 6px;
     margin-top: auto;
@@ -671,6 +725,34 @@ watch(
     color: #64748b;
     font-size: 0.92rem;
     font-weight: 650;
+}
+
+/* 刊登者名稱：參考 ExchangeFavoriteSection.vue */
+.member-name-link {
+    display: inline;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #334155;
+    font: inherit;
+    font-weight: 800;
+    text-align: left;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.member-name-link:hover {
+    color: #43866b;
+}
+
+.member-name-link:focus-visible {
+    outline: 2px solid #15803d;
+    outline-offset: 3px;
+    border-radius: 3px;
 }
 
 .detail-modal-value {
@@ -875,6 +957,12 @@ watch(
     .detail-favorite-button {
         width: 100%;
         min-height: 44px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .member-name-link {
+        transition: none;
     }
 }
 </style>

@@ -612,6 +612,15 @@ async function sendPrivateMessage(item = null) {
             return
         }
 
+        // 先關閉目前開啟的詳細視窗。
+        if (selectedExchangeListing.value) {
+            closeExchangeDetail()
+        }
+
+        if (selectedTicketListing.value) {
+            closeTicketDetail()
+        }
+
         // 通知 FloatingChat 開啟浮動視窗並進入指定聊天室。
         window.dispatchEvent(
             new CustomEvent('open-floating-chat', {

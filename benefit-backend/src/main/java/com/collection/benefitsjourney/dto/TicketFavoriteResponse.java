@@ -30,6 +30,7 @@ public class TicketFavoriteResponse {
     private LocalDateTime updatedAt;
 
     // 新增：票券刊登者會員名稱
+    private Integer usersId;
     private String usersName;
 
     // 影城、電影及放映時間
@@ -65,6 +66,7 @@ public class TicketFavoriteResponse {
             UsersBean usersBean = listing.getUsersBean();
 
             if (usersBean != null) {
+                response.setUsersId(usersBean.getUsersId());
                 response.setUsersName(usersBean.getName());
             }
 
