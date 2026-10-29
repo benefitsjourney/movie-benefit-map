@@ -180,12 +180,14 @@ function showZoom(benefit, event) {
     Math.max(ZOOM_MARGIN, window.innerHeight - height - ZOOM_MARGIN),
   );
 
+  const surface = event.currentTarget.parentElement?.querySelector(".benefit-item-body");
   zoomUrl.value = url;
   zoomStyle.value = {
     left: `${left}px`,
     top: `${top}px`,
     width: `${width}px`,
     height: `${height}px`,
+    backgroundColor: getComputedStyle(surface || event.currentTarget).backgroundColor,
   };
 }
 
@@ -495,7 +497,6 @@ onBeforeUnmount(() => {
   pointer-events: none;
   object-fit: contain;
   border-radius: 12px;
-  background: #fff;
   box-shadow: 0 16px 36px rgb(38 28 18 / 28%);
   animation: benefit-zoom-in 0.16s ease;
 }
