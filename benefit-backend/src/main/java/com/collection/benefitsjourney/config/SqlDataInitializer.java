@@ -2,6 +2,7 @@
 package com.collection.benefitsjourney.config;
 
 import java.io.IOException;
+
 import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -10,6 +11,7 @@ import java.sql.Statement;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.Set;
+import java.util.List;
 
 import javax.sql.DataSource;
 
@@ -44,6 +46,11 @@ public class SqlDataInitializer implements ApplicationRunner {
     private static final Set<String> AFTER_BENEFIT = Set.of(
             "benefit_report.sql", "inventory_report.sql", "reminder.sql", "use_benefit.sql", "user_contribution.sql");
 
+    /** 刊登相關：要等收藏（use_benefit）匯入後才能建，順序照外鍵寫死 */
+    private static final List<String> LISTING_ORDER = List.of(
+            "ticket_listing.sql", "ticket_favorite.sql",
+            "exchange_listing.sql", "exchange_favorite.sql");
+
     private final DataSource dataSource;
     private final ResourcePatternResolver resolver;
 
@@ -52,13 +59,17 @@ public class SqlDataInitializer implements ApplicationRunner {
         this.resolver = resolver;
     }
 
-    /** users 最先；電影與特典的中介表在 movie 之後；會員互動資料最後。 */
+    /** users 最先，電影與特典的中介表在movie之後，會員互動資料其次，刊登最後。 */
     private static String sortKey(String filename) {
         if ("users.sql".equals(filename)) {
             return "0" + filename;
         }
         if ("cinema_movie_benefit.sql".equals(filename)) {
             return "movie~.sql";
+        }
+        int listing = LISTING_ORDER.indexOf(filename);
+        if (listing >= 0) {
+            return "~~" + listing;   // ~~ 排在所有 ~ 開頭的後面，數字決定刊登之間的順序
         }
         return AFTER_BENEFIT.contains(filename) ? "~" + filename : filename;
     }
