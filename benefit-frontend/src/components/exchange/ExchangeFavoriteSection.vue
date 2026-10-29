@@ -424,7 +424,7 @@ watch(
 <template>
     <section class="exchange-favorites">
         <div v-if="favorites.length === 0" class="empty-state">
-            目前沒有收藏的特典刊登
+            目前沒有特典刊登收藏
         </div>
 
         <div v-else class="favorite-list">
