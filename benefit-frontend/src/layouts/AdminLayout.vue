@@ -12,6 +12,7 @@ import giftIcon from "@iconify-icons/mdi/gift-outline";
 import megaphoneIcon from "@iconify-icons/mdi/bullhorn-outline";
 import excelIcon from "@iconify-icons/mdi/microsoft-excel";
 import accountGroupIcon from "@iconify-icons/mdi/account-group-outline";
+import feedbackIcon from "@iconify-icons/mdi/comment-text-outline";
 
 const links = [
   {
@@ -67,6 +68,11 @@ const links = [
         label: "登入日誌",
         icon: historyIcon,
       },
+      {
+      to: "/admin/feedback",
+      label: "意見回饋管理",
+      icon: feedbackIcon,
+    },
     ],
   },
 ];
