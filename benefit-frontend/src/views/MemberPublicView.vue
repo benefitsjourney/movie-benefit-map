@@ -1032,7 +1032,15 @@ onBeforeUnmount(() => {
                                         {{ listingUserName(selectedExchangeListing) }}
                                     </span>
                                 </div>
-
+                                <!-- 特典名稱 -->
+                                <!-- <div class="detail-modal-section">
+                                    <h3>特典名稱</h3>
+                                    <span class="detail-modal-date-value">
+                                        {{ selectedExchangeListing.benefitName
+                                            || selectedExchangeListing.benefit_name
+                                            || '未提供' }}
+                                    </span>
+                                </div> -->
                                 <section class="detail-modal-section">
                                     <h3>刊登敘述</h3>
                                     <p class="detail-modal-description">

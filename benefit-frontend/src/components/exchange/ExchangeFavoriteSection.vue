@@ -464,9 +464,9 @@ watch(
 
                     <p class="favorite-benefit">
                         特典名稱 ：{{ listingBenefitName(favorite) }}
-                        <span v-if="listingBenefitType(favorite)">
+                        <!-- <span v-if="listingBenefitType(favorite)">
                             （{{ listingBenefitType(favorite) }}）
-                        </span>
+                        </span> -->
                     </p>
 
                     <p class="favorite-description">
@@ -525,9 +525,9 @@ watch(
                                 <span>
                                     {{ listingBenefitName(selectedListing) }}
 
-                                    <template v-if="listingBenefitType(selectedListing)">
+                                    <!-- <template v-if="listingBenefitType(selectedListing)">
                                         （{{ listingBenefitType(selectedListing) }}）
-                                    </template>
+                                    </template> -->
                                 </span>
                             </p>
 

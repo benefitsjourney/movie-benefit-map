@@ -380,7 +380,7 @@ function openAddTicket() {
 /** ========== 公開刊登自動更新 ========== */
 
 // 每 5 秒重新查詢一次公開刊登。
-const PUBLIC_LISTINGS_REFRESH_INTERVAL = 30_000;
+// const PUBLIC_LISTINGS_REFRESH_INTERVAL = 30_000;
 
 let publicListingsRefreshTimer = null;
 
@@ -397,18 +397,18 @@ onMounted(async () => {
     refreshAuth();
 
     // 定期更新公開刊登。
-    publicListingsRefreshTimer = window.setInterval(() => {
-        // 背景分頁不必定期發送請求。
-        if (document.visibilityState === "visible") {
-            void loadPublicListings();
-        }
-    }, PUBLIC_LISTINGS_REFRESH_INTERVAL);
+    // publicListingsRefreshTimer = window.setInterval(() => {
+    //     // 背景分頁不必定期發送請求。
+    //     if (document.visibilityState === "visible") {
+    //         void loadPublicListings();
+    //     }
+    // }, PUBLIC_LISTINGS_REFRESH_INTERVAL);
 
     // 切回瀏覽器分頁時立即更新。
-    document.addEventListener(
-        "visibilitychange",
-        handleVisibilityChange,
-    );
+    // document.addEventListener(
+    //     "visibilitychange",
+    //     handleVisibilityChange,
+    // );
 
     // 公開刊登與表單選項不要求登入。
     await Promise.all([
