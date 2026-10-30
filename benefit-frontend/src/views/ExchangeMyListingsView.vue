@@ -931,9 +931,9 @@ onMounted(async () => {
 
                             <p class="favorite-benefit">
                                 特典名稱：{{ listingBenefitName(item) }}
-                                <span v-if="listingBenefitType(item)">
+                                <!-- <span v-if="listingBenefitType(item)">
                                     （{{ listingBenefitType(item) }}）
-                                </span>
+                                </span> -->
                             </p>
 
                             <p class="favorite-description">
