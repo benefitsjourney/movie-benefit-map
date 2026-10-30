@@ -58,7 +58,7 @@
 ## 專案畫面
 
 <img width="1905" height="1244" alt="localhost_5173_map" src="https://github.com/user-attachments/assets/8ea0f301-c403-4863-8661-6474ab09f5a4" />
-<img width="1920" height="916" alt="localhost_5173_map (2)" src="https://github.com/user-attachments/assets/2f4c8b94-3a4d-49c1-bf1f-87789eb62bb6" />
+<img width="1920" height="914" alt="localhost_5173_map (2)" src="https://github.com/user-attachments/assets/039139cf-075c-4c32-98d4-8585d8fd0460" />
 <img width="1905" height="5215" alt="localhost_5173_benefits" src="https://github.com/user-attachments/assets/77422e08-d0d3-46e1-bb0b-ff2ae339d40a" />
 <img width="1905" height="1554" alt="localhost_5173_benefits_75" src="https://github.com/user-attachments/assets/0c6660be-478b-47c4-b755-6c18eba64e13" />
 <img width="1905" height="1060" alt="localhost_5173_admin_crawler" src="https://github.com/user-attachments/assets/635f840c-3837-49f7-bdf0-e55a7ffe232c" />
