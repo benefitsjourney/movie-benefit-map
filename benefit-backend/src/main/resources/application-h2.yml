@@ -7,7 +7,7 @@ spring:
     password: ""
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
     properties:
       hibernate:
         "[default_schema]": dbo

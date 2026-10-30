@@ -62,7 +62,7 @@ spring:
 #JWT
 jwt:
     token:
-        expire: 30
+        expire: 240
         secret: "Benefits1234Journey-Secret-Key-2026-Development-10-07-userLoginToken"
 
 logging:
