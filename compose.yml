@@ -1,7 +1,8 @@
-name: movie-benefit-map
+name: benefits-journey
 
 services:
   backend:
+    image: benefit-backend
     build:
       context: ./benefit-backend
       dockerfile: Dockerfile
@@ -18,6 +19,7 @@ services:
     restart: unless-stopped
 
   frontend:
+    image: benefit-frontend
     build:
       context: ./benefit-frontend
       dockerfile: Dockerfile
