@@ -12,10 +12,13 @@ import org.springframework.messaging.simp.config.ChannelRegistration;
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+    private final CorsOrigins corsOrigins;
 
     public WebSocketConfig(
-            WebSocketAuthInterceptor webSocketAuthInterceptor) {
+            WebSocketAuthInterceptor webSocketAuthInterceptor,
+            CorsOrigins corsOrigins) {
         this.webSocketAuthInterceptor = webSocketAuthInterceptor;
+        this.corsOrigins = corsOrigins;
     }
 
     @Override
@@ -40,13 +43,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
 
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns(
-                        "https://benefitsjourney.github.io",
-                        "https://movie-benefit-map.onrender.com",
-                        "http://localhost:5173",
-                        "http://127.0.0.1:5173",
-                        "http://192.168.36.110:9174",
-                        "http://192.168.36.50:9174",
-                        "https://rimmed-unaware-underwent.ngrok-free.dev");
+                .setAllowedOriginPatterns(corsOrigins.websocketOriginPatterns());
     }
 }

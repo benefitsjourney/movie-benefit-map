@@ -18,9 +18,11 @@ import com.collection.benefitsjourney.jwt.JsonWebTokenFilter;
 @Configuration
 public class SecurityConfig {
     private final JsonWebTokenFilter jsonWebTokenFilter;
+    private final CorsOrigins corsOrigins;
 
-    public SecurityConfig(JsonWebTokenFilter jsonWebTokenFilter) {
+    public SecurityConfig(JsonWebTokenFilter jsonWebTokenFilter, CorsOrigins corsOrigins) {
         this.jsonWebTokenFilter = jsonWebTokenFilter;
+        this.corsOrigins = corsOrigins;
     }
 
     // 跨域預檢沒有 Token，必須先放行，否則 GitHub Pages 的瀏覽器會被擋下
@@ -28,12 +30,8 @@ public class SecurityConfig {
     @Order(Ordered.HIGHEST_PRECEDENCE)
     public CorsFilter corsFilter() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of(
-                "https://benefitsjourney.github.io",
-                "https://movie-benefit-map.onrender.com",
-                "http://localhost:5173",
-                "http://192.168.36.110:9174",
-                "https://rimmed-unaware-underwent.ngrok-free.dev"));
+        config.setAllowedOrigins(corsOrigins.getAllowedOrigins());
+        config.setAllowedOriginPatterns(corsOrigins.getAllowedOriginPatterns());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
 

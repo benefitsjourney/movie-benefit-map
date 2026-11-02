@@ -33,15 +33,17 @@ services:
     restart: unless-stopped
 
   ngrok:
+    profiles:
+      - ngrok
     image: ngrok/ngrok:latest
     container_name: benefits-journey-ngrok
-    restart: unless-stopped
+    restart: "no"
     command:
       - http
       - frontend:80
       - --url
       - https://rimmed-unaware-underwent.ngrok-free.dev
     environment:
-      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN:-}
     depends_on:
       - frontend
