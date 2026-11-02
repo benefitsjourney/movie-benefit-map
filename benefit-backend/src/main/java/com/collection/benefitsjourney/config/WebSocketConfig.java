@@ -7,14 +7,14 @@ import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 
-
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final WebSocketAuthInterceptor webSocketAuthInterceptor;
+
     public WebSocketConfig(
-        WebSocketAuthInterceptor webSocketAuthInterceptor) {
+            WebSocketAuthInterceptor webSocketAuthInterceptor) {
         this.webSocketAuthInterceptor = webSocketAuthInterceptor;
     }
 
@@ -23,7 +23,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             ChannelRegistration registration) {
         registration.interceptors(webSocketAuthInterceptor);
     }
-
 
     // 設定 STOMP 訊息路由
     @Override
@@ -45,6 +44,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
                         "https://benefitsjourney.github.io",
                         "https://movie-benefit-map.onrender.com",
                         "http://localhost:5173",
-                        "http://127.0.0.1:5173");
+                        "http://127.0.0.1:5173",
+                        "http://192.168.36.110:9174",
+                        "http://192.168.36.50:9174",
+                        "https://rimmed-unaware-underwent.ngrok-free.dev");
     }
 }

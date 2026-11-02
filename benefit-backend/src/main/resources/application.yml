@@ -86,3 +86,5 @@ app:
     account: ${ADMIN_INIT_ACCOUNT:}
     password: ${ADMIN_INIT_PASSWORD:}
     email: ${ADMIN_INIT_EMAIL:}
+
+  password-reset-url: ${PASSWORD_RESET_URL:}
