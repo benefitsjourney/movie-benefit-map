@@ -31,3 +31,17 @@ services:
     ports:
       - "${FRONTEND_PORT:-9174}:80"
     restart: unless-stopped
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: benefits-journey-ngrok
+    restart: unless-stopped
+    command:
+      - http
+      - frontend:80
+      - --url
+      - https://rimmed-unaware-underwent.ngrok-free.dev
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    depends_on:
+      - frontend

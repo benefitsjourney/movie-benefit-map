@@ -32,7 +32,8 @@ public class SecurityConfig {
                 "https://benefitsjourney.github.io",
                 "https://movie-benefit-map.onrender.com",
                 "http://localhost:5173",
-                "http://192.168.36.110:9174"));
+                "http://192.168.36.110:9174",
+                "https://rimmed-unaware-underwent.ngrok-free.dev"));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
 
