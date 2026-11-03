@@ -34,7 +34,7 @@ public class PasswordResetService {
     @Value("${spring.mail.username}")
     private String mailUsername;
 
-    @Value("${app.password-reset-url:http://localhost:5173/reset-password}")
+    @Value("${PASSWORD_RESET_URL}")
     private String passwordResetUrl;
 
     private final SecureRandom secureRandom = new SecureRandom();
@@ -63,8 +63,7 @@ public class PasswordResetService {
             }
 
             // 讓之前尚未使用的 Token 失效
-            List<PasswordResetTokenBean> oldTokens =
-                    tokenRepository.findAllByUsersIdAndUsedFalse(user.getUsersId());
+            List<PasswordResetTokenBean> oldTokens = tokenRepository.findAllByUsersIdAndUsedFalse(user.getUsersId());
 
             oldTokens.forEach(token -> token.setUsed(true));
             tokenRepository.saveAll(oldTokens);
@@ -96,11 +95,11 @@ public class PasswordResetService {
             message.setSubject("密碼重設通知");
             message.setText(
                     "您好：\n\n"
-                    + "我們收到您的密碼重設申請。\n"
-                    + "請點擊以下連結設定新密碼：\n\n"
-                    + resetLink + "\n\n"
-                    + "此連結將於 15 分鐘後失效，且只能使用一次。\n"
-                    + "如果不是您本人提出申請，請忽略此郵件。");
+                            + "我們收到您的密碼重設申請。\n"
+                            + "請點擊以下連結設定新密碼：\n\n"
+                            + resetLink + "\n\n"
+                            + "此連結將於 15 分鐘後失效，且只能使用一次。\n"
+                            + "如果不是您本人提出申請，請忽略此郵件。");
 
             mailSender.send(message);
         });
@@ -135,8 +134,7 @@ public class PasswordResetService {
         user.setUpdatedAt(LocalDateTime.now());
 
         // 使用成功後，將此會員所有未使用的重設 Token 失效
-        List<PasswordResetTokenBean> tokens =
-                tokenRepository.findAllByUsersIdAndUsedFalse(user.getUsersId());
+        List<PasswordResetTokenBean> tokens = tokenRepository.findAllByUsersIdAndUsedFalse(user.getUsersId());
 
         tokens.forEach(token -> token.setUsed(true));
 
