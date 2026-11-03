@@ -160,10 +160,4 @@ mvnw.cmd test
 
 測試以 Mock 的 WebMvc 與 Service 單元測試為主，涵蓋電影、影城、地圖、庫存回報、貼文解析（含威秀、秀泰規則）、日期調整、Excel 匯出、爬蟲匯入與健康檢查；這些不需要 Cloudinary、Apify 或管理員環境變數。`BenefitsjourneyApplicationTests` 與 `BenefitAdminServiceTransactionTest` 會啟動 Spring context，因此一樣要有 `.env` 的 `MAIL_USERNAME`、`MAIL_PASSWORD`，且預設會連本機 SQL Server。不想連 SQL Server 時，執行這兩類測試前先設 `DB_TYPE=h2`。
 
-## 架構補充（建議後續新增）
-
-- 系統模組／分層架構圖。
-- 核心資料表與關聯圖（ERD）。
-- 貼文匯入及管理員審核的實際流程圖。
-
 完整專案介紹與線上測試入口請見 [專案首頁](../README.md)。
